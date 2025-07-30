@@ -1,0 +1,90 @@
+/* Estilos para campos multianuales */
+.multiyear-fields {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid #dee2e6;
+}
+
+.multiyear-year-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.year-input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.year-input-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.875rem;
+}
+
+.year-select {
+  padding: 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: white;
+  transition: all 0.3s ease;
+}
+
+.year-select:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+.year-select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+  color: #6c757d;
+}
+
+/* Mensaje de error */
+.year-range-error {
+  color: #dc3545;
+  font-size: 0.75rem;
+  margin-top: 10px;
+  background-color: #f8d7da;
+  padding: 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* Información adicional */
+.multiyear-info {
+  margin-top: 15px;
+  background-color: #e7f3ff;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 0.8rem;
+  color: #0066cc;
+}
+
+.multiyear-info p {
+  margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .multiyear-year-selector {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .year-select {
+    font-size: 0.8rem;
+    padding: 8px;
+  }
+
+  .year-range-error,
+  .multiyear-info {
+    font-size: 0.7rem;
+    padding: 6px;
+  }
+}

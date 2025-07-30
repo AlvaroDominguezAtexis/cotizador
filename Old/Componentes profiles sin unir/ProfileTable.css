@@ -1,0 +1,49 @@
+/* src/components/profiles/ProfileTable.css */
+.profile-table-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.profile-name-cell {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #333;
+}
+
+.profile-salary-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #495057;
+}
+
+.profile-actions-cell {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .profile-actions-cell {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .profile-table-container {
+    background: #2c2c2c;
+  }
+
+  .profile-name-cell {
+    color: #e0e0e0;
+  }
+
+  .profile-salary-cell {
+    color: #b0b0b0;
+  }
+}

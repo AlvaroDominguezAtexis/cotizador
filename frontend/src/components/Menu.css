@@ -1,0 +1,180 @@
+/* Make header title and subtitle blue in the menu context */
+.menu-outer .header-title,
+.menu-outer .header-subtitle {
+  color: #1976d2 !important;
+}
+.logout-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.08rem;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.logout-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: #e3e8ee;
+}
+
+body, .app {
+  background: #f5f7fa;
+  min-height: 100vh;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  letter-spacing: -0.01em;
+  color: #222;
+}
+
+.menu-outer {
+  min-height: 100vh;
+  width: 100vw;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-container {
+  width: 100vw;
+  min-height: calc(100vh - 72px);
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 2px 16px rgba(25, 118, 210, 0.06);
+  padding: 48px 4vw 36px 4vw;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+/* Header bar for logo */
+.app-header {
+  width: 100vw;
+  height: 72px;
+  background: #1976d2;
+  display: flex;
+  align-items: center;
+  padding: 0 3vw;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+  margin-bottom: 0;
+}
+.app-header .logo {
+  height: 44px;
+  width: auto;
+  display: block;
+}
+
+.menu-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 36px;
+  gap: 18px;
+}
+
+.menu-header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 0;
+  color: #1976d2;
+  letter-spacing: -1px;
+}
+
+.menu-actions {
+  display: flex;
+  gap: 18px;
+}
+.create-quote-btn, .compare-btn {
+  background: linear-gradient(90deg, #1976d2 60%, #42a5f5 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 32px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 0.2s, background 0.2s;
+  box-shadow: 0 2px 12px rgba(25, 118, 210, 0.10);
+  outline: none;
+}
+.create-quote-btn:hover, .compare-btn:hover {
+  background: linear-gradient(90deg, #1565c0 60%, #42a5f5 100%);
+  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.16);
+}
+/* Filter and sort bar */
+.filter-sort-bar {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 22px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-input {
+  padding: 12px 18px;
+  border: 1.5px solid #e3e8ee;
+  border-radius: 8px;
+  font-size: 1.08rem;
+  min-width: 240px;
+  background: #f8fafc;
+  transition: border 0.2s;
+}
+.filter-input:focus {
+  border: 1.5px solid #1976d2;
+  outline: none;
+}
+.sort-select {
+  padding: 12px 18px;
+  border: 1.5px solid #e3e8ee;
+  border-radius: 8px;
+  font-size: 1.08rem;
+  background: #f8fafc;
+  transition: border 0.2s;
+}
+.sort-select:focus {
+  border: 1.5px solid #1976d2;
+  outline: none;
+}
+
+/* Table styles for project summary */
+.quotes-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: 12px;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(25, 118, 210, 0.06);
+}
+.quotes-table th, .quotes-table td {
+  padding: 18px 14px;
+  text-align: left;
+}
+.quotes-table th {
+  background: #f5f7fa;
+  color: #1976d2;
+  font-size: 1.12rem;
+  font-weight: 800;
+  border-bottom: 2px solid #e3e8ee;
+  letter-spacing: -0.5px;
+}
+.quotes-table tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s;
+}
+.quotes-table tr:hover {
+  background: #f5f7fa;
+}
+.quotes-table tr:last-child {
+  border-bottom: none;
+}
+.quotes-table td {
+  font-size: 1.05rem;
+  color: #222;
+}
+.quotes-table .action-cell {
+  text-align: right;
+}

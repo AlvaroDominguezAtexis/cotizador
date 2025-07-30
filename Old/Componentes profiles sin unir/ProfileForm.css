@@ -1,0 +1,98 @@
+/* src/components/profiles/ProfileForm.css */
+.profile-form {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.profile-form-header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 15px;
+}
+
+.profile-form-header h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 0;
+}
+
+.profile-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.profile-form-section-title {
+  font-size: 1.2rem;
+  color: #495057;
+  margin-bottom: 10px;
+}
+
+.profile-salary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.profile-salary-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e9ecef;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .profile-form {
+    padding: 15px;
+  }
+
+  .profile-salary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-form-actions {
+    flex-direction: column-reverse;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .profile-form {
+    background: #2c2c2c;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  .profile-form-header {
+    border-bottom-color: #404040;
+  }
+
+  .profile-form-header h2 {
+    color: #e0e0e0;
+  }
+
+  .profile-form-section-title {
+    color: #b0b0b0;
+  }
+
+  .profile-form-actions {
+    border-top-color: #404040;
+  }
+}

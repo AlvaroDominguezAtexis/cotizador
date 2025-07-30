@@ -1,0 +1,114 @@
+/* Estilos para la tabla de Steps */
+.steps-table-container {
+  overflow-x: auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.steps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.steps-table th {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.steps-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+.steps-table tr:hover {
+  background-color: #f1f3f5;
+}
+
+/* Estilos para inputs */
+.steps-table input,
+.steps-table select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.steps-table input:focus,
+.steps-table select:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+/* Estilos para inputs numéricos */
+.steps-table input[type="number"] {
+  text-align: right;
+}
+
+.steps-table input[type="number"]::-webkit-outer-spin-button,
+.steps-table input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Columnas específicas */
+.steps-table th:nth-child(1) { width: 15%; } /* Nombre */
+.steps-table th:nth-child(2) { width: 12%; } /* Perfil */
+.steps-table th:nth-child(3) { width: 10%; } /* País */
+.steps-table th:nth-child(4) { width: 8%; }  /* Tiempo */
+.steps-table th:nth-child(5) { width: 8%; }  /* Unidades */
+.steps-table th:nth-child(6) { width: 7%; }  /* Office */
+.steps-table th:nth-child(7) { width: 7%; }  /* IT */
+.steps-table th:nth-child(8) { width: 7%; }  /* % Mng */
+.steps-table th:nth-child(9) { width: 7%; }  /* % NPT */
+.steps-table th:nth-child(10) { width: 8%; } /* Licencias */
+.steps-table th:nth-child(11) { width: 8%; } /* Acciones */
+
+/* Estilos para botones en la tabla */
+.steps-table .btn {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .steps-table {
+    font-size: 0.8rem;
+  }
+
+  .steps-table th,
+  .steps-table td {
+    padding: 6px;
+  }
+
+  .steps-table input,
+  .steps-table select {
+    font-size: 0.75rem;
+    padding: 4px 6px;
+  }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.steps-table tbody tr {
+  animation: fadeIn 0.3s ease-out;
+}

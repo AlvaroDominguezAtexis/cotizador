@@ -1,0 +1,100 @@
+/* Estilos previamente definidos... */
+  .license-type-select {
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .form-group label {
+    font-size: 0.9rem;
+  }
+
+  .license-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .license-form-actions button {
+    width: 100%;
+  }
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.license-form-grid > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Estilos de focus */
+.license-type-select:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+/* Variantes de estado */
+.license-form.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.license-form.error {
+  border: 2px solid #dc3545;
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Tema oscuro */
+@media (prefers-color-scheme: dark) {
+  .license-form {
+    background-color: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+  }
+
+  .form-group label {
+    color: #e2e8f0;
+  }
+
+  .license-type-select {
+    background-color: #4a5568;
+    color: #e2e8f0;
+    border-color: #718096;
+  }
+
+  .checkbox-group {
+    color: #e2e8f0;
+  }
+}
+
+/* Accesibilidad */
+.license-form input:focus,
+.license-form select:focus,
+.license-form textarea:focus {
+  outline: 2px solid #0070CE;
+  outline-offset: 2px;
+}
+
+/* Impresión */
+@media print {
+  .license-form {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+
+  .license-form-actions {
+    display: none;
+  }
+}

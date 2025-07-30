@@ -1,0 +1,146 @@
+/* --- Estilo para fila editable en todas las tablas de costes --- */
+.new-cost-row {
+  background-color: #f1f3f5; /* Resaltar fila */
+  transition: background-color 0.2s ease;
+}
+
+.new-cost-row td {
+  padding: 8px;
+  vertical-align: middle;
+}
+
+/* Inputs dentro de fila editable */
+.new-cost-row .cost-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.new-cost-row .cost-input:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+/* Checkbox alineado correctamente */
+.new-cost-row input[type="checkbox"] {
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+/* Contenedor de acciones de fila */
+.table-row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* Hover */
+.table-hoverable .new-cost-row:hover {
+  background-color: #e9ecef;
+}
+
+.cost-table-total {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cost-table-total-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 250px;
+  background-color: #f8f9fa;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #495057;
+}
+
+.total-row-highlight {
+  font-weight: 600;
+  color: #212529;
+  border-top: 1px solid #dee2e6;
+  padding-top: 4px;
+}
+
+.costs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 4px 0;
+}
+
+.costs-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+}
+
+.costs-header .button {
+  padding: 6px 12px; /* ajusta el padding */
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.table-row-actions button {
+  min-width: 70px;
+}
+
+/* Ajuste general de filas */
+.cost-table-container .table td,
+.cost-table-container .table th {
+  padding: 12px 5px; /* más espacio vertical */
+  vertical-align: middle;
+}
+
+/* Contenedor de acciones de fila */
+.table-row-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+
+.costs-header {
+  display: flex;
+  justify-content: flex-end; /* Alinea el contenido a la derecha */
+  margin-bottom: 14px;        /* Separa de la tabla */
+}
+
+.costs-header .button {
+  padding: 6px 12px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+/* Responsivo */
+@media (max-width: 768px) {
+  .new-cost-row td {
+    padding: 6px;
+  }
+
+  .new-cost-row .cost-input {
+    font-size: 13px;
+    padding: 5px 6px;
+  }
+
+  .table-row-actions {
+    gap: 6px;
+  }
+}
+
+

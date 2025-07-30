@@ -1,0 +1,82 @@
+/* src/components/profiles/ProfilesList.css */
+.profiles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profiles-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.profiles-list-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.profiles-list-form-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.profiles-list-form-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .profiles-list-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .profiles-list-form-container {
+    margin: 0 15px;
+    width: calc(100% - 30px);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .profiles-list-title {
+    color: #e0e0e0;
+  }
+
+  .profiles-list-form-container {
+    background: #2c2c2c;
+    color: #e0e0e0;
+  }
+}

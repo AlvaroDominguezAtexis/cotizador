@@ -1,7 +1,9 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+types.setTypeParser(1082, val => val); // Devuelve string "YYYY-MM-DD"
 
 export const db = new Pool({
   host: process.env.DB_HOST || 'localhost',

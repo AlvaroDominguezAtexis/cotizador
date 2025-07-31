@@ -12,37 +12,14 @@ import { Menu } from './components/Menu';
 import { TabNavigation } from './components/layout/TabNavigation';
 import './App.css';
 
-// 🔹 Exportamos la función para usarla en Menu.tsx
+// 🔹 Función para mapear proyectos desde el backend
 export const mapProjectFromBackend = (data: any): ProjectData => {
   const safeData = data || {};
 
   const safeFormatDate = (date: any): string => {
     if (!date) return '';
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return date;
-    }
-    if (typeof date === 'string' && date.includes('T')) {
-      return date.split('T')[0];
-    }
-    const toLocalYMD = (d: Date) => {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    if (date instanceof Date && !isNaN(date.getTime())) {
-      return toLocalYMD(date);
-    }
-    if (typeof date === 'number') {
-      const dateObj = new Date(date);
-      if (!isNaN(dateObj.getTime())) {
-        return toLocalYMD(dateObj);
-      }
-    }
-    const tryDate = new Date(date);
-    if (!isNaN(tryDate.getTime())) {
-      return toLocalYMD(tryDate);
-    }
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+    if (typeof date === 'string' && date.includes('T')) return date.split('T')[0];
     return '';
   };
 
@@ -89,7 +66,7 @@ interface ExtendedProjectData extends ProjectData {
   [key: string]: any;
 }
 
-// Hook de autenticación
+// 🔹 Hook de autenticación
 const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<string | null>(null);
@@ -124,7 +101,7 @@ const useAuth = () => {
   return { isLoggedIn, user, login, logout };
 };
 
-// Hook para tabs
+// 🔹 Hook para tabs
 const useTabs = () => {
   const [activeTab, setActiveTab] = useState<TabName>('project-data');
   const switchTab = (tabName: TabName) => setActiveTab(tabName);
@@ -147,16 +124,14 @@ const App: React.FC = () => {
     const success = await login(credentials.username, credentials.password);
     return success;
   };
+
+  // 🔹 Devuelve la fecha tal cual, sin usar `new Date` para evitar desfases
   const formatDateLocal = (dateStr?: string) => {
     if (!dateStr) return null;
-    // Aseguramos que se devuelva exactamente lo que el input date genera: YYYY-MM-DD
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return dateStr; // input type="date" ya entrega YYYY-MM-DD
   };
-  // Map hacia backend
+
+  // 🔹 Map hacia backend
   const mapToBackend = (data: ProjectData, isNew: boolean) => {
     const cleanData: any = {
       ...(data.id ? { id: data.id } : {}),

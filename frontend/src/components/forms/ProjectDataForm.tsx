@@ -27,6 +27,52 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     fetchBusinessUnits();
   }, []);
 
+
+  const [buLines, setBuLines] = useState<{ id: string; name: string }[]>([]);
+  const [opsDomains, setOpsDomains] = useState<{ id: string; name: string }[]>([]);
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const res = await fetch('/clients');
+        if (!res.ok) throw new Error('Error fetching clients');
+        const data = await res.json();
+        setClients(data);
+      } catch (err) {
+        setClients([]);
+      }
+    };
+    fetchClients();
+  }, []);
+
+  useEffect(() => {
+    const fetchBuLines = async () => {
+      try {
+        const res = await fetch('/bu-lines');
+        if (!res.ok) throw new Error('Error fetching BU lines');
+        const data = await res.json();
+        setBuLines(data);
+      } catch (err) {
+        setBuLines([]);
+      }
+    };
+    fetchBuLines();
+  }, []);
+
+  useEffect(() => {
+    const fetchOpsDomains = async () => {
+      try {
+        const res = await fetch('/ops-domains');
+        if (!res.ok) throw new Error('Error fetching ops domains');
+        const data = await res.json();
+        setOpsDomains(data);
+      } catch (err) {
+        setOpsDomains([]);
+      }
+    };
+    fetchOpsDomains();
+  }, []);
+
   const [formData, setFormData] = useState<ProjectData>(
     initialValues || {
       title: '',
@@ -37,6 +83,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
       endDate: '',
       businessManager: '',
       businessUnit: '',
+      buLine: '',
       opsDomain: '',
       country: '',
       scope: 'local',
@@ -96,12 +143,16 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
         <div className="form-group">
           <label>Cliente</label>
-          <input
-            type="text"
+          <select
             name="client"
             value={formData.client}
             onChange={handleInputChange}
-          />
+          >
+            <option value="">Selecciona un cliente</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">
@@ -151,12 +202,30 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
         <div className="form-group">
           <label>Dominio Operativo</label>
-          <input
-            type="text"
+          <select
             name="opsDomain"
             value={formData.opsDomain}
             onChange={handleInputChange}
-          />
+          >
+            <option value="">Seleccione un dominio</option>
+            {opsDomains.map((domain) => (
+              <option key={domain.id} value={domain.name}>{domain.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>BU Line</label>
+          <select
+            name="buLine"
+            value={formData.buLine || ''}
+            onChange={handleInputChange}
+          >
+            <option value="">Seleccione una línea</option>
+            {buLines.map((line) => (
+              <option key={line.id} value={line.name}>{line.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">
@@ -194,13 +263,16 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
         <div className="form-group">
           <label>IQP</label>
-          <input
-            type="number"
+          <select
             name="iqp"
             value={formData.iqp}
             onChange={handleInputChange}
-            min={0}
-          />
+          >
+            <option value="">Seleccione IQP</option>
+            {[1,2,3,4,5].map(val => (
+              <option key={val} value={val}>{val}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">

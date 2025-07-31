@@ -11,6 +11,7 @@ export interface ProjectData {
   endDate: string;
   businessManager: string;
   businessUnit: string;
+  buLine: string;
   opsDomain: string;
   country: string;
   scope: 'local' | 'transnational';

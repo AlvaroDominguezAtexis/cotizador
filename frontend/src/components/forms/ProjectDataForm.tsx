@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CountrySelector from './CountrySelector';
 import { ProjectData } from '../../types/project';
 import './ProjectDataForm.css';
 
@@ -38,12 +39,13 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
-      if (onChange) onChange(updated);
-      return updated;
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  // Only call onChange when formData actually changes
+  React.useEffect(() => {
+    if (onChange) onChange(formData);
+  }, [formData, onChange]);
 
 
 
@@ -145,12 +147,13 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>País</label>
-          <input
-            type="text"
-            name="country"
-            value={formData.country}
-            onChange={handleInputChange}
+          <label>País(es)</label>
+          <CountrySelector
+            selectedCountries={formData.additionalCountries || []}
+            onChange={(countries) => {
+              setFormData((prev) => ({ ...prev, additionalCountries: countries }));
+            }}
+            max={10}
           />
         </div>
 

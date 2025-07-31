@@ -1,22 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './CountrySelector.css';
 
-// Lista de países predefinida (puedes expandirla)
-const AVAILABLE_COUNTRIES = [
-  { code: 'es', name: 'España' },
-  { code: 'fr', name: 'Francia' },
-  { code: 'pt', name: 'Portugal' },
-  { code: 'de', name: 'Alemania' },
-  { code: 'it', name: 'Italia' },
-  { code: 'uk', name: 'Reino Unido' },
-  { code: 'us', name: 'Estados Unidos' },
-  { code: 'ca', name: 'Canadá' },
-  { code: 'br', name: 'Brasil' },
-  { code: 'ar', name: 'Argentina' },
-  { code: 'in', name: 'India' },
-  { code: 'cn', name: 'China' },
-  { code: 'jp', name: 'Japón' }
-];
+
+interface Country {
+  id: string;
+  name: string;
+}
 
 interface CountrySelectorProps {
   selectedCountries?: string[];
@@ -31,54 +20,72 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
 }) => {
   const [countries, setCountries] = useState<string[]>(selectedCountries);
   const [searchTerm, setSearchTerm] = useState('');
+  const [availableCountries, setAvailableCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch countries from backend on mount
+  useEffect(() => {
+    const fetchCountries = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/countries');
+        if (!res.ok) throw new Error('Error fetching countries');
+        const data = await res.json();
+        setAvailableCountries(data);
+      } catch (err: any) {
+        setError('No se pudieron cargar los países');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   // Efecto para notificar cambios
   useEffect(() => {
     onChange(countries);
   }, [countries, onChange]);
 
+
   // Filtrar países disponibles
-  const availableCountries = AVAILABLE_COUNTRIES
-    .filter(country => 
-      // Filtrar países no seleccionados
-      !countries.includes(country.code) && 
-      // Filtrar por término de búsqueda
+  const filteredCountries = availableCountries
+    .filter(country =>
+      !countries.includes(country.id) &&
       country.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   // Agregar país
-  const addCountry = (countryCode: string) => {
-    if (countries.length < max && !countries.includes(countryCode)) {
-      setCountries(prev => [...prev, countryCode]);
+  const addCountry = (countryId: string) => {
+    if (countries.length < max && !countries.includes(countryId)) {
+      setCountries(prev => [...prev, countryId]);
       setSearchTerm('');
     }
   };
 
   // Eliminar país
-  const removeCountry = (countryCode: string) => {
-    setCountries(prev => prev.filter(code => code !== countryCode));
+  const removeCountry = (countryId: string) => {
+    setCountries(prev => prev.filter(id => id !== countryId));
   };
 
   return (
     <div className="country-selector">
       <div className="country-selector-header">
-        <label>Países Participantes:</label>
-        <small className="country-selector-hint">
-          Seleccione hasta {max} países
-        </small>
+        <label>Involved countries</label>
       </div>
 
       {/* Países seleccionados */}
       <div className="selected-countries">
-        {countries.map(code => {
-          const country = AVAILABLE_COUNTRIES.find(c => c.code === code);
+        {countries.map(id => {
+          const country = availableCountries.find(c => c.id === id);
           return (
-            <div key={code} className="selected-country-tag">
-              {country?.name}
+            <div key={id} className="selected-country-tag">
+              {country?.name || id}
               <button 
                 type="button"
                 className="remove-country-btn"
-                onClick={() => removeCountry(code)}
+                onClick={() => removeCountry(id)}
               >
                 ✕
               </button>
@@ -91,21 +98,21 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
       <div className="country-search-container">
         <input 
           type="text"
-          placeholder="Buscar país..."
+          placeholder="Select country..."
           className="country-search-input"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           disabled={countries.length >= max}
         />
 
-        {searchTerm && availableCountries.length > 0 && (
+        {searchTerm && filteredCountries.length > 0 && (
           <div className="country-suggestions">
-            {availableCountries.map(country => (
+            {filteredCountries.map(country => (
               <button
-                key={country.code}
+                key={country.id}
                 type="button"
                 className="country-suggestion-item"
-                onClick={() => addCountry(country.code)}
+                onClick={() => addCountry(country.id)}
               >
                 {country.name}
               </button>
@@ -114,8 +121,10 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
         )}
       </div>
 
-      {/* Mensaje cuando se alcanza el máximo */}
-      {countries.length >= max && (
+      {/* Mensajes de estado */}
+      {loading && <div className="country-selector-hint">Cargando países...</div>}
+      {error && <div className="country-selector-max-warning">{error}</div>}
+      {countries.length >= max && !loading && (
         <div className="country-selector-max-warning">
           Se ha alcanzado el número máximo de países ({max})
         </div>

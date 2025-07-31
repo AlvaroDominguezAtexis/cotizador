@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CountrySelector from './CountrySelector';
 import { ProjectData } from '../../types/project';
 import './ProjectDataForm.css';
@@ -8,7 +8,25 @@ interface Props {
   initialValues?: ProjectData;
 }
 
+
+type BusinessUnit = { id: string; name: string };
+
 const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnit[]>([]);
+  useEffect(() => {
+    const fetchBusinessUnits = async () => {
+      try {
+        const res = await fetch('/business-units');
+        if (!res.ok) throw new Error('Error fetching business units');
+        const data = await res.json();
+        setBusinessUnits(data);
+      } catch (err) {
+        setBusinessUnits([]);
+      }
+    };
+    fetchBusinessUnits();
+  }, []);
+
   const [formData, setFormData] = useState<ProjectData>(
     initialValues || {
       title: '',
@@ -118,13 +136,18 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
         <div className="form-group">
           <label>Unidad de Negocio</label>
-          <input
-            type="text"
+          <select
             name="businessUnit"
             value={formData.businessUnit}
             onChange={handleInputChange}
-          />
+          >
+            <option value="">Seleccione una unidad</option>
+            {businessUnits.map((unit) => (
+              <option key={unit.id} value={unit.name}>{unit.name}</option>
+            ))}
+          </select>
         </div>
+
 
         <div className="form-group">
           <label>Dominio Operativo</label>

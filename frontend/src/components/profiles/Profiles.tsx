@@ -7,6 +7,27 @@ import { Button } from '../ui/Button';
 import { Profile } from '../../types/profile';
 // import { COUNTRIES } from '../../types/common';
 import './Profiles.css';
+import { useEffect as useLayoutEffect } from 'react';
+// Hook para obtener salarios oficiales por perfil y país
+function useOfficialProfileSalaries() {
+  const [salaries, setSalaries] = useState<{ [profileId: string]: { [countryId: string]: number } }>({});
+  useEffect(() => {
+    fetch('/officialprofile-salaries')
+      .then(res => res.json())
+      .then((data: Array<{ profile_id: string | number; country_id: string | number; salary: number }>) => {
+        const map: { [profileId: string]: { [countryId: string]: number } } = {};
+        data.forEach(row => {
+          const pid = String(row.profile_id);
+          const cid = String(row.country_id);
+          if (!map[pid]) map[pid] = {};
+          map[pid][cid] = row.salary;
+        });
+        setSalaries(map);
+      });
+  }, []);
+  return salaries;
+}
+
 // Autocomplete input para nombre de perfil
 const ProfileNameAutocomplete: React.FC<{
   value: string;
@@ -85,7 +106,7 @@ const ProfileNameAutocomplete: React.FC<{
                 setShowSuggestions(false);
               }}
             >
-              Añadir nuevo perfil: <b>{value}</b>
+              <b>{value}</b>
             </div>
           )}
         </div>,
@@ -105,6 +126,7 @@ interface ProfilesManagementProps {
 
 export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false, projectId }) => {
   const { profiles: officialProfiles, loading: loadingProfiles } = useOfficialProfiles();
+  const officialSalaries = useOfficialProfileSalaries();
   const [nameInput, setNameInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Partial<Profile> | null>(null);
@@ -143,15 +165,45 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       if (field === 'name') {
         setNameInput(value);
         setShowSuggestions(true);
+        const officialProfile = officialProfiles.find(p => p.name === value);
+        if (officialProfile) {
+          // Fetch salarios oficiales dinámicamente
+          fetch(`/project-profiles/${officialProfile.id}/salaries`)
+            .then(res => res.json())
+            .then((data: Array<{ country_id: string | number; salary: number }>) => {
+              setEditingProfile(current => {
+                if (!current) return null;
+                // Mapear salarios por país
+                const salaries: { [countryId: string]: number } = {};
+                data.forEach(row => {
+                  salaries[String(row.country_id)] = row.salary;
+                });
+                return {
+                  ...current,
+                  name: value,
+                  is_official: true,
+                  salaries
+                };
+              });
+            });
+          return {
+            ...prev,
+            name: value,
+            is_official: true
+          };
+        }
+        return {
+          ...prev,
+          name: value,
+          is_official: false
+        };
       }
       return {
         ...prev,
-        ...(field === 'name'
-          ? { name: value }
-          : { salaries: { ...prev.salaries, [field]: Number(value) || 0 } })
+        salaries: { ...prev.salaries, [field]: Number(value) || 0 }
       };
     });
-  }, []);
+  }, [officialProfiles]);
 
   // Guardar nuevo perfil en la BBDD si no existe y devolver el id
   const saveNewProfileToDB = async (name: string) => {

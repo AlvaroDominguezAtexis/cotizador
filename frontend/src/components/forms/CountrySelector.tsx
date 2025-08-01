@@ -13,7 +13,6 @@ interface CountrySelectorProps {
   max?: number;
 }
 
-
 const CountrySelector: React.FC<CountrySelectorProps> = ({
   selectedCountries = [],
   onChange,
@@ -24,11 +23,6 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
   const [availableCountries, setAvailableCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Sincronizar el estado local con selectedCountries cuando cambie la prop
-  useEffect(() => {
-    setCountries(selectedCountries);
-  }, [selectedCountries]);
 
   // Fetch countries from backend on mount
   useEffect(() => {
@@ -100,28 +94,28 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
         })}
       </div>
 
-      {/* Búsqueda y selección de países */}
-      <div className="country-search-container">
-        <input 
+      {/* Búsqueda y selección de países tipo combo/autocomplete */}
+      <div className="country-search-container" style={{ position: 'relative' }}>
+        <input
           type="text"
           placeholder="Select country..."
           className="country-search-input"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={e => setSearchTerm(e.target.value)}
           disabled={countries.length >= max}
+          autoComplete="off"
         />
-
         {searchTerm && filteredCountries.length > 0 && (
-          <div className="country-suggestions">
+          <div className="country-suggestions" style={{ position: 'absolute', left: 0, right: 0, zIndex: 10, background: '#fff', border: '1px solid #b6c6e3', borderRadius: 6, boxShadow: '0 2px 8px rgba(25, 118, 210, 0.08)' }}>
             {filteredCountries.map(country => (
-              <button
+              <div
                 key={country.id}
-                type="button"
                 className="country-suggestion-item"
-                onClick={() => addCountry(country.id)}
+                style={{ padding: '7px 12px', cursor: 'pointer', color: '#1976d2' }}
+                onMouseDown={() => addCountry(country.id)}
               >
                 {country.name}
-              </button>
+              </div>
             ))}
           </div>
         )}

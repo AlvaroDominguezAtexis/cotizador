@@ -1,11 +1,86 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { useOfficialProfiles } from '../../hooks/useOfficialProfiles';
 import { Table } from '../ui/Table';
 import { Button } from '../ui/Button';
 
 import { Profile } from '../../types/profile';
 // import { COUNTRIES } from '../../types/common';
 import './Profiles.css';
-
+// Autocomplete input para nombre de perfil
+const ProfileNameAutocomplete: React.FC<{
+  value: string;
+  officialProfiles: { id: string; name: string }[];
+  onChange: (name: string) => void;
+  onAddNew: (name: string) => Promise<void>;
+}> = ({ value, officialProfiles, onChange, onAddNew }) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+  const filteredProfiles = officialProfiles.filter(p => p.name.toLowerCase().includes(value.toLowerCase()));
+  const exists = officialProfiles.some(p => p.name === value);
+  useEffect(() => {
+    if (showSuggestions && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  }, [showSuggestions]);
+  return (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        ref={inputRef}
+        type="text"
+        className="profile-input"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Nombre del perfil"
+        autoComplete="off"
+        style={{ minWidth: 160 }}
+        onFocus={() => setShowSuggestions(true)}
+        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+      />
+      {showSuggestions && value && ReactDOM.createPortal(
+        <div style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, background: '#fff', border: '1px solid #b6c6e3', borderRadius: 6, zIndex: 2000, boxShadow: '0 6px 24px 4px rgba(25, 118, 210, 0.18)' }}>
+          {filteredProfiles.length > 0 ? (
+            filteredProfiles.map(p => (
+              <div
+                key={p.id}
+                style={{ padding: '7px 12px', cursor: 'pointer', color: '#1976d2' }}
+                onMouseDown={() => {
+                  onChange(p.name);
+                  setShowSuggestions(false);
+                }}
+              >
+                {p.name}
+              </div>
+            ))
+          ) : (
+            <div style={{ padding: '7px 12px', color: '#888' }}>
+              No hay coincidencias
+            </div>
+          )}
+          {value && !exists && (
+            <div
+              style={{ padding: '7px 12px', cursor: 'pointer', color: '#388e3c', fontWeight: 500 }}
+              onMouseDown={async () => {
+                await onAddNew(value);
+                onChange(value);
+                setShowSuggestions(false);
+              }}
+            >
+              Añadir nuevo perfil: <b>{value}</b>
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 interface ProfilesManagementProps {
   profiles: Profile[];
@@ -15,6 +90,9 @@ interface ProfilesManagementProps {
 }
 
 export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false }) => {
+  const { profiles: officialProfiles, loading: loadingProfiles } = useOfficialProfiles();
+  const [nameInput, setNameInput] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Partial<Profile> | null>(null);
   const [tableData, setTableData] = useState<Profile[]>(profiles);
 
@@ -25,6 +103,8 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       name: '',
       salaries: {}
     };
+    setNameInput('');
+    setShowSuggestions(false);
     const updated = [...tableData, newProfile];
     setTableData(updated);
     setEditingProfile(newProfile);
@@ -41,6 +121,10 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   const handleProfileChange = useCallback((field: string, value: string) => {
     setEditingProfile(prev => {
       if (!prev) return null;
+      if (field === 'name') {
+        setNameInput(value);
+        setShowSuggestions(true);
+      }
       return {
         ...prev,
         ...(field === 'name'
@@ -49,6 +133,21 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       };
     });
   }, []);
+
+  // Guardar nuevo perfil en la BBDD si no existe
+  const saveNewProfileToDB = async (name: string) => {
+    try {
+      const res = await fetch('/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, is_official: false })
+      });
+      if (!res.ok) throw new Error('No se pudo guardar el perfil');
+      // Opcional: recargar lista oficial
+    } catch (e) {
+      // Manejar error
+    }
+  };
 
   // Guardar perfil (nuevo o editado)
   const handleSaveProfile = useCallback(() => {
@@ -101,13 +200,13 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         title: 'Nombre del Perfil',
         render: (_: string, profile: Profile) => {
           if (editingProfile && editingProfile.id === profile.id) {
+            const value = editingProfile.name || '';
             return (
-              <input
-                type="text"
-                value={editingProfile.name || ''}
-                onChange={e => handleProfileChange('name', e.target.value)}
-                placeholder="Nombre del perfil"
-                className="profile-input"
+              <ProfileNameAutocomplete
+                value={value}
+                officialProfiles={officialProfiles}
+                onChange={v => handleProfileChange('name', v)}
+                onAddNew={saveNewProfileToDB}
               />
             );
           }

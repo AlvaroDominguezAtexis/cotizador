@@ -3,15 +3,18 @@ import { Table } from '../ui/Table';
 import { Button } from '../ui/Button';
 
 import { Profile } from '../../types/profile';
-import { COUNTRIES } from '../../types/common';
+// import { COUNTRIES } from '../../types/common';
 import './Profiles.css';
+
 
 interface ProfilesManagementProps {
   profiles: Profile[];
   onChange: (profiles: Profile[]) => void;
+  countries?: { id: string; name: string }[];
+  loadingCountries?: boolean;
 }
 
-export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange }) => {
+export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false }) => {
   const [editingProfile, setEditingProfile] = useState<Partial<Profile> | null>(null);
   const [tableData, setTableData] = useState<Profile[]>(profiles);
 
@@ -111,23 +114,23 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
           return profile.name;
         }
       },
-      ...COUNTRIES.map(country => ({
-        key: `salary-${country.code}`,
+      ...countries.map(country => ({
+        key: `salary-${country.id}`,
         title: `Salario ${country.name}`,
         render: (_: any, profile: Profile) => {
           if (editingProfile && editingProfile.id === profile.id) {
             return (
               <input
                 type="number"
-                value={editingProfile.salaries?.[country.code] || ''}
-                onChange={e => handleProfileChange(country.code, e.target.value)}
+                value={editingProfile.salaries?.[country.id] || ''}
+                onChange={e => handleProfileChange(country.id, e.target.value)}
                 placeholder={`Salario ${country.name}`}
                 className="profile-input salary-input"
               />
             );
           }
-          return profile.salaries[country.code]
-            ? `€${profile.salaries[country.code].toLocaleString()}`
+          return profile.salaries[country.id]
+            ? `€${profile.salaries[country.id].toLocaleString()}`
             : '-';
         }
       })),
@@ -157,17 +160,17 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
               >
                 Editar
               </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => {
-              const updated = tableData.filter(p => p.id !== profile.id);
-              setTableData(updated);
-              onChange(updated);
-            }}
-          >
-            Eliminar
-          </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  const updated = tableData.filter(p => p.id !== profile.id);
+                  setTableData(updated);
+                  onChange(updated);
+                }}
+              >
+                Eliminar
+              </Button>
             </div>
           );
         }
@@ -179,6 +182,7 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       handleSaveProfile,
       handleCancelEdit,
       handleEditProfile,
+      countries
     ]
   );
 

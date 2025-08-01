@@ -13,6 +13,7 @@ interface CountrySelectorProps {
   max?: number;
 }
 
+
 const CountrySelector: React.FC<CountrySelectorProps> = ({
   selectedCountries = [],
   onChange,
@@ -23,6 +24,11 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
   const [availableCountries, setAvailableCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Sincronizar el estado local con selectedCountries cuando cambie la prop
+  useEffect(() => {
+    setCountries(selectedCountries);
+  }, [selectedCountries]);
 
   // Fetch countries from backend on mount
   useEffect(() => {

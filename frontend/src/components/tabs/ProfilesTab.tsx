@@ -1,16 +1,21 @@
 // src/components/tabs/ProfilesTab.tsx
 
+
 import React from 'react';
 import { Button } from '../ui/Button';
 import { ProfilesManagement } from '../profiles/Profiles';
+import { useCountryNames } from '../../hooks/useCountryNames';
 import './Tabs.css';
+
 
 interface ProfilesTabProps {
   profiles: any[];
   onChange: (profiles: any[]) => void;
+  additionalCountries?: string[];
 }
 
-export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange }) => {
+export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, additionalCountries = [] }) => {
+  const { countries: countryList, loading: loadingCountries } = useCountryNames(additionalCountries);
   const handleExport = () => {
     const profilesData = JSON.stringify(profiles, null, 2);
     const blob = new Blob([profilesData], { type: 'application/json' });
@@ -66,7 +71,7 @@ export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange }) 
       </div>
 
       <div className="tab-content">
-        <ProfilesManagement profiles={profiles} onChange={onChange} />
+        <ProfilesManagement profiles={profiles} onChange={onChange} countries={countryList} loadingCountries={loadingCountries} />
       </div>
     </div>
   );

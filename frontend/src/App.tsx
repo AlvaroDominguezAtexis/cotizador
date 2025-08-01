@@ -208,7 +208,7 @@ const App: React.FC = () => {
       case 'project-data':
         return <ProjectDataTab project={selectedProject} onChange={setProjectFormData} onBackToMenu={handleBackToMenu} />;
       case 'profiles':
-        return <ProfilesTab profiles={profilesData} onChange={setProfilesData} />;
+        return <ProfilesTab profiles={profilesData} onChange={setProfilesData} additionalCountries={projectFormData?.additionalCountries || []} />;
       case 'work-packages':
         return <WorkPackagesTab workPackages={workPackagesData} onChange={setWorkPackagesData} />;
       case 'non-operational-costs':

@@ -101,16 +101,60 @@ const useAuth = () => {
   return { isLoggedIn, user, login, logout };
 };
 
-// 🔹 Hook para tabs
-const useTabs = () => {
-  const [activeTab, setActiveTab] = useState<TabName>('project-data');
-  const switchTab = (tabName: TabName) => setActiveTab(tabName);
-  return { activeTab, switchTab };
-};
 
 const App: React.FC = () => {
   const { isLoggedIn, user, login, logout } = useAuth();
-  const { activeTab, switchTab } = useTabs();
+  const [activeTab, setActiveTab] = useState<TabName>('project-data');
+  // Guarda el proyecto (sin salir necesariamente al menú)
+  const saveProjectData = async () => {
+    if (!projectFormData) return;
+    try {
+      const backendData = mapToBackend(projectFormData, false);
+      let response, responseText;
+      if (!projectFormData.id) {
+        response = await fetch('/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(backendData),
+        });
+        responseText = await response.text();
+        if (!response.ok) throw new Error(responseText);
+        const created = JSON.parse(responseText);
+        const mappedProject = mapProjectFromBackend(created);
+        setSelectedProject(mappedProject);
+        setProjectFormData(mappedProject);
+      } else {
+        response = await fetch(`/projects/${projectFormData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(backendData),
+        });
+        responseText = await response.text();
+        if (!response.ok) throw new Error(responseText);
+        const updated = JSON.parse(responseText);
+        const mappedProject = mapProjectFromBackend(updated);
+        setSelectedProject(mappedProject);
+        setProjectFormData(mappedProject);
+      }
+    } catch (error) {
+      console.error('Full Error saving project:', error);
+      alert(`No se pudo guardar el proyecto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+  };
+
+  // Guardar y salir al menú
+  const handleBackToMenu = async () => {
+    await saveProjectData();
+    setShowMainApp(false);
+  };
+
+  // Cambia de tab, guardando si se sale de 'project-data'
+  const handleTabChange = async (tabName: TabName) => {
+    if (activeTab === 'project-data' && tabName !== 'project-data') {
+      await saveProjectData();
+    }
+    setActiveTab(tabName);
+  };
   const { handleLogin, isLoading } = useLoginForm();
   const [showMainApp, setShowMainApp] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null);
@@ -158,45 +202,6 @@ const App: React.FC = () => {
     return cleanData;
   };
 
-  const handleBackToMenu = async () => {
-    if (!projectFormData) {
-      setShowMainApp(false);
-      return;
-    }
-    try {
-      const backendData = mapToBackend(projectFormData, false);
-      let response, responseText;
-      if (!projectFormData.id) {
-        response = await fetch('/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(backendData),
-        });
-        responseText = await response.text();
-        if (!response.ok) throw new Error(responseText);
-        const created = JSON.parse(responseText);
-        const mappedProject = mapProjectFromBackend(created);
-        setSelectedProject(mappedProject);
-        setProjectFormData(mappedProject);
-      } else {
-        response = await fetch(`/projects/${projectFormData.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(backendData),
-        });
-        responseText = await response.text();
-        if (!response.ok) throw new Error(responseText);
-        const updated = JSON.parse(responseText);
-        const mappedProject = mapProjectFromBackend(updated);
-        setSelectedProject(mappedProject);
-        setProjectFormData(mappedProject);
-      }
-    } catch (error) {
-      console.error('Full Error saving project:', error);
-      alert(`No se pudo guardar el proyecto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    }
-    setShowMainApp(false);
-  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -239,7 +244,7 @@ const App: React.FC = () => {
           onGoToProjectDataTab={() => {
             setShowMainApp(true);
             setSelectedProject(null);
-            switchTab('project-data');
+            setActiveTab('project-data');
           }}
           onOpenProject={(project) => {
             console.log('onOpenProject: incoming project:', project);
@@ -248,7 +253,7 @@ const App: React.FC = () => {
             setShowMainApp(true);
             setSelectedProject(mapped);
             setProjectFormData(mapped);
-            switchTab('project-data');
+            setActiveTab('project-data');
           }}
           onLogout={() => {
             logout();
@@ -268,10 +273,10 @@ const App: React.FC = () => {
           setShowMainApp(false);
         }}
         activeTab={activeTab}
-        onTabChange={switchTab}
+        onTabChange={handleTabChange}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <TabNavigation activeTab={activeTab} onTabChange={switchTab} />
+          <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
           <button
             style={{
               background: '#1976d2',

@@ -59,7 +59,6 @@ export const createProject = async (req: Request, res: Response) => {
       business_manager,
       business_unit,
       ops_domain,
-      country,
       scope,
       additional_countries,
       iqp,
@@ -86,7 +85,6 @@ export const createProject = async (req: Request, res: Response) => {
       business_manager || null,
       business_unit || null,
       ops_domain || null,
-      country || null,
       scope || null,
       additional_countries || null,
       iqp || null,
@@ -116,7 +114,6 @@ export const updateProject = async (req: Request, res: Response) => {
       business_manager,
       business_unit,
       ops_domain,
-      country,
       scope,
       additional_countries,
       iqp,
@@ -129,10 +126,10 @@ export const updateProject = async (req: Request, res: Response) => {
       SET title=$1, crm_code=$2, client=$3, activity=$4,
           start_date=$5, end_date=$6,
           business_manager=$7, business_unit=$8, ops_domain=$9,
-          country=$10, scope=$11, additional_countries=$12,
-          iqp=$13, segmentation=$14, description=$15,
+          scope=$10, additional_countries=$11,
+          iqp=$12, segmentation=$13, description=$14,
           updated_at=NOW()
-      WHERE id=$16
+      WHERE id=$15
       RETURNING *;
     `;
 
@@ -146,7 +143,6 @@ export const updateProject = async (req: Request, res: Response) => {
       business_manager || null,
       business_unit || null,
       ops_domain || null,
-      country || null,
       scope || null,
       additional_countries || null,
       iqp || null,

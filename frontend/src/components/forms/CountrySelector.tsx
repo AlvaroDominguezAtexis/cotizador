@@ -78,7 +78,7 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
       {/* Países seleccionados */}
       <div className="selected-countries">
         {countries.map(id => {
-          const country = availableCountries.find(c => c.id === id);
+          const country = availableCountries.find(c => String(c.id) === String(id));
           return (
             <div key={id} className="selected-country-tag">
               {country?.name || id}

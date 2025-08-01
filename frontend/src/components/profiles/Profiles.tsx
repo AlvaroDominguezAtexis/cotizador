@@ -192,32 +192,61 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       return;
     }
 
-    // Buscar si el nombre corresponde a un perfil oficial
-    const officialProfile = officialProfiles.find(p => p.name === editingProfile.name);
     let updated: Profile[] = tableData;
+    const originalProfile = tableData.find(p => p.id === editingProfile.id);
+    const isEdit = !!originalProfile;
 
-    if (officialProfile) {
-      // Si es oficial, solo asociar el perfil al proyecto
-      await addProfileToProject(projectId, Number(officialProfile.id));
-      // Si no está en la tabla local, añadirlo
-      if (!tableData.some(p => p.id === Number(officialProfile.id))) {
-        const newProfile: Profile = {
-          ...editingProfile,
-          id: Number(officialProfile.id),
-          is_official: true
-        } as Profile;
-        updated = [...tableData, newProfile];
-      }
-    } else {
-      // Si no es oficial, crear el perfil y asociarlo
+    if (isEdit && originalProfile?.is_official) {
+      // EDICIÓN de perfil oficial: eliminar asociación, crear nuevo perfil y asociar
+      try {
+        await fetch('/project-profiles', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId, profile_id: originalProfile.id })
+        });
+      } catch (e) {}
       const profileId = await saveNewProfileToDB(editingProfile.name!);
       if (profileId) {
         await addProfileToProject(projectId, profileId);
-        // Reemplazar el perfil temporal por el real en la tabla
         const newProfile: Profile = { ...editingProfile, id: profileId, is_official: false } as Profile;
         updated = tableData.map(p =>
           p.id === editingProfile.id ? newProfile : p
         );
+      }
+    } else if (isEdit && originalProfile && !originalProfile.is_official) {
+      // EDICIÓN de perfil no oficial: actualizar perfil existente
+      try {
+        await fetch(`/profiles/${editingProfile.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: editingProfile.name })
+        });
+      } catch (e) {}
+      updated = tableData.map(profile =>
+        profile.id === editingProfile.id ? { ...profile, name: editingProfile.name! } : profile
+      );
+    } else {
+      // CREACIÓN: mismo flujo que antes
+      const officialProfile = officialProfiles.find(p => p.name === editingProfile.name);
+      if (officialProfile) {
+        await addProfileToProject(projectId, Number(officialProfile.id));
+        if (!tableData.some(p => p.id === Number(officialProfile.id))) {
+          const newProfile: Profile = {
+            ...editingProfile,
+            id: Number(officialProfile.id),
+            is_official: true
+          } as Profile;
+          updated = [...tableData, newProfile];
+        }
+      } else {
+        const profileId = await saveNewProfileToDB(editingProfile.name!);
+        if (profileId) {
+          await addProfileToProject(projectId, profileId);
+          const newProfile: Profile = { ...editingProfile, id: profileId, is_official: false } as Profile;
+          updated = tableData.map(p =>
+            p.id === editingProfile.id ? newProfile : p
+          );
+        }
       }
     }
 

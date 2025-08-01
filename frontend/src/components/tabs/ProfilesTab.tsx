@@ -12,9 +12,10 @@ interface ProfilesTabProps {
   profiles: any[];
   onChange: (profiles: any[]) => void;
   additionalCountries?: string[];
+  projectId: number;
 }
 
-export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, additionalCountries = [] }) => {
+export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, additionalCountries = [], projectId }) => {
   const { countries: countryList, loading: loadingCountries } = useCountryNames(additionalCountries);
   const handleExport = () => {
     const profilesData = JSON.stringify(profiles, null, 2);
@@ -71,7 +72,13 @@ export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, ad
       </div>
 
       <div className="tab-content">
-        <ProfilesManagement profiles={profiles} onChange={onChange} countries={countryList} loadingCountries={loadingCountries} />
+        <ProfilesManagement
+          profiles={profiles}
+          onChange={onChange}
+          countries={countryList}
+          loadingCountries={loadingCountries}
+          projectId={projectId}
+        />
       </div>
     </div>
   );

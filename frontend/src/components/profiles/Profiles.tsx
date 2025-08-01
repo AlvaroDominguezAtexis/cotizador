@@ -29,6 +29,18 @@ const ProfileNameAutocomplete: React.FC<{
       });
     }
   }, [showSuggestions]);
+  // Ref para saber si se hizo click en sugerencia o en "Añadir nuevo"
+  const clickedRef = useRef(false);
+  const handleBlur = () => {
+    setTimeout(() => {
+      setShowSuggestions(false);
+      // Si el valor no existe y no se hizo click en sugerencia ni en "Añadir nuevo", limpiar
+      if (!exists && !clickedRef.current) {
+        onChange('');
+      }
+      clickedRef.current = false;
+    }, 200);
+  };
   return (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
       <input
@@ -41,7 +53,7 @@ const ProfileNameAutocomplete: React.FC<{
         autoComplete="off"
         style={{ minWidth: 160 }}
         onFocus={() => setShowSuggestions(true)}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        onBlur={handleBlur}
       />
       {showSuggestions && value && ReactDOM.createPortal(
         <div style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, background: '#fff', border: '1px solid #b6c6e3', borderRadius: 6, zIndex: 2000, boxShadow: '0 6px 24px 4px rgba(25, 118, 210, 0.18)' }}>
@@ -51,6 +63,7 @@ const ProfileNameAutocomplete: React.FC<{
                 key={p.id}
                 style={{ padding: '7px 12px', cursor: 'pointer', color: '#1976d2' }}
                 onMouseDown={() => {
+                  clickedRef.current = true;
                   onChange(p.name);
                   setShowSuggestions(false);
                 }}
@@ -66,8 +79,8 @@ const ProfileNameAutocomplete: React.FC<{
           {value && !exists && (
             <div
               style={{ padding: '7px 12px', cursor: 'pointer', color: '#388e3c', fontWeight: 500 }}
-              onMouseDown={async () => {
-                await onAddNew(value);
+              onMouseDown={() => {
+                clickedRef.current = true;
                 onChange(value);
                 setShowSuggestions(false);
               }}
@@ -87,14 +100,20 @@ interface ProfilesManagementProps {
   onChange: (profiles: Profile[]) => void;
   countries?: { id: string; name: string }[];
   loadingCountries?: boolean;
+  projectId: number;
 }
 
-export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false }) => {
+export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false, projectId }) => {
   const { profiles: officialProfiles, loading: loadingProfiles } = useOfficialProfiles();
   const [nameInput, setNameInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Partial<Profile> | null>(null);
   const [tableData, setTableData] = useState<Profile[]>(profiles);
+
+  // Sincroniza tableData con profiles cuando cambian desde el padre
+  useEffect(() => {
+    setTableData(profiles);
+  }, [profiles]);
 
   // Añadir nueva fila editable
   const handleAddNewProfile = useCallback(() => {
@@ -134,7 +153,7 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
     });
   }, []);
 
-  // Guardar nuevo perfil en la BBDD si no existe
+  // Guardar nuevo perfil en la BBDD si no existe y devolver el id
   const saveNewProfileToDB = async (name: string) => {
     try {
       const res = await fetch('/profiles', {
@@ -142,35 +161,70 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, is_official: false })
       });
-      if (!res.ok) throw new Error('No se pudo guardar el perfil');
-      // Opcional: recargar lista oficial
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'No se pudo guardar el perfil');
+      }
+      const data = await res.json();
+      return data.id;
+    } catch (e) {
+      alert('Error guardando perfil: ' + (e instanceof Error ? e.message : e));
+      return null;
+    }
+  };
+
+  // Asociar perfil a proyecto
+  const addProfileToProject = async (projectId: number, profileId: number) => {
+    try {
+      await fetch('/project-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId, profile_id: profileId })
+      });
     } catch (e) {
       // Manejar error
     }
   };
-
   // Guardar perfil (nuevo o editado)
-  const handleSaveProfile = useCallback(() => {
+  const handleSaveProfile = useCallback(async () => {
     if (!editingProfile || !editingProfile.name?.trim()) {
       alert('El nombre del perfil es obligatorio');
       return;
     }
 
-    const exists = tableData.some(p => p.id === editingProfile.id);
-    let updated: Profile[];
-    if (!exists) {
-      // Nuevo perfil
-      updated = [...tableData, editingProfile as Profile];
+    // Buscar si el nombre corresponde a un perfil oficial
+    const officialProfile = officialProfiles.find(p => p.name === editingProfile.name);
+    let updated: Profile[] = tableData;
+
+    if (officialProfile) {
+      // Si es oficial, solo asociar el perfil al proyecto
+      await addProfileToProject(projectId, Number(officialProfile.id));
+      // Si no está en la tabla local, añadirlo
+      if (!tableData.some(p => p.id === Number(officialProfile.id))) {
+        const newProfile: Profile = {
+          ...editingProfile,
+          id: Number(officialProfile.id),
+          is_official: true
+        } as Profile;
+        updated = [...tableData, newProfile];
+      }
     } else {
-      // Perfil existente
-      updated = tableData.map(profile =>
-        profile.id === editingProfile.id ? (editingProfile as Profile) : profile
-      );
+      // Si no es oficial, crear el perfil y asociarlo
+      const profileId = await saveNewProfileToDB(editingProfile.name!);
+      if (profileId) {
+        await addProfileToProject(projectId, profileId);
+        // Reemplazar el perfil temporal por el real en la tabla
+        const newProfile: Profile = { ...editingProfile, id: profileId, is_official: false } as Profile;
+        updated = tableData.map(p =>
+          p.id === editingProfile.id ? newProfile : p
+        );
+      }
     }
+
     setTableData(updated);
     onChange(updated);
     setEditingProfile(null);
-  }, [editingProfile, tableData, onChange]);
+  }, [editingProfile, tableData, onChange, officialProfiles, projectId]);
 
   // Cancelar edición
   const handleCancelEdit = useCallback(() => {
@@ -188,14 +242,6 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   const columns = useMemo(
     () => [
       {
-        key: 'id',
-        title: 'ID',
-        render: (_: any, profile: Profile) =>
-          editingProfile && editingProfile.id === profile.id
-            ? 'Nuevo'
-            : `P${profile.id}`
-      },
-      {
         key: 'name',
         title: 'Nombre del Perfil',
         render: (_: string, profile: Profile) => {
@@ -206,7 +252,7 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
                 value={value}
                 officialProfiles={officialProfiles}
                 onChange={v => handleProfileChange('name', v)}
-                onAddNew={saveNewProfileToDB}
+                onAddNew={() => Promise.resolve()} // noop
               />
             );
           }
@@ -262,7 +308,28 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
               <Button
                 variant="danger"
                 size="sm"
-                onClick={() => {
+                onClick={async () => {
+                  // 1. Eliminar relación perfil-proyecto
+                  try {
+                    await fetch('/project-profiles', {
+                      method: 'DELETE',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ project_id: projectId, profile_id: profile.id })
+                    });
+                  } catch (e) {
+                    // Manejar error si se desea
+                  }
+                  // 2. Si el perfil no es oficial, eliminarlo de la tabla perfiles
+                  if (!profile.is_official) {
+                    try {
+                      await fetch(`/profiles/${profile.id}`, {
+                        method: 'DELETE'
+                      });
+                    } catch (e) {
+                      // Manejar error si se desea
+                    }
+                  }
+                  // 3. Actualizar tabla local
                   const updated = tableData.filter(p => p.id !== profile.id);
                   setTableData(updated);
                   onChange(updated);

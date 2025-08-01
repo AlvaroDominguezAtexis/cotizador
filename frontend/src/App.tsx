@@ -103,9 +103,13 @@ const useAuth = () => {
 
 
 const App: React.FC = () => {
+
   const { isLoggedIn, user, login, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabName>('project-data');
   // Guarda el proyecto (sin salir necesariamente al menú)
+
+  // Precargar perfiles del proyecto al abrir un proyecto existente
+  
   const saveProjectData = async () => {
     if (!projectFormData) return;
     try {
@@ -201,14 +205,43 @@ const App: React.FC = () => {
     console.log('Mapped Backend Data:', JSON.stringify(cleanData, null, 2));
     return cleanData;
   };
-
+  useEffect(() => {
+    if (activeTab !== 'profiles') return;
+    const fetchProjectProfiles = async () => {
+      if (projectFormData?.id) {
+        try {
+          const res = await fetch(`/project-profiles/${projectFormData.id}`);
+          if (!res.ok) throw new Error('No se pudieron cargar los perfiles del proyecto');
+          const data = await res.json();
+          // Mapear para asegurar estructura
+          const mapped = (data || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            salaries: p.salaries && typeof p.salaries === 'object' ? p.salaries : {},
+            is_official: p.is_official ?? false,
+          }));
+          setProfilesData(mapped);
+        } catch (e) {
+          setProfilesData([]);
+        }
+      } else {
+        setProfilesData([]);
+      }
+    };
+    fetchProjectProfiles();
+  }, [projectFormData?.id, activeTab]);
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'project-data':
         return <ProjectDataTab project={selectedProject} onChange={setProjectFormData} onBackToMenu={handleBackToMenu} />;
       case 'profiles':
-        return <ProfilesTab profiles={profilesData} onChange={setProfilesData} additionalCountries={projectFormData?.additionalCountries || []} />;
+        return <ProfilesTab
+          profiles={profilesData}
+          onChange={setProfilesData}
+          additionalCountries={projectFormData?.additionalCountries || []}
+          projectId={projectFormData?.id || 0}
+        />;
       case 'work-packages':
         return <WorkPackagesTab workPackages={workPackagesData} onChange={setWorkPackagesData} />;
       case 'non-operational-costs':

@@ -1,0 +1,718 @@
+/* TabNavigation.css */
+
+/* Contenedor principal */
+.tab-navigation {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.tab-navigation-horizontal {
+  flex-direction: row;
+}
+
+.tab-navigation-vertical {
+  flex-direction: column;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+/* Contenedor scrolleable */
+.tab-navigation-container {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  position: relative;
+}
+
+.tab-navigation-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-navigation-scrollable .tab-navigation-container {
+  scroll-behavior: smooth;
+}
+
+/* Lista de tabs */
+.tab-navigation-list {
+  display: flex;
+  position: relative;
+  min-width: 100%;
+}
+
+.tab-navigation-vertical .tab-navigation-list {
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+}
+
+/* Items de tab individuales */
+.tab-navigation-item {
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.tab-navigation-vertical .tab-navigation-item {
+  border-bottom: none;
+  border-right: 3px solid transparent;
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 50px;
+  width: 100%;
+}
+
+.tab-navigation-item:hover:not(.tab-navigation-item-disabled) {
+  color: var(--color-primary);
+  background: rgba(0, 112, 206, 0.05);
+}
+
+.tab-navigation-item:focus {
+  outline: none;
+  background: rgba(0, 112, 206, 0.1);
+  color: var(--color-primary);
+}
+
+.tab-navigation-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* Tab activa */
+.tab-navigation-item-active {
+  color: var(--color-primary);
+  background: rgba(0, 112, 206, 0.08);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.tab-navigation-vertical .tab-navigation-item-active {
+  border-bottom-color: transparent;
+  border-right-color: var(--color-primary);
+}
+
+/* Tab deshabilitada */
+.tab-navigation-item-disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.tab-navigation-item-disabled:hover {
+  color: var(--color-text-muted);
+  background: none;
+}
+
+/* Contenido de la tab */
+.tab-navigation-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+
+.tab-navigation-vertical .tab-navigation-content {
+  align-items: flex-start;
+  width: 100%;
+}
+
+.tab-navigation-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.tab-navigation-vertical .tab-navigation-header {
+  width: 100%;
+}
+
+/* Icono de la tab */
+.tab-navigation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.tab-navigation-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+.tab-navigation-item:hover .tab-navigation-icon,
+.tab-navigation-item-active .tab-navigation-icon {
+  transform: scale(1.1);
+}
+
+/* Etiqueta de la tab */
+.tab-navigation-label {
+  font-weight: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.tab-navigation-vertical .tab-navigation-label {
+  flex: 1;
+}
+
+/* Badge en la tab */
+.tab-navigation-badge {
+  background: var(--color-danger);
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tab-navigation-item-active .tab-navigation-badge {
+  background: var(--color-primary);
+}
+
+/* Descripción de la tab */
+.tab-navigation-description {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+  text-align: center;
+  line-height: 1.3;
+  max-width: 200px;
+}
+
+.tab-navigation-vertical .tab-navigation-description {
+  text-align: left;
+  max-width: none;
+}
+
+.tab-navigation-item-with-description {
+  padding: var(--spacing-md) var(--spacing-lg);
+  min-height: 80px;
+}
+
+.tab-navigation-vertical .tab-navigation-item-with-description {
+  min-height: 70px;
+}
+
+/* Indicador de tab activa */
+.tab-navigation-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 2px 2px 0 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tab-navigation-vertical .tab-navigation-indicator {
+  bottom: auto;
+  right: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px 0 0 2px;
+}
+
+/* Flechas de scroll */
+.tab-scroll-arrow {
+  background: white;
+  border: 1px solid var(--color-light);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.tab-scroll-arrow:hover {
+  color: var(--color-primary);
+  background: var(--color-bg-secondary);
+  border-color: var(--color-primary);
+}
+
+.tab-scroll-arrow:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.tab-scroll-arrow-left {
+  border-radius: var(--radius-lg) 0 0 0;
+  border-right: none;
+}
+
+.tab-scroll-arrow-right {
+  border-radius: 0 var(--radius-lg) 0 0;
+  border-left: none;
+}
+
+.tab-scroll-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Tab navigation simple */
+.simple-tab-navigation {
+  display: flex;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xs);
+  gap: var(--spacing-xs);
+}
+
+.simple-tab {
+  background: none;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.simple-tab:hover {
+  color: var(--color-primary);
+  background: rgba(0, 112, 206, 0.1);
+}
+
+.simple-tab.active {
+  background: white;
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+.simple-tab-icon {
+  display: flex;
+  align-items: center;
+}
+
+.simple-tab-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Estados de error para tabs */
+.tab-navigation-item-error {
+  border-bottom-color: var(--color-danger);
+}
+
+.tab-navigation-vertical .tab-navigation-item-error {
+  border-bottom-color: transparent;
+  border-right-color: var(--color-danger);
+}
+
+.tab-navigation-item-error .tab-navigation-icon {
+  color: var(--color-danger);
+}
+
+.tab-navigation-item-error .tab-navigation-badge {
+  background: var(--color-danger);
+  animation: pulse 2s infinite;
+}
+
+/* Estados de éxito para tabs */
+.tab-navigation-item-success {
+  position: relative;
+}
+
+.tab-navigation-item-success::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--color-success);
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: bold;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .tab-navigation-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    min-height: 50px;
+    font-size: var(--font-size-xs);
+  }
+  
+  .tab-navigation-label {
+    display: none;
+  }
+  
+  .tab-navigation-description {
+    display: none;
+  }
+  
+  .tab-navigation-item-with-description {
+    min-height: 50px;
+  }
+  
+  .tab-navigation-content {
+    gap: 0;
+  }
+  
+  .tab-navigation-header {
+    gap: 0;
+  }
+  
+  .tab-scroll-arrow {
+    padding: var(--spacing-xs);
+  }
+  
+  .simple-tab {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-navigation-item {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    min-height: 44px;
+  }
+  
+  .tab-navigation-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .tab-navigation-badge {
+    font-size: 10px;
+    padding: 1px 4px;
+    min-width: 16px;
+    height: 16px;
+  }
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .tab-navigation-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .tab-navigation-description {
+    max-width: 150px;
+  }
+}
+
+/* Desktop grande */
+@media (min-width: 1400px) {
+  .tab-navigation-item {
+    padding: var(--spacing-lg) var(--spacing-xl);
+  }
+  
+  .tab-navigation-description {
+    max-width: 250px;
+  }
+}
+
+/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+  .tab-navigation {
+    background: var(--color-bg-primary);
+  }
+  
+  .tab-scroll-arrow {
+    background: var(--color-bg-primary);
+    border-color: var(--color-light);
+  }
+  
+  .tab-scroll-arrow:hover {
+    background: var(--color-bg-secondary);
+  }
+  
+  .simple-tab-navigation {
+    background: var(--color-bg-secondary);
+  }
+  
+  .simple-tab.active {
+    background: var(--color-bg-primary);
+  }
+}
+
+/* Alto contraste */
+@media (prefers-contrast: high) {
+  .tab-navigation-item {
+    border-bottom-width: 4px;
+  }
+  
+  .tab-navigation-vertical .tab-navigation-item {
+    border-right-width: 4px;
+  }
+  
+  .tab-navigation-indicator {
+    height: 4px;
+  }
+  
+  .tab-navigation-vertical .tab-navigation-indicator {
+    width: 4px;
+  }
+  
+  .tab-navigation-item:focus {
+    outline-width: 3px;
+  }
+  
+  .tab-scroll-arrow {
+    border-width: 2px;
+  }
+}
+
+/* Movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  .tab-navigation-item,
+  .tab-navigation-icon,
+  .tab-navigation-indicator,
+  .tab-scroll-arrow,
+  .simple-tab {
+    transition: none;
+  }
+  
+  .tab-navigation-container {
+    scroll-behavior: auto;
+  }
+  
+  .tab-navigation-item:hover .tab-navigation-icon,
+  .tab-navigation-item-active .tab-navigation-icon {
+    transform: none;
+  }
+  
+  .tab-navigation-item-error .tab-navigation-badge {
+    animation: none;
+  }
+}
+
+/* Estados de focus mejorados */
+.tab-navigation-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  background: rgba(0, 112, 206, 0.1);
+}
+
+.tab-scroll-arrow:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.simple-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Animaciones de carga */
+.tab-navigation-loading .tab-navigation-item {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.tab-navigation-loading .tab-navigation-item::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid var(--color-light);
+  border-top: 2px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Efectos especiales */
+.tab-navigation-item-new {
+  position: relative;
+  overflow: visible;
+}
+
+.tab-navigation-item-new::before {
+  content: "NUEVO";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--color-success);
+  color: white;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transform: rotate(12deg);
+  z-index: 2;
+}
+
+.tab-navigation-item-beta {
+  position: relative;
+  overflow: visible;
+}
+
+.tab-navigation-item-beta::before {
+  content: "BETA";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--color-warning);
+  color: var(--color-text-primary);
+  font-size: 9px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transform: rotate(12deg);
+  z-index: 2;
+}
+
+/* Tooltips para tabs truncadas */
+.tab-navigation-item[title] {
+  position: relative;
+}
+
+.tab-navigation-item[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-text-primary);
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  z-index: var(--z-tooltip);
+  margin-bottom: 4px;
+  animation: fadeIn var(--transition-fast);
+}
+
+.tab-navigation-item[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--color-text-primary);
+  z-index: var(--z-tooltip);
+}
+
+/* Drag and drop para reordenar tabs */
+.tab-navigation-item-dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  z-index: var(--z-modal);
+}
+
+.tab-navigation-item-drop-target {
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(var(--spacing-lg) - 3px);
+}
+
+.tab-navigation-vertical .tab-navigation-item-drop-target {
+  border-left: none;
+  border-top: 3px solid var(--color-primary);
+  padding-left: var(--spacing-lg);
+  padding-top: calc(var(--spacing-md) - 3px);
+}
+
+/* Scroll smooth personalizado */
+.tab-navigation-container.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Estados de validación */
+.tab-navigation-item-warning .tab-navigation-icon {
+  color: var(--color-warning);
+}
+
+.tab-navigation-item-warning .tab-navigation-badge {
+  background: var(--color-warning);
+  color: var(--color-text-primary);
+}
+
+.tab-navigation-item-info .tab-navigation-icon {
+  color: var(--color-info);
+}
+
+.tab-navigation-item-info .tab-navigation-badge {
+  background: var(--color-info);
+}
+
+/* Indicadores de progreso en tabs */
+.tab-navigation-item-progress {
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-navigation-item-progress::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--color-success);
+  transition: width var(--transition-normal);
+  width: var(--progress, 0%);
+}
+
+.tab-navigation-vertical .tab-navigation-item-progress::after {
+  bottom: auto;
+  right: 0;
+  width: 2px;
+  height: var(--progress, 0%);
+}
+
+/* Impresión */
+@media print {
+  .tab-navigation {
+    display: none;
+  }
+  
+  .simple-tab-navigation {
+    display: none;
+  }
+}

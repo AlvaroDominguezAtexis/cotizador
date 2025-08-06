@@ -1,0 +1,142 @@
+/* Estilos para la tarjeta de Work Package */
+.work-package-card {
+  background-color: white;
+  border-radius: 10px;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.work-package-card.expanded {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  border-color: #0070CE;
+}
+
+/* Cabecera del Work Package */
+.work-package-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: 15px;
+  border-radius: 10px 10px 0 0;
+}
+
+.work-package-header-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.work-package-id {
+  font-weight: bold;
+  color: #0070CE;
+  background-color: #e7f3ff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.work-package-name-input {
+  flex-grow: 1;
+  border: 1px solid #dee2e6;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.work-package-name-input:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+.work-package-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Métricas del Work Package */
+.work-package-metrics {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  background-color: #f1f3f5;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-bottom: 5px;
+}
+
+.metric-value {
+  font-weight: bold;
+  color: #495057;
+  font-size: 1rem;
+}
+
+/* Sección de Deliverables */
+.work-package-deliverables {
+  padding: 15px;
+}
+
+.no-deliverables {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.work-package-deliverables > * {
+  animation: fadeIn 0.3s ease-out;
+  margin-bottom: 15px;
+}
+
+.work-package-deliverables > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .work-package-header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .work-package-actions {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .work-package-metrics {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .work-package-name-input {
+    font-size: 0.9rem;
+  }
+}

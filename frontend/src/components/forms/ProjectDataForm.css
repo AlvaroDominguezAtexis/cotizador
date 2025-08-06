@@ -1,0 +1,218 @@
+.project-data-form {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-title {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.project-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.select-with-action {
+  display: flex;
+  align-items: stretch; /* Alinea los elementos al mismo nivel */
+  width: 100%;
+}
+
+.select-with-action .btn {
+  background-color: #FF8300 !important; /* Color naranja */
+  color: white !important;
+  margin-left: 10px;
+  margin-bottom: 1px;
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 15px !important;
+  font-weight: bold;
+}
+
+.select-with-action .input-wrapper {
+  flex-grow: 1; /* Ocupa todo el espacio disponible */
+}
+
+.select-with-action .custom-select {
+  width: 100%;
+}
+
+.select-with-action > div:first-child {
+  flex-grow: 1; /* Hace que el Select ocupe todo el espacio disponible */
+}
+
+.select-with-action select {
+  width: 100%;
+}
+
+.radio-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+@media (max-width: 1024px) {
+  .project-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-group-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .project-form-grid,
+  .form-group-row {
+    grid-template-columns: 1fr;
+  }
+
+  .select-with-action {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .select-with-action .btn {
+    margin-top: 10px;
+    margin-bottom: 0;
+    width: 100%;
+  }
+}
+
+/* Estilos adicionales para inputs y selects */
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #495057;
+}
+
+/* Checkbox styling */
+.form-group input[type="checkbox"],
+.form-group input[type="radio"] {
+  margin-right: 8px;
+}
+
+.project-data-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Título */
+.project-data-form .form-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-align: left;
+  color: #333;
+}
+
+/* Grid principal */
+.project-data-form .project-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.2rem 1.5rem;
+}
+
+/* Grupo de inputs */
+.project-data-form .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-data-form .form-group label {
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+  color: #555;
+}
+
+/* Inputs */
+.project-data-form input,
+.project-data-form select,
+.project-data-form textarea {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.project-data-form input:focus,
+.project-data-form select:focus,
+.project-data-form textarea:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
+}
+
+/* Descripción ocupa todo el ancho */
+.project-data-form .full-width {
+  grid-column: 1 / -1;
+}
+
+/* Botón submit */
+.project-data-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.project-data-form .btn-submit {
+  padding: 0.6rem 1.2rem;
+  background-color: #007bff;
+  border: none;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.project-data-form .btn-submit:hover {
+  background-color: #0056b3;
+}

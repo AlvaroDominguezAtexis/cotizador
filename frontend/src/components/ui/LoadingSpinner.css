@@ -1,0 +1,533 @@
+/* LoadingSpinner.css */
+
+/* Spinner base */
+.loading-spinner {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+
+/* Tamaños */
+.loading-spinner-small .spinner-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.loading-spinner-medium .spinner-svg {
+  width: 32px;
+  height: 32px;
+}
+
+.loading-spinner-large .spinner-svg {
+  width: 48px;
+  height: 48px;
+}
+
+.loading-spinner-xlarge .spinner-svg {
+  width: 64px;
+  height: 64px;
+}
+
+/* Variantes de color */
+.loading-spinner-primary .spinner-circle {
+  stroke: var(--color-primary);
+}
+
+.loading-spinner-secondary .spinner-circle {
+  stroke: var(--color-secondary);
+}
+
+.loading-spinner-white .spinner-circle {
+  stroke: white;
+}
+
+.loading-spinner-light .spinner-circle {
+  stroke: var(--color-light);
+}
+
+/* Velocidades */
+.loading-spinner-slow .spinner-circle {
+  animation-duration: 2s;
+}
+
+.loading-spinner-normal .spinner-circle {
+  animation-duration: 1.5s;
+}
+
+.loading-spinner-fast .spinner-circle {
+  animation-duration: 1s;
+}
+
+/* SVG Spinner */
+.spinner-svg {
+  animation: rotate var(--transition-slow) linear infinite;
+}
+
+.spinner-circle {
+  stroke-linecap: round;
+  stroke-dasharray: 90, 150;
+  stroke-dashoffset: 0;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+/* Texto del spinner */
+.spinner-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+}
+
+.loading-spinner-white .spinner-text {
+  color: white;
+}
+
+/* Fullscreen */
+.loading-spinner-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--gradient-primary);
+  z-index: var(--z-modal);
+}
+
+.loading-spinner-fullscreen .spinner-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--spacing-lg);
+}
+
+.loading-spinner-fullscreen .spinner-text {
+  color: white;
+  font-size: var(--font-size-lg);
+}
+
+/* Overlay */
+.loading-spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal);
+}
+
+.loading-spinner-overlay .spinner-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--spacing-lg);
+}
+
+.loading-spinner-overlay .spinner-text {
+  color: white;
+  font-size: var(--font-size-md);
+}
+
+/* Dots Spinner */
+.dots-loader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dots-spinner {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: dots-bounce 1.4s ease-in-out infinite both;
+}
+
+.dot-1 {
+  animation-delay: -0.32s;
+}
+
+.dot-2 {
+  animation-delay: -0.16s;
+}
+
+.dot-3 {
+  animation-delay: 0s;
+}
+
+/* Tamaños para dots */
+.dots-loader-small .dot {
+  width: 6px;
+  height: 6px;
+}
+
+.dots-loader-medium .dot {
+  width: 8px;
+  height: 8px;
+}
+
+.dots-loader-large .dot {
+  width: 12px;
+  height: 12px;
+}
+
+/* Variantes de color para dots */
+.dots-loader-primary .dot {
+  background: var(--color-primary);
+}
+
+.dots-loader-secondary .dot {
+  background: var(--color-secondary);
+}
+
+.dots-loader-white .dot {
+  background: white;
+}
+
+.dots-loader-light .dot {
+  background: var(--color-light);
+}
+
+/* Pulse Spinner */
+.pulse-loader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-spinner {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.pulse-circle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--color-primary);
+  opacity: 0.6;
+  animation: pulse-scale 2s ease-in-out infinite;
+}
+
+.pulse-1 {
+  animation-delay: 0s;
+}
+
+.pulse-2 {
+  animation-delay: -1s;
+}
+
+.pulse-3 {
+  animation-delay: -0.5s;
+}
+
+/* Tamaños para pulse */
+.pulse-loader-small .pulse-spinner {
+  width: 24px;
+  height: 24px;
+}
+
+.pulse-loader-medium .pulse-spinner {
+  width: 40px;
+  height: 40px;
+}
+
+.pulse-loader-large .pulse-spinner {
+  width: 56px;
+  height: 56px;
+}
+
+/* Variantes de color para pulse */
+.pulse-loader-primary .pulse-circle {
+  background: var(--color-primary);
+}
+
+.pulse-loader-secondary .pulse-circle {
+  background: var(--color-secondary);
+}
+
+.pulse-loader-white .pulse-circle {
+  background: white;
+}
+
+.pulse-loader-light .pulse-circle {
+  background: var(--color-light);
+}
+
+/* Linear Spinner */
+.linear-spinner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.linear-spinner-track {
+  flex: 1;
+  height: 4px;
+  background: var(--color-bg-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.linear-spinner-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.linear-spinner-primary .linear-spinner-bar {
+  background: var(--color-primary);
+}
+
+.linear-spinner-secondary .linear-spinner-bar {
+  background: var(--color-secondary);
+}
+
+.linear-spinner-white .linear-spinner-bar {
+  background: white;
+}
+
+.linear-spinner-light .linear-spinner-bar {
+  background: var(--color-light);
+}
+
+.linear-spinner-bar.indeterminate {
+  width: 30% !important;
+  animation: linear-indeterminate 2s linear infinite;
+}
+
+.linear-spinner-percentage {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  min-width: 35px;
+  text-align: right;
+}
+
+/* Animaciones */
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+@keyframes dots-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-scale {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes linear-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* Estados especiales */
+.spinner-error {
+  color: var(--color-danger);
+}
+
+.spinner-success {
+  color: var(--color-success);
+}
+
+.spinner-warning {
+  color: var(--color-warning);
+}
+
+/* Contenedor de spinner con mensaje */
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  text-align: center;
+  gap: var(--spacing-md);
+}
+
+.spinner-container .spinner-title {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.spinner-container .spinner-description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.4;
+}
+
+/* Spinner en botones */
+.btn .loading-spinner {
+  margin-right: var(--spacing-xs);
+}
+
+.btn .spinner-svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-sm .spinner-svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-lg .spinner-svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .loading-spinner-fullscreen .spinner-text,
+  .loading-spinner-overlay .spinner-text {
+    font-size: var(--font-size-md);
+    padding: 0 var(--spacing-md);
+  }
+  
+  .spinner-container {
+    padding: var(--spacing-md);
+  }
+  
+  .spinner-container .spinner-description {
+    max-width: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .loading-spinner-xlarge .spinner-svg {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .loading-spinner-large .spinner-svg {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .pulse-loader-large .pulse-spinner {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+  .linear-spinner-track {
+    background: var(--color-bg-secondary);
+  }
+  
+  .spinner-container .spinner-title {
+    color: var(--color-text-primary);
+  }
+  
+  .spinner-container .spinner-description {
+    color: var(--color-text-secondary);
+  }
+}
+
+/* Alto contraste */
+@media (prefers-contrast: high) {
+  .spinner-circle {
+    stroke-width: 6;
+  }
+  
+  .linear-spinner-track {
+    height: 6px;
+  }
+  
+  .dot {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-svg,
+  .spinner-circle,
+  .dot,
+  .pulse-circle,
+  .linear-spinner-bar.indeterminate {
+    animation: none;
+  }
+  
+  .loading-spinner-slow .spinner-circle,
+  .loading-spinner-normal .spinner-circle,
+  .loading-spinner-fast .spinner-circle {
+    animation: none;
+  }
+  
+  /* Mostrar indicador estático */
+  .spinner-circle {
+    stroke-dasharray: 75, 25;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Impresión */
+@media print {
+  .loading-spinner,
+  .loading-spinner-fullscreen,
+  .loading-spinner-overlay {
+    display: none;
+  }
+}

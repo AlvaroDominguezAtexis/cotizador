@@ -1,0 +1,57 @@
+/* Confirm Dialog Specific Styles */
+.confirm-dialog {
+  max-width: 450px;
+  text-align: center;
+}
+
+.confirm-dialog .modal-header {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.confirm-dialog .modal-header h3 {
+  width: 100%;
+  text-align: center;
+  color: #495057;
+  font-size: 1.25rem;
+}
+
+.confirm-dialog .modal-content {
+  padding: 20px;
+  color: #6c757d;
+  line-height: 1.6;
+}
+
+.confirm-dialog .modal-footer {
+  justify-content: center;
+  gap: 15px;
+}
+
+.confirm-dialog .modal-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .confirm-dialog {
+    width: 95%;
+    max-width: none;
+    margin: 0 10px;
+  }
+
+  .confirm-dialog .modal-content {
+    padding: 15px;
+    font-size: 0.9rem;
+  }
+
+  .confirm-dialog .modal-footer {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .confirm-dialog .modal-footer button {
+    width: 100%;
+  }
+}

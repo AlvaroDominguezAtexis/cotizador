@@ -1,0 +1,87 @@
+.country-selector {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fafbfc;
+}
+
+.country-selector-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.country-selector-hint {
+  font-size: 0.85em;
+  color: #888;
+}
+
+.selected-countries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.selected-country-tag {
+  background: #1976d2;
+  color: #fff;
+  border-radius: 12px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  font-size: 0.95em;
+}
+
+.remove-country-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  margin-left: 6px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+.country-search-container {
+  position: relative;
+}
+
+.country-search-input {
+  width: 100%;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  margin-bottom: 4px;
+}
+
+.country-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  z-index: 10;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.country-suggestion-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+.country-suggestion-item:hover {
+  background: #e3eafc;
+}
+
+.country-selector-max-warning {
+  color: #d32f2f;
+  font-size: 0.95em;
+  margin-top: 6px;
+}

@@ -1,0 +1,152 @@
+/* src/components/tabs/Tabs.css */
+.tab-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 10px;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.tab-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.tab-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.tab-content {
+  flex-grow: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tab-container {
+    padding: 10px;
+  }
+
+  .tab-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .tab-actions {
+    flex-direction: column;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .tab-container {
+    background-color: #2c2c2c;
+  }
+
+  .tab-header {
+    border-bottom-color: #404040;
+  }
+
+  .tab-header h1 {
+    color: #e0e0e0;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .tab-container {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .tab-container,
+  .tab-header {
+    transition: none;
+  }
+}
+
+/* Estilos para subtabs de costes */
+.costs-subtabs {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.costs-subtab-navigation {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.costs-subtab-navigation button {
+  white-space: nowrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .costs-subtab-navigation {
+    flex-direction: column;
+  }
+}
+
+/* Estilos para Summary Tab */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.summary-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.summary-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Estilos para impresión */
+@media print {
+  .tab-header,
+  .tab-actions {
+    display: none;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .summary-grid {
+    background-color: #1c1c1c;
+  }
+}

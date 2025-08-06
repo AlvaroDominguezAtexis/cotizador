@@ -1,0 +1,138 @@
+.profiles-management-container {
+  padding: 20px;
+  background-color: #f8f9fa;
+}
+
+.profiles-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.profiles-management-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #495057;
+}
+
+.profiles-management-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Inputs generales de perfil */
+.profile-input {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+/* Inputs numéricos alineados a la derecha */
+.salary-input {
+  text-align: right;
+}
+
+/* Estilo para la fila de nuevo perfil */
+.new-profile-row {
+  background-color: #f1f3f5;
+}
+
+.new-profile-row td {
+  padding: 8px;
+  vertical-align: middle; /* Alineación vertical */
+}
+
+.new-profile-row .profile-input {
+  background-color: #ffffff;
+}
+
+/* Acciones de fila */
+.table-row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* Hover para filas */
+.table-row:hover {
+  background-color: #f1f3f5 !important;
+  transition: background-color 0.2s ease;
+}
+
+/* Botones dentro de la tabla */
+.profile-actions-cell .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .profiles-management-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .profiles-management-actions {
+    flex-direction: column;
+  }
+
+  .profile-input {
+    font-size: 13px;
+    padding: 6px;
+  }
+}
+.new-profile-row {
+  background-color: #f1f3f5;
+  transition: background-color 0.2s ease;
+}
+
+.new-profile-row td {
+  padding: 8px;
+  vertical-align: middle;
+}
+
+.new-profile-row .profile-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  background-color: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.new-profile-row .profile-input:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+.new-profile-row .salary-input {
+  text-align: right;
+}
+
+.new-profile-row .table-row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.table-hoverable .new-profile-row:hover {
+  background-color: #e9ecef;
+}

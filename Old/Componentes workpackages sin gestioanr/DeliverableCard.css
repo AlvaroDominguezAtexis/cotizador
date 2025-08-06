@@ -1,0 +1,183 @@
+/* Estilos para la tarjeta de Deliverable */
+.deliverable-card {
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 15px;
+  transition: all 0.3s ease;
+}
+
+.deliverable-card.expanded {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #0070CE;
+}
+
+/* Cabecera del Deliverable */
+.deliverable-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: 15px;
+  border-radius: 8px 8px 0 0;
+}
+
+.deliverable-header-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.deliverable-id {
+  font-weight: bold;
+  color: #0070CE;
+  background-color: #e7f3ff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.deliverable-name-input {
+  flex-grow: 1;
+  border: 1px solid #dee2e6;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.deliverable-name-input:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.1);
+}
+
+.deliverable-margin-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deliverable-margin-input input {
+  width: 70px;
+  text-align: right;
+  padding: 6px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.deliverable-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Cantidades anuales */
+.deliverable-yearly-quantities {
+  padding: 10px 15px;
+  background-color: #f1f3f5;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.yearly-quantity-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.yearly-quantity-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yearly-quantity-input input {
+  width: 70px;
+  text-align: center;
+  padding: 6px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+/* Métricas del Deliverable */
+.deliverable-metrics {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-bottom: 5px;
+}
+
+.metric-value {
+  font-weight: bold;
+  color: #495057;
+  font-size: 1rem;
+}
+
+/* Sección de Steps */
+.deliverable-steps {
+  padding: 15px;
+}
+
+.no-steps {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.deliverable-steps > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .deliverable-header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .deliverable-actions {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .yearly-quantity-inputs {
+    flex-direction: column;
+  }
+
+  .deliverable-metrics {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .deliverable-name-input {
+    font-size: 0.9rem;
+  }
+}

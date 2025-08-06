@@ -1,0 +1,89 @@
+/* EmptyState Component Styles */
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 500px;
+}
+
+/* Icon Styles */
+.empty-state-default-icon,
+.empty-state-minimal-icon,
+.empty-state-illustrated-icon {
+  width: 80px;
+  height: 80px;
+  stroke: #6c757d;
+  stroke-width: 1.5;
+  margin-bottom: 20px;
+}
+
+/* Variant Specific Styles */
+.empty-state-default {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.empty-state-minimal {
+  background-color: transparent;
+}
+
+.empty-state-illustrated {
+  background-color: #f1f3f5;
+  border-radius: 12px;
+}
+
+/* Title Styles */
+.empty-state-title {
+  font-size: 1.5rem;
+  color: #495057;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+/* Description Styles */
+.empty-state-description {
+  font-size: 1rem;
+  color: #6c757d;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+/* Action Styles */
+.empty-state-action {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .empty-state {
+    padding: 30px 15px;
+  }
+
+  .empty-state-default-icon,
+  .empty-state-minimal-icon,
+  .empty-state-illustrated-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 15px;
+  }
+
+  .empty-state-title {
+    font-size: 1.25rem;
+  }
+
+  .empty-state-description {
+    font-size: 0.9rem;
+  }
+}

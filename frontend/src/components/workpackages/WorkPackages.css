@@ -1,0 +1,173 @@
+/* -------------------- General Table Styling -------------------- */
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 1rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.table thead {
+  background-color: #f4f6f8;
+  border-bottom: 2px solid #ccc;
+}
+
+.table th {
+  text-align: left;
+  padding: 0.8rem 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.table td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #e0e0e0;
+  vertical-align: middle;
+}
+
+/* Filas alternas y hover general */
+.table tbody tr:nth-child(odd) {
+  background-color: #fafafa;
+}
+
+.table tbody tr:hover {
+  background-color: #eef4ff;
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* -------------------- WorkPackages (Nivel 1) -------------------- */
+
+.work-packages-table {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.work-packages-table .table-row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.work-packages-table .table-row-actions .btn {
+  padding: 0.35rem 0.75rem;
+}
+
+.work-packages-table .new-row {
+  background-color: #f0f8ff !important;
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* -------------------- Deliverables (Nivel 2) -------------------- */
+
+.deliverables-row td {
+  background-color: #f9fbfd;
+  padding: 0;
+}
+
+.deliverables-table {
+  width: 100%;
+  margin: 0.75rem 0 0 0;
+  border-left: 3px solid #4c8bf5;
+  border-radius: 4px;
+}
+
+.deliverables-table th {
+  background-color: #eef4ff;
+  font-size: 0.9rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.deliverables-table td {
+  font-size: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid #dbe3f1;
+}
+
+.deliverables-table tbody tr:nth-child(odd) {
+  background-color: #fdfefe;
+}
+
+.deliverables-table tbody tr:hover {
+  background-color: #e7f0ff;
+}
+
+.deliverables-table .table-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.deliverables-table .new-row {
+  background-color: #f2f9ff !important;
+}
+
+/* -------------------- Steps (Nivel 3) -------------------- */
+
+.steps-row td {
+  background-color: #fcfdfd;
+  padding: 0;
+}
+
+.steps-table {
+  width: 100%;
+  margin: 0.75rem 0 0 0;
+  border-left: 3px solid #5bc49f;
+  border-radius: 4px;
+}
+
+.steps-table th {
+  background-color: #eefbf6;
+  font-size: 0.85rem;
+  padding: 0.6rem 0.8rem;
+}
+
+.steps-table td {
+  font-size: 0.85rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid #d4ece4;
+}
+
+.steps-table tbody tr:nth-child(odd) {
+  background-color: #fefefe;
+}
+
+.steps-table tbody tr:hover {
+  background-color: #e8f8f1;
+}
+
+.steps-table .table-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.steps-table .new-row {
+  background-color: #e7f7f1 !important;
+}
+
+/* -------------------- Inputs -------------------- */
+
+.wp-input {
+  width: 95%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.wp-input:focus {
+  outline: none;
+  border-color: #4c8bf5;
+  box-shadow: 0 0 3px rgba(76, 139, 245, 0.4);
+}
+
+/* -------------------- Animations -------------------- */
+
+@keyframes fadeIn {
+  from { background-color: #fff2; }
+  to { background-color: inherit; }
+}

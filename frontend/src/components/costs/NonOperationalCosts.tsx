@@ -319,11 +319,11 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
     return (
       <Card>
         <EmptyState
-          title={`No hay costes de ${context}`}
-          description={`Añade tu primer coste de ${context}`}
+          title={`This project has no ${context} costs`}
+          description={`Add your first ${context} cost`}
           action={
             <Button variant="primary" onClick={handleAddNewCost}>
-              Añadir Coste
+              Add Cost
             </Button>
           }
         />
@@ -335,7 +335,7 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
     <Card>
       <div className="costs-header">
         <Button variant="success" size="sm" onClick={handleAddNewCost}>
-          + Añadir Gasto
+          + New Cost
         </Button>
       </div>
 

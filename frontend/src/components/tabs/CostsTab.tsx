@@ -84,19 +84,19 @@ export const CostsTab: React.FC<CostsTabProps> = ({ projectId, projectStartDate,
   return (
     <div className="tab-container">
       <div className="tab-header">
-        <h1>Costes No Operacionales</h1>
+        <h1>Non-Operational Costs</h1>
         <div className="tab-actions">
           <Button 
             variant="secondary"
             onClick={handleImport}
           >
-            Importar Costes
+            Import Costs
           </Button>
           <Button 
             variant="primary"
             onClick={handleExport}
           >
-            Exportar Costes
+            Export Costs
           </Button>
         </div>
       </div>
@@ -108,19 +108,19 @@ export const CostsTab: React.FC<CostsTabProps> = ({ projectId, projectStartDate,
             variant={activeSubTab === 'travel' ? 'primary' : 'secondary'}
             onClick={() => setActiveSubTab('travel')}
           >
-            Viajes
+            Travels
           </Button>
           <Button
             variant={activeSubTab === 'subcontract' ? 'primary' : 'secondary'}
             onClick={() => setActiveSubTab('subcontract')}
           >
-            Subcontrata
+            Subco Costs
           </Button>
           <Button
             variant={activeSubTab === 'it' ? 'primary' : 'secondary'}
             onClick={() => setActiveSubTab('it')}
           >
-            Infraestructura IT
+            IT
           </Button>
         </div>
 

@@ -69,9 +69,9 @@ export const createProject = async (req: Request, res: Response) => {
     const query = `
       INSERT INTO projects
       (title, crm_code, client, activity, start_date, end_date,
-       business_manager, business_unit, ops_domain, country, scope,
+       business_manager, business_unit, ops_domain, scope,
        additional_countries, iqp, segmentation, description)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *;
     `;
 

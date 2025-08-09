@@ -53,15 +53,37 @@ export const getProfiles = async (req: Request, res: Response) => {
 
 // POST /profiles
 export const createProfile = async (req: Request, res: Response) => {
+  const { name, is_official = false } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Nombre requerido' });
+  }
+
   try {
-    const { name, is_official } = req.body;
-    if (!name) return res.status(400).json({ error: 'Name is required' });
-    const result = await pool.query(
-      'INSERT INTO profiles (name, is_official) VALUES ($1, $2) RETURNING id, name, is_official',
-      [name, is_official === true || is_official === 'true']
+    // ✅ Buscar si ya existe (case-insensitive)
+    const existing = await pool.query(
+      'SELECT id, name, is_official FROM profiles WHERE LOWER(name) = LOWER($1) LIMIT 1',
+      [name.trim()]
     );
-    res.status(201).json(result.rows[0]);
+
+    if (existing.rows.length > 0) {
+      return res.status(200).json({
+        reused: true,
+        ...existing.rows[0],
+      });
+    }
+
+    // Crear nuevo si no existe
+    const inserted = await pool.query(
+      'INSERT INTO profiles (name, is_official) VALUES ($1, $2) RETURNING id, name, is_official',
+      [name.trim(), is_official]
+    );
+
+    return res.status(201).json({
+      reused: false,
+      ...inserted.rows[0],
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Error creating profile' });
+    console.error('Error creando perfil:', err);
+    return res.status(500).json({ error: 'Error creando perfil' });
   }
 };

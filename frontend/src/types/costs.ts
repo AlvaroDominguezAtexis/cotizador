@@ -1,35 +1,11 @@
-export type TravelCostCategory = 'vuelos' | 'hoteles' | 'dietas' | 'trenes' | 'otros';
-
-export interface TravelCost {
-  id: number;
-  category: TravelCostCategory;
-  quantity: number;
-  unitCost: number;
-  refactorable: boolean;
-}
-
-export interface SubcontractCost {
-  id: number;
-  mode: string;
-  provider: string;
-  unitCost: number;
-  quantity: number;
-  refactorable: boolean;
-}
-
-export interface ITCost {
+export interface NonOperationalCost {
   id: number;
   type: string;
-  name: string;
-  unitCost: number;
+  subcontractorName: string;
   quantity: number;
-  refactorable: boolean;
-}
-
-export interface OtherCost {
-  id: number;
-  concept: string;
   unitCost: number;
-  quantity: number;
-  refactorable: boolean;
+  assignation: 'project' | 'per use';
+  year?: number;
+  reinvoiced: boolean;
+  context: 'it' | 'subcontract' | 'travel';
 }

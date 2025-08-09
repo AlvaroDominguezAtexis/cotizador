@@ -4,12 +4,7 @@ import { ProjectData} from '../types/project';
 import { WorkPackage} from '../types/workPackages';
 import { Profile } from '../types/profile';
 import { License } from '../types/license';
-import { 
-  TravelCost, 
-  SubcontractCost, 
-  ITCost, 
-  OtherCost 
-} from '../types/costs';
+import { NonOperationalCost} from '../types/costs';
 
 export const useProject = () => {
   // Estados para diferentes aspectos del proyecto
@@ -34,10 +29,7 @@ export const useProject = () => {
   const [workPackages, setWorkPackages] = useState<WorkPackage[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [licenses, setLicenses] = useState<License[]>([]);
-  const [travelCosts, setTravelCosts] = useState<TravelCost[]>([]);
-  const [subcontractCosts, setSubcontractCosts] = useState<SubcontractCost[]>([]);
-  const [itCosts, setITCosts] = useState<ITCost[]>([]);
-  const [otherCosts, setOtherCosts] = useState<OtherCost[]>([]);
+  const [nonOperationalCosts, setNonOperationalCosts] = useState<NonOperationalCost[]>([]);
   const [clients, setClients] = useState<string[]>([]);
   const [activities, setActivities] = useState<string[]>([]);
 
@@ -103,67 +95,43 @@ const updateProfile = (originalProfile: Profile, updatedProfile: Profile) => {
     setLicenses(prev => prev.filter(license => license.id !== id));
   }, []);
 
-  // Métodos para Costes de Viaje
-  const addTravelCost = useCallback((cost: TravelCost) => {
-    setTravelCosts(prev => [...prev, cost]);
+  //Método para Costes no Operacionales
+  const addNonOperationalCost = useCallback((cost: NonOperationalCost) => {
+    setNonOperationalCosts(prev => [...prev, cost]);
   }, []);
 
-  const updateTravelCost = useCallback((id: number, updates: Partial<Omit<TravelCost, 'id'>>) => {
-    setTravelCosts(prev => 
+  const updateNonOperationalCost = useCallback((id: number, updates: Partial<NonOperationalCost>) => {
+    setNonOperationalCosts(prev => 
       prev.map(cost => cost.id === id ? { ...cost, ...updates } : cost)
     );
   }, []);
 
-  const deleteTravelCost = useCallback((id: number) => {
-    setTravelCosts(prev => prev.filter(cost => cost.id !== id));
+  const deleteNonOperationalCost = useCallback((id: number) => {
+    setNonOperationalCosts(prev => prev.filter(cost => cost.id !== id));
   }, []);
 
-  // Métodos para Costes de Subcontrata
-  const addSubcontractCost = useCallback((cost: SubcontractCost) => {
-    setSubcontractCosts(prev => [...prev, cost]);
-  }, []);
+   const importNonOperationalCosts = useCallback((costs: NonOperationalCost[]) => {
+      // Reemplazar todos los costes existentes
+      setNonOperationalCosts(costs);
+    }, []);
 
-  const updateSubcontractCost = useCallback((id: number, updates: Partial<Omit<SubcontractCost, 'id'>>) => {
-    setSubcontractCosts(prev => 
-      prev.map(cost => cost.id === id ? { ...cost, ...updates } : cost)
-    );
-  }, []);
+    // Método para obtener años del proyecto
+    const getProjectYears = useCallback(() => {
+      if (!projectData.startDate || !projectData.endDate) return [];
 
-  const deleteSubcontractCost = useCallback((id: number) => {
-    setSubcontractCosts(prev => prev.filter(cost => cost.id !== id));
-  }, []);
+      const startYear = new Date(projectData.startDate).getFullYear();
+      const endYear = new Date(projectData.endDate).getFullYear();
+      
+      if (startYear === endYear) return [];
+      
+      return Array.from(
+        { length: endYear - startYear + 1 }, 
+        (_, i) => startYear + i
+      );
+    }, [projectData.startDate, projectData.endDate]);
 
-  // Métodos para Costes de IT
-  const addITCost = useCallback((cost: ITCost) => {
-    setITCosts(prev => [...prev, cost]);
-  }, []);
 
-  const updateITCost = useCallback((id: number, updates: Partial<Omit<ITCost, 'id'>>) => {
-    setITCosts(prev => 
-      prev.map(cost => cost.id === id ? { ...cost, ...updates } : cost)
-    );
-  }, []);
-
-  const deleteITCost = useCallback((id: number) => {
-    setITCosts(prev => prev.filter(cost => cost.id !== id));
-  }, []);
-
-  // Métodos para Otros Costes
-  const addOtherCost = useCallback((cost: OtherCost) => {
-    setOtherCosts(prev => [...prev, cost]);
-  }, []);
-
-  const updateOtherCost = useCallback((id: number, updates: Partial<Omit<OtherCost, 'id'>>) => {
-    setOtherCosts(prev => 
-      prev.map(cost => cost.id === id ? { ...cost, ...updates } : cost)
-    );
-  }, []);
-
-  const deleteOtherCost = useCallback((id: number) => {
-    setOtherCosts(prev => prev.filter(cost => cost.id !== id));
-  }, []);
-
-  // Método para reiniciar todo el proyecto
+    // Método para reiniciar todo el proyecto
   const resetProject = useCallback(() => {
     setProjectData({
       title: '',
@@ -184,10 +152,7 @@ const updateProfile = (originalProfile: Profile, updatedProfile: Profile) => {
     setWorkPackages([]);
     setProfiles([]);
     setLicenses([]);
-    setTravelCosts([]);
-    setSubcontractCosts([]);
-    setITCosts([]);
-    setOtherCosts([]);
+    setNonOperationalCosts([]);
   }, []);
 
   // Método para añadir cliente
@@ -234,29 +199,12 @@ const updateProfile = (originalProfile: Profile, updatedProfile: Profile) => {
     updateLicense,
     deleteLicense,
 
-    // Costes de Viaje
-    travelCosts,
-    addTravelCost,
-    updateTravelCost,
-    deleteTravelCost,
-
-    // Costes de Subcontrata
-    subcontractCosts,
-    addSubcontractCost,
-    updateSubcontractCost,
-    deleteSubcontractCost,
-
-    // Costes de IT
-    itCosts,
-    addITCost,
-    updateITCost,
-    deleteITCost,
-
-    // Otros Costes
-    otherCosts,
-    addOtherCost,
-    updateOtherCost,
-    deleteOtherCost,
+    // Costes
+    nonOperationalCosts,
+    addNonOperationalCost,
+    updateNonOperationalCost,
+    deleteNonOperationalCost,
+    importNonOperationalCosts,
 
     clients,
     activities,
@@ -264,6 +212,9 @@ const updateProfile = (originalProfile: Profile, updatedProfile: Profile) => {
     addActivity,
 
     // Método de reinicio
-    resetProject
+    resetProject,
+
+    // Obtener años del proyecto
+    getProjectYears
   };
 };

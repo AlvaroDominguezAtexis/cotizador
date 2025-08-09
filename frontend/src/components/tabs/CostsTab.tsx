@@ -1,30 +1,33 @@
 // src/components/tabs/CostsTab.tsx
-
 import React, { useState } from 'react';
 import { Button } from '../ui/Button';
-import TravelCosts from '../costs/TravelCosts';
-import { SubcontractCosts } from '../costs/SubcontractCosts';
-import { ITCosts } from '../costs/ITCosts';
-import { OtherCosts } from '../costs/OtherCosts';
+import { NonOperationalCosts } from '../costs/NonOperationalCosts';
+import { NonOperationalCost } from '../../types/costs';
 import './Tabs.css';
 
 interface CostsTabProps {
-  costs: any;
-  onChange: (costs: any) => void;
+  costs: NonOperationalCost[];
+  onChange: (costs: NonOperationalCost[]) => void;
 }
 
 export const CostsTab: React.FC<CostsTabProps> = ({ costs, onChange }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'travel' | 'subcontract' | 'it' | 'other'>('travel');
+  const [activeSubTab, setActiveSubTab] = useState<'travel' | 'subcontract' | 'it'>('travel');
 
   const handleExport = () => {
-    const blob = new Blob([JSON.stringify(costs, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `costes_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const blob = new Blob([JSON.stringify(costs, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `costes_no_operacionales_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error al exportar costes:', error);
+      alert('Hubo un error al exportar los costes. Inténtelo de nuevo.');
+    }
   };
 
   const handleImport = () => {
@@ -38,8 +41,21 @@ export const CostsTab: React.FC<CostsTabProps> = ({ costs, onChange }) => {
         reader.onload = (event) => {
           try {
             const importedCosts = JSON.parse(event.target?.result as string);
-            onChange(importedCosts);
+            
+            // Validar estructura de costes
+            if (Array.isArray(importedCosts) && 
+                importedCosts.every(cost => 
+                  cost.id && 
+                  cost.type && 
+                  ['it', 'subcontract', 'travel'].includes(cost.context)
+                )) {
+              // Usar método de onChange para importar
+              onChange(importedCosts);
+            } else {
+              throw new Error('Formato de archivo inválido');
+            }
           } catch (error) {
+            console.error('Error al importar costes:', error);
             alert('Error al importar costes. Formato de archivo inválido.');
           }
         };
@@ -49,7 +65,8 @@ export const CostsTab: React.FC<CostsTabProps> = ({ costs, onChange }) => {
     input.click();
   };
 
-  // You can expand this to pass onChange to each sub-costs component
+  // Filtrar costes por contexto actual
+  const filteredCosts = costs.filter(cost => cost.context === activeSubTab);
 
   return (
     <div className="tab-container">
@@ -92,24 +109,24 @@ export const CostsTab: React.FC<CostsTabProps> = ({ costs, onChange }) => {
           >
             Infraestructura IT
           </Button>
-          <Button
-            variant={activeSubTab === 'other' ? 'primary' : 'secondary'}
-            onClick={() => setActiveSubTab('other')}
-          >
-            Otros Gastos
-          </Button>
         </div>
 
         <div className="tab-content">
-          {/* You can pass onChange to these components for granular updates */}
-          {activeSubTab === 'travel' && <TravelCosts />}
-          {activeSubTab === 'subcontract' && <SubcontractCosts />}
-          {activeSubTab === 'it' && <ITCosts />}
-          {activeSubTab === 'other' && <OtherCosts />}
+          <NonOperationalCosts 
+            context={activeSubTab}
+            costs={filteredCosts}
+            onChange={(updatedCosts: NonOperationalCost[]) => {
+              // Reemplazar los costes del contexto actual
+              const updatedAllCosts: NonOperationalCost[] = costs.filter((cost: NonOperationalCost) => cost.context !== activeSubTab)
+          .concat(updatedCosts);
+              onChange(updatedAllCosts);
+            }}
+          />
         </div>
       </div>
     </div>
   );
 };
 
+// Exportación por defecto para compatibilidad
 export default CostsTab;

@@ -5,11 +5,12 @@ import { ProjectDataTab } from './components/tabs/ProjectDataTab';
 import { ProjectData } from './types/project';
 import { ProfilesTab } from './components/tabs/ProfilesTab';
 import { WorkPackagesTab } from './components/tabs/WorkPackagesTab';
-import { CostsTab } from './components/tabs/CostTab';
+import { CostsTab } from './components/tabs/CostsTab';
 import { SummaryTab } from './components/tabs/SummaryTab';
 import { TabName } from './types/common';
 import { Menu } from './components/Menu';
 import { TabNavigation } from './components/layout/TabNavigation';
+import { NonOperationalCost } from './types/costs';
 import './App.css';
 
 // 🔹 Función para mapear proyectos desde el backend
@@ -166,7 +167,7 @@ const App: React.FC = () => {
   const [projectFormData, setProjectFormData] = useState<ProjectData | null>(null);
   const [profilesData, setProfilesData] = useState<any[]>([]);
   const [workPackagesData, setWorkPackagesData] = useState<any[]>([]);
-  const [costsData, setCostsData] = useState<any>({});
+  const [costsData, setCostsData] = useState<NonOperationalCost[]>([]);
 
   const handleLoginSubmit = async (credentials: { username: string; password: string }): Promise<boolean> => {
     const success = await login(credentials.username, credentials.password);

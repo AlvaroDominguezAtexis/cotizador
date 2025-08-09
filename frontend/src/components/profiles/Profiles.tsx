@@ -7,7 +7,15 @@ import { Button } from '../ui/Button';
 import { Profile } from '../../types/profile';
 // import { COUNTRIES } from '../../types/common';
 import './Profiles.css';
-import { useEffect as useLayoutEffect } from 'react';
+
+interface ProfilesManagementProps {
+  profiles: Profile[];
+  onChange: (profiles: Profile[]) => void;
+  countries?: { id: string; name: string }[];
+  loadingCountries?: boolean;
+  projectId: number;
+}
+
 // Hook para obtener salarios oficiales por perfil y país
 function useOfficialProfileSalaries() {
   const [salaries, setSalaries] = useState<{ [profileId: string]: { [countryId: string]: number } }>({});
@@ -50,6 +58,7 @@ const ProfileNameAutocomplete: React.FC<{
       });
     }
   }, [showSuggestions]);
+
   // Ref para saber si se hizo click en sugerencia o en "Añadir nuevo"
   const clickedRef = useRef(false);
   const handleBlur = () => {
@@ -116,14 +125,7 @@ const ProfileNameAutocomplete: React.FC<{
   );
 };
 
-interface ProfilesManagementProps {
-  profiles: Profile[];
-  onChange: (profiles: Profile[]) => void;
-  countries?: { id: string; name: string }[];
-  loadingCountries?: boolean;
-  projectId: number;
-}
-
+// (Remove this duplicate, incomplete definition)
 export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false, projectId }) => {
   const { profiles: officialProfiles, loading: loadingProfiles } = useOfficialProfiles();
   const officialSalaries = useOfficialProfileSalaries();
@@ -131,6 +133,178 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Partial<Profile> | null>(null);
   const [tableData, setTableData] = useState<Profile[]>(profiles);
+  const projectProfileSalaries = useProjectProfileSalaries(Number(projectId));
+
+  // Guardar edición de perfil existente
+  const handleEditProfileSave = useCallback(async () => {
+  if (!editingProfile || !editingProfile.name?.trim()) {
+    alert('El nombre del perfil es obligatorio');
+    return;
+  }
+
+  const originalProfile = tableData.find(p => p.id === editingProfile.id);
+  const originalIsOfficial = !!originalProfile?.is_official;
+  const newIsOfficial = officialProfiles.some(p => p.name === editingProfile.name);
+  const officialProfile = officialProfiles.find(p => p.name === editingProfile.name);
+  const currentProjectId = projectId;
+
+  try {
+    console.log('🔹 Guardando perfil editado:', editingProfile);
+
+    // 1️⃣ Obtener project_profiles iniciales
+    const getProjectProfiles = async () => {
+      const resp = await fetch(`/project-profiles/${currentProjectId}`);
+      if (!resp.ok) throw new Error('No se pudieron obtener los perfiles del proyecto');
+      return resp.json() as Promise<Array<{ id: number; project_profile_id: number }>>;
+    };
+
+    let projectProfilesData = await getProjectProfiles();
+
+    // Buscar relación inicial
+    let projectProfileEntry = projectProfilesData.find(
+      (pp) => Number(pp.id) === Number(editingProfile.id)
+    );
+
+    // 2️⃣ Lógica de edición de perfil
+    if (!originalIsOfficial && !newIsOfficial) {
+      await fetch(`/profiles/${editingProfile.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingProfile.name,
+          salaries: editingProfile.salaries,
+          is_official: false
+        })
+      });
+    } else if (originalIsOfficial && !newIsOfficial) {
+      if (!originalProfile) return alert('No se encontró el perfil original.');
+      await fetch('/project-profiles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: currentProjectId, profile_id: originalProfile.id })
+      });
+      const res = await fetch('/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingProfile.name,
+          salaries: editingProfile.salaries,
+          is_official: false
+        })
+      });
+      if (!res.ok) throw new Error((await res.text()) || 'No se pudo crear el perfil');
+      const { id: newProfileId } = await res.json();
+      await addProfileToProject(currentProjectId, newProfileId);
+      editingProfile.id = newProfileId; // actualizar ID para buscar salarios
+    } else if (!originalIsOfficial && newIsOfficial && officialProfile) {
+      if (!originalProfile) return alert('No se encontró el perfil original.');
+      await fetch('/project-profiles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: currentProjectId, profile_id: originalProfile.id })
+      });
+      await fetch(`/profiles/${originalProfile.id}`, { method: 'DELETE' });
+      await addProfileToProject(currentProjectId, Number(officialProfile.id));
+      editingProfile.id = Number(officialProfile.id); // actualizar ID
+    } else if (
+      originalIsOfficial &&
+      newIsOfficial &&
+      officialProfile &&
+      originalProfile.name !== editingProfile.name
+    ) {
+      await fetch('/project-profiles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: currentProjectId, profile_id: originalProfile.id })
+      });
+      await addProfileToProject(currentProjectId, Number(officialProfile.id));
+      editingProfile.id = Number(officialProfile.id);
+    }
+
+    // 3️⃣ Volver a obtener el project_profile_id correcto después de cambios
+    projectProfilesData = await getProjectProfiles();
+    projectProfileEntry = projectProfilesData.find(
+      (pp) => Number(pp.id) === Number(editingProfile.id)
+    );
+    const projectProfileId = projectProfileEntry?.project_profile_id;
+    console.log('🔹 Project profile ID final para salarios:', projectProfileId);
+
+    if (!projectProfileId) {
+      console.warn('⚠️ No se encontró project_profile_id después de editar perfil');
+      return;
+    }
+
+    // 4️⃣ Obtener salarios existentes
+    const existingSalariesRes = await fetch(
+      `/project-profile-salaries?project_profile_id=${projectProfileId}`
+    );
+    const existingSalaries: Array<{ id: number; country_id: string | number; salary: string }> =
+      existingSalariesRes.ok ? await existingSalariesRes.json() : [];
+
+    console.log('🔹 Salarios existentes:', existingSalaries);
+    console.log('🔹 Salarios nuevos:', editingProfile.salaries);
+
+    // 5️⃣ Crear/Actualizar salarios
+    const salaryPromises: Promise<Response>[] = [];
+
+    for (const [countryId, salary] of Object.entries(editingProfile.salaries || {})) {
+      const existingSalary = existingSalaries.find(
+        (s) => String(s.country_id) === String(countryId)
+      );
+
+      const newSalaryNum = Number(salary);
+
+      if (existingSalary) {
+        const existingSalaryNum = Number(existingSalary.salary);
+        if (existingSalaryNum !== newSalaryNum) {
+          console.log(`🔸 PUT salario país ${countryId}: ${existingSalaryNum} → ${newSalaryNum}`);
+          salaryPromises.push(
+            fetch(`/project-profile-salaries/${existingSalary.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_profile_id: projectProfileId,
+                country_id: countryId,
+                salary: newSalaryNum
+              }),
+            })
+          );
+        }
+      } else if (newSalaryNum > 0) {
+        console.log(`🟢 POST salario país ${countryId}: ${newSalaryNum}`);
+        salaryPromises.push(
+          fetch(`/project-profile-salaries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              project_profile_id: projectProfileId,
+              country_id: countryId,
+              salary: newSalaryNum,
+            }),
+          })
+        );
+      }
+    }
+
+    await Promise.all(salaryPromises);
+
+    // 6️⃣ Refrescar tabla
+    const resProfiles = await fetch(`/project-profiles/${currentProjectId}`);
+    if (resProfiles.ok) {
+      const profiles = await resProfiles.json();
+      setTableData(profiles);
+      onChange(profiles);
+    }
+
+    console.log('✅ Edición guardada con éxito');
+    setEditingProfile(null);
+  } catch (e) {
+    console.error('❌ Error guardando perfil:', e);
+    alert('Error guardando perfil: ' + (e instanceof Error ? e.message : e));
+  }
+}, [editingProfile, officialProfiles, projectId, onChange, tableData]);
+
+  
 
   // Sincroniza tableData con profiles cuando cambian desde el padre
   useEffect(() => {
@@ -153,77 +327,119 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   }, [tableData, onChange]);
 
   // Editar un perfil existente
-  const handleEditProfile = useCallback((profile: Profile) => {
-    // Creamos una copia para no mutar el estado original
-    setEditingProfile({ ...profile, salaries: { ...profile.salaries } });
-  }, []);
+  // Editar un perfil existente
+const handleEditProfile = useCallback(async (profile: Profile) => {
+    try {
+      const currentProjectId = projectId;
+      const profileId = profile.id;
+
+      // 1️⃣ Obtener project_profiles del proyecto
+      const projectProfilesResponse = await fetch(`/project-profiles/${currentProjectId}`);
+      if (!projectProfilesResponse.ok) {
+        throw new Error('No se pudieron obtener los perfiles del proyecto');
+      }
+
+      const projectProfilesData: Array<{ id: number; name: string; project_profile_id: number }> =
+        await projectProfilesResponse.json();
+
+      console.log("projectProfilesData:", projectProfilesData);
+
+      // 2️⃣ Localizar la entrada que corresponde al perfil que estamos editando
+      const projectProfileEntry = projectProfilesData.find(
+        (pp) => Number(pp.id) === Number(profileId)
+      );
+
+      if (!projectProfileEntry) {
+        console.warn(`No se encontró relación project_profile para perfil ${profileId} en proyecto ${currentProjectId}`);
+        setEditingProfile({ ...profile, salaries: {} });
+        return;
+      }
+
+      const projectProfileId = projectProfileEntry.project_profile_id;
+
+      // 3️⃣ Obtener salarios actuales para ese project_profile_id
+      const salariesResponse = await fetch(
+        `/project-profile-salaries?project_profile_id=${projectProfileId}`
+      );
+      if (!salariesResponse.ok) {
+        throw new Error('No se pudieron obtener los salarios de este perfil en el proyecto');
+      }
+
+      const salariesData: Array<{ country_id: string | number; salary: number }> =
+        await salariesResponse.json();
+
+      // 4️⃣ Mapear salarios { [countryId]: salary }
+      const salariesMap: { [countryId: string]: number } = {};
+      salariesData.forEach((row) => {
+        salariesMap[String(row.country_id)] = row.salary;
+      });
+
+      // 5️⃣ Guardar en estado editable
+      setEditingProfile({
+        ...profile,
+        salaries: salariesMap,
+      });
+    } catch (error) {
+      console.error('Error al preparar la edición del perfil:', error);
+      setEditingProfile({ ...profile, salaries: {} });
+    }
+  }, [projectId]);
+
+
 
   // Actualizar perfil en edición
   const handleProfileChange = useCallback((field: string, value: string) => {
-    setEditingProfile(prev => {
+    setEditingProfile((prev: Partial<Profile> | null): Partial<Profile> | null => {
       if (!prev) return null;
       if (field === 'name') {
-        setNameInput(value);
-        setShowSuggestions(true);
-        const officialProfile = officialProfiles.find(p => p.name === value);
-        if (officialProfile) {
-          // Fetch salarios oficiales dinámicamente
-          fetch(`/project-profiles/${officialProfile.id}/salaries`)
-            .then(res => res.json())
-            .then((data: Array<{ country_id: string | number; salary: number }>) => {
-              setEditingProfile(current => {
-                if (!current) return null;
-                // Mapear salarios por país
-                const salaries: { [countryId: string]: number } = {};
-                data.forEach(row => {
-                  salaries[String(row.country_id)] = row.salary;
-                });
-                return {
-                  ...current,
-                  name: value,
-                  is_official: true,
-                  salaries
-                };
-              });
-            });
+      setNameInput(value);
+      setShowSuggestions(true);
+      const officialProfile = officialProfiles.find((p: { id: string; name: string }) => p.name === value);
+      if (officialProfile) {
+        // Fetch salarios oficiales dinámicamente
+        fetch(`/project-profiles/${officialProfile.id}/salaries`)
+        .then(res => res.json())
+        .then((data: Array<{ country_id: string | number; salary: number }>) => {
+          setEditingProfile((current: Partial<Profile> | null): Partial<Profile> | null => {
+          if (!current) return null;
+          // Mapear salarios por país
+          interface SalaryMap {
+            [countryId: string]: number;
+          }
+          const salaries: SalaryMap = {};
+          data.forEach((row: { country_id: string | number; salary: number }) => {
+            salaries[String(row.country_id)] = row.salary;
+          });
           return {
-            ...prev,
+            ...current,
             name: value,
-            is_official: true
+            is_official: true,
+            salaries
           };
-        }
+          });
+        });
         return {
-          ...prev,
-          name: value,
-          is_official: false
+        ...prev,
+        name: value,
+        is_official: true
         };
       }
       return {
         ...prev,
-        salaries: { ...prev.salaries, [field]: Number(value) || 0 }
+        name: value,
+        is_official: false
+      };
+      }
+      interface Salaries {
+      [countryId: string]: number;
+      }
+      return {
+      ...prev,
+      salaries: { ...(prev.salaries as Salaries), [field]: Number(value) || 0 }
       };
     });
   }, [officialProfiles]);
 
-  // Guardar nuevo perfil en la BBDD si no existe y devolver el id
-  const saveNewProfileToDB = async (name: string) => {
-    try {
-      const res = await fetch('/profiles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, is_official: false })
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'No se pudo guardar el perfil');
-      }
-      const data = await res.json();
-      return data.id;
-    } catch (e) {
-      alert('Error guardando perfil: ' + (e instanceof Error ? e.message : e));
-      return null;
-    }
-  };
 
   // Asociar perfil a proyecto
   const addProfileToProject = async (projectId: number, profileId: number) => {
@@ -237,75 +453,145 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       // Manejar error
     }
   };
-  // Guardar perfil (nuevo o editado)
+ function useProjectProfileSalaries(projectId: number) {
+    const [salaries, setSalaries] = useState<{ [profileId: string]: { [countryId: string]: number } }>({});
+    
+    useEffect(() => {
+      const fetchSalaries = async () => {
+        try {
+          const profilesResponse = await fetch(`/project-profiles/${projectId}`);
+          if (!profilesResponse.ok) {
+            throw new Error('No se pudieron obtener los perfiles del proyecto');
+          }
+          const projectProfiles = await profilesResponse.json();
+          
+          const salariesPromises = projectProfiles.map(async (profile: Profile & { project_profile_id?: number }) => {
+            const profileId = profile.project_profile_id || profile.id;
+            
+            try {
+              // Modificar la URL para usar query params correctamente
+              const salariesResponse = await fetch(`/project-profile-salaries?project_profile_id=${profileId}`);
+              
+              if (!salariesResponse.ok) {
+                console.warn(`No se pudieron obtener los salarios para el perfil ${profileId}`);
+                return {
+                  profileId: profile.id,
+                  salaries: {}
+                };
+              }
+              
+              const profileSalaries = await salariesResponse.json();
+              
+              return {
+                profileId: profile.id,
+                salaries: profileSalaries.reduce((acc: any, salary: any) => {
+                  acc[String(salary.country_id)] = salary.salary;
+                  return acc;
+                }, {})
+              };
+            } catch (error) {
+              console.error(`Error fetching salaries for profile ${profileId}:`, error);
+              return {
+                profileId: profile.id,
+                salaries: {}
+              };
+            }
+          });
+          
+          const resolvedSalaries = await Promise.all(salariesPromises);
+          
+          const salariesMap = resolvedSalaries.reduce((acc, item) => {
+            acc[String(item.profileId)] = item.salaries;
+            return acc;
+          }, {});
+          
+          setSalaries(salariesMap);
+        } catch (error) {
+          console.error('Error al obtener salarios de proyecto:', error);
+        }
+      };
+      
+      fetchSalaries();
+    }, [projectId]);
+    
+    return salaries;
+  }
+
+  // Guardar perfil nuevo
   const handleSaveProfile = useCallback(async () => {
-    if (!editingProfile || !editingProfile.name?.trim()) {
-      alert('El nombre del perfil es obligatorio');
-      return;
-    }
+  if (!editingProfile || !editingProfile.name?.trim()) {
+    alert('El nombre del perfil es obligatorio');
+    return;
+  }
 
-    let updated: Profile[] = tableData;
-    const originalProfile = tableData.find(p => p.id === editingProfile.id);
-    const isEdit = !!originalProfile;
+  // Buscar si es oficial
+  const officialProfile = officialProfiles.find((p) => p.name === editingProfile.name);
 
-    if (isEdit && originalProfile?.is_official) {
-      // EDICIÓN de perfil oficial: eliminar asociación, crear nuevo perfil y asociar
-      try {
-        await fetch('/project-profiles', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project_id: projectId, profile_id: originalProfile.id })
-        });
-      } catch (e) {}
-      const profileId = await saveNewProfileToDB(editingProfile.name!);
-      if (profileId) {
-        await addProfileToProject(projectId, profileId);
-        const newProfile: Profile = { ...editingProfile, id: profileId, is_official: false } as Profile;
-        updated = tableData.map(p =>
-          p.id === editingProfile.id ? newProfile : p
-        );
+  try {
+    let profileId;
+    if (officialProfile) {
+      // Si es oficial, solo crear la relación en project_profiles
+      const resProjectProfile = await fetch('/project-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          project_id: projectId, 
+          profile_id: officialProfile.id,
+          salaries: editingProfile.salaries || {} 
+        })
+      });
+
+      if (!resProjectProfile.ok) {
+        const errorText = await resProjectProfile.text();
+        throw new Error(errorText || 'No se pudo asociar el perfil oficial');
       }
-    } else if (isEdit && originalProfile && !originalProfile.is_official) {
-      // EDICIÓN de perfil no oficial: actualizar perfil existente
-      try {
-        await fetch(`/profiles/${editingProfile.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: editingProfile.name })
-        });
-      } catch (e) {}
-      updated = tableData.map(profile =>
-        profile.id === editingProfile.id ? { ...profile, name: editingProfile.name! } : profile
-      );
+
+      profileId = officialProfile.id;
     } else {
-      // CREACIÓN: mismo flujo que antes
-      const officialProfile = officialProfiles.find(p => p.name === editingProfile.name);
-      if (officialProfile) {
-        await addProfileToProject(projectId, Number(officialProfile.id));
-        if (!tableData.some(p => p.id === Number(officialProfile.id))) {
-          const newProfile: Profile = {
-            ...editingProfile,
-            id: Number(officialProfile.id),
-            is_official: true
-          } as Profile;
-          updated = [...tableData, newProfile];
-        }
-      } else {
-        const profileId = await saveNewProfileToDB(editingProfile.name!);
-        if (profileId) {
-          await addProfileToProject(projectId, profileId);
-          const newProfile: Profile = { ...editingProfile, id: profileId, is_official: false } as Profile;
-          updated = tableData.map(p =>
-            p.id === editingProfile.id ? newProfile : p
-          );
-        }
+      // Si no es oficial, crear el perfil y luego la relación
+      const res = await fetch('/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editingProfile.name, is_official: false })
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'No se pudo guardar el perfil');
+      }
+
+      const data = await res.json();
+      profileId = data.id;
+
+      // Crear relación del nuevo perfil con el proyecto y sus salarios
+      const resProjectProfile = await fetch('/project-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          project_id: projectId, 
+          profile_id: profileId,
+          salaries: editingProfile.salaries || {} 
+        })
+      });
+
+      if (!resProjectProfile.ok) {
+        const errorText = await resProjectProfile.text();
+        throw new Error(errorText || 'No se pudo asociar el perfil');
       }
     }
 
-    setTableData(updated);
-    onChange(updated);
+    // Refrescar la tabla de perfiles tras guardar
+    const resProfiles = await fetch(`/project-profiles/${projectId}`);
+    if (resProfiles.ok) {
+      const profiles = await resProfiles.json();
+      setTableData(profiles);
+      onChange(profiles);
+    }
     setEditingProfile(null);
-  }, [editingProfile, tableData, onChange, officialProfiles, projectId]);
+  } catch (e) {
+    alert('Error guardando perfil: ' + (e instanceof Error ? e.message : e));
+  }
+}, [editingProfile, officialProfiles, projectId, onChange]);
 
   // Cancelar edición
   const handleCancelEdit = useCallback(() => {
@@ -332,44 +618,56 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
               <ProfileNameAutocomplete
                 value={value}
                 officialProfiles={officialProfiles}
-                onChange={v => handleProfileChange('name', v)}
+                onChange={(v) => handleProfileChange('name', v)}
                 onAddNew={() => Promise.resolve()} // noop
               />
             );
           }
           return profile.name;
-        }
+        },
       },
-      ...countries.map(country => ({
+      ...countries.map((country) => ({
         key: `salary-${country.id}`,
         title: `Salario ${country.name}`,
         render: (_: any, profile: Profile) => {
+          const salaries = projectProfileSalaries[profile.id] || {};
+          
           if (editingProfile && editingProfile.id === profile.id) {
             return (
               <input
                 type="number"
                 value={editingProfile.salaries?.[country.id] || ''}
-                onChange={e => handleProfileChange(country.id, e.target.value)}
+                onChange={(e) => handleProfileChange(country.id, e.target.value)}
                 placeholder={`Salario ${country.name}`}
                 className="profile-input salary-input"
               />
             );
           }
-          return profile.salaries[country.id]
-            ? `€${profile.salaries[country.id].toLocaleString()}`
+          
+          return salaries?.[country.id]
+            ? `€${salaries[country.id].toLocaleString()}`
             : '-';
-        }
+        },
       })),
       {
         key: 'actions',
         title: 'Acciones',
         render: (_: any, profile: Profile) => {
+          // Si estamos editando esta fila
           if (editingProfile && editingProfile.id === profile.id) {
+            // Nuevo perfil: id no existe en tableData (sin nombre) o el nombre está vacío
+            const isNew = !tableData.some(p => p.id === editingProfile.id && p.name);
             return (
               <div className="table-row-actions">
-                <Button variant="success" size="sm" onClick={handleSaveProfile}>
-                  Guardar
-                </Button>
+                {isNew ? (
+                  <Button variant="success" size="sm" onClick={handleSaveProfile} style={{ backgroundColor: '#388e3c', borderColor: '#388e3c' }}>
+                    Crear
+                  </Button>
+                ) : (
+                  <Button variant="warning" size="sm" onClick={handleEditProfileSave} style={{ backgroundColor: '#ff9800', borderColor: '#ff9800', color: '#fff' }}>
+                    Guardar
+                  </Button>
+                )}
                 <Button variant="secondary" size="sm" onClick={handleCancelEdit}>
                   Cancelar
                 </Button>
@@ -377,6 +675,7 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
             );
           }
 
+          // Si no estamos editando
           return (
             <div className="table-row-actions">
               <Button
@@ -390,48 +689,50 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
                 variant="danger"
                 size="sm"
                 onClick={async () => {
-                  // 1. Eliminar relación perfil-proyecto
                   try {
+                    // 1️⃣ Eliminar relación perfil-proyecto
+                    console.log('Intentando eliminar relación perfil-proyecto:', { project_id: projectId, profile_id: profile.id });
                     await fetch('/project-profiles', {
                       method: 'DELETE',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ project_id: projectId, profile_id: profile.id })
+                      body: JSON.stringify({ project_id: projectId, profile_id: profile.id }),
                     });
+
+                    
+                    // 4️⃣ Actualizar tabla local
+                    const updated = tableData.filter((p) => p.id !== profile.id);
+                    console.log('Tabla actualizada:', updated);
+                    setTableData(updated);
+                    onChange(updated);
                   } catch (e) {
-                    // Manejar error si se desea
+                    console.error('Error eliminando proyecto o perfil:', e);
                   }
-                  // 2. Si el perfil no es oficial, eliminarlo de la tabla perfiles
-                  if (!profile.is_official) {
-                    try {
-                      await fetch(`/profiles/${profile.id}`, {
-                        method: 'DELETE'
-                      });
-                    } catch (e) {
-                      // Manejar error si se desea
-                    }
-                  }
-                  // 3. Actualizar tabla local
-                  const updated = tableData.filter(p => p.id !== profile.id);
-                  setTableData(updated);
-                  onChange(updated);
                 }}
               >
                 Eliminar
               </Button>
             </div>
           );
-        }
-      }
+        },
+      },
     ],
     [
       editingProfile,
       handleProfileChange,
       handleSaveProfile,
+      handleEditProfileSave,
       handleCancelEdit,
       handleEditProfile,
-      countries
+      countries,
+      tableData,
+      onChange,
+      projectId,
+      profiles,
+      projectProfileSalaries,
+      officialProfiles
     ]
   );
+
 
   // Botón de cabecera
   const headerActions = useMemo(

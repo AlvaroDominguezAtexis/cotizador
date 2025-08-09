@@ -24,8 +24,10 @@ export interface Step {
 /** Entregable dentro de un Work Package */
 export interface Deliverable {
   id: number;
+  code?: string; // Código identificador del deliverable
   name: string;
   margin?: number;
+  DM?: string; // Delivery Manager específico del deliverable (heredable)
   yearlyQuantities?: number[]; // Ej: [10, 15, 20]
   steps: Step[];
 }
@@ -33,7 +35,9 @@ export interface Deliverable {
 /** Work Package completo */
 export interface WorkPackage {
   id: number;
+  code?: string; // Código identificador del work package
   name: string;
+  DM?: string; // Delivery Manager responsable
   description?: string;
   startDate?: string;
   endDate?: string;

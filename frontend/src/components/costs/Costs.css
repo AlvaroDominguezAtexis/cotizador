@@ -106,6 +106,22 @@
 .cost-table-container .table th {
   padding: 12px 5px; /* más espacio vertical */
   vertical-align: middle;
+  text-align: center; /* centrar contenido */
+}
+
+/* Asegurar que inputs y checkboxes dentro de la tabla también se centran visualmente */
+.cost-table-container .table td input[type="text"],
+.cost-table-container .table td input[type="number"],
+.cost-table-container .table td input[type="checkbox"],
+.cost-table-container .table td select {
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  text-align: center;
+}
+
+.cost-table-container .table td .table-row-actions {
+  justify-content: center;
 }
 
 /* Contenedor de acciones de fila */

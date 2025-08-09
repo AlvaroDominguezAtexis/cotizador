@@ -1,6 +1,7 @@
 // src/components/tabs/WorkPackagesTab.tsx
 
 import React from 'react';
+import { getProjectYears } from '../../utils/getProjectYears';
 import { Button } from '../ui/Button';
 import WorkPackagesManagement from '../workpackages/WorkPackagesManagement';
 import './Tabs.css';
@@ -8,9 +9,12 @@ import './Tabs.css';
 interface WorkPackagesTabProps {
   workPackages: any[];
   onChange: (workPackages: any[]) => void;
+  projectStartDate?: string;
+  projectEndDate?: string;
 }
 
-export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, onChange }) => {
+export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, onChange, projectStartDate, projectEndDate }) => {
+  const years = getProjectYears(projectStartDate, projectEndDate);
   const handleExport = () => {
     const workPackagesJson = JSON.stringify(workPackages, null, 2);
     const blob = new Blob([workPackagesJson], { type: 'application/json' });
@@ -66,7 +70,7 @@ export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, 
       </div>
 
       <div className="tab-content">
-        <WorkPackagesManagement workPackages={workPackages} onChange={onChange} />
+        <WorkPackagesManagement workPackages={workPackages} onChange={onChange} projectYears={years} />
       </div>
     </div>
   );

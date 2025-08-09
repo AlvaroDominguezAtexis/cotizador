@@ -60,140 +60,181 @@ const WorkPackagesTable: React.FC<Props> = ({
   };
 
   return (
-    <table className="table work-packages-table">
-      <thead>
-        <tr>
-          <th style={{ width: '65%' }}>Nombre</th>
-          <th style={{ width: '35%' }}>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((wp) => (
-          <React.Fragment key={wp.id}>
-            {/* Fila principal del WP */}
-            <tr className={editingWP?.id === wp.id ? 'new-row' : ''}>
-              <td>
-                {editingWP?.id === wp.id ? (
+    <div className="work-packages-list">
+      {/* Card para nuevo WP */}
+      {editingWP && !editingWP.id && (
+        <div className="work-package-card new-card">
+          <div className="wp-header-grid">
+            <div className="wp-field code">
+              <label>WP Code</label>
+              <input
+                value={editingWP.code || ''}
+                onChange={(e) => setEditingWP({ ...editingWP, code: e.target.value })}
+                className="wp-input"
+                placeholder="Código"
+              />
+            </div>
+            <div className="wp-field name">
+              <label>Workpackage Name</label>
+              <input
+                value={editingWP.name || ''}
+                onChange={(e) => setEditingWP({ ...editingWP, name: e.target.value })}
+                className="wp-input"
+              />
+            </div>
+            <div className="wp-field dm">
+              <label>DM</label>
+              <div className="dm-inline">
+                <input
+                  value={editingWP.DM || ''}
+                  onChange={(e) => setEditingWP({ ...editingWP, DM: e.target.value })}
+                  placeholder="DM"
+                  className="wp-input"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  title="Cascadear DM (no hay deliverables aún)"
+                  disabled
+                >
+                  ⇨
+                </Button>
+              </div>
+            </div>
+            <div className="wp-field actions-field">
+              <label>Actions</label>
+              <div className="wp-actions-buttons">
+                <Button variant="success" size="sm" onClick={handleSave}>Save</Button>
+                <Button variant="secondary" size="sm" onClick={handleCancel}>Cancel</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {data.map(wp => {
+        const isEditing = editingWP?.id === wp.id;
+        const isExpanded = expandedWP === wp.id;
+        return (
+          <div key={wp.id} className={`work-package-card ${isEditing ? 'editing' : ''}`}>
+            <div className="wp-header-grid">
+              <div className="wp-field code">
+                <label>WP Code</label>
+                {isEditing ? (
                   <input
-                    value={editingWP.name || ''}
-                    onChange={(e) =>
-                      setEditingWP({ ...editingWP, name: e.target.value })
-                    }
+                    value={editingWP?.code || ''}
+                    onChange={e => setEditingWP({ ...editingWP!, code: e.target.value })}
+                    className="wp-input"
+                    placeholder="Code"
+                  />
+                ) : (
+                  <div className="wp-static-value">{wp.code || '-'}</div>
+                )}
+              </div>
+              <div className="wp-field name">
+                <label>Workpackage Name</label>
+                {isEditing ? (
+                  <input
+                    value={editingWP?.name || ''}
+                    onChange={e => setEditingWP({ ...editingWP!, name: e.target.value })}
                     className="wp-input"
                   />
                 ) : (
-                  wp.name
+                  <div className="wp-static-value">{wp.name}</div>
                 )}
-              </td>
-              <td className="table-row-actions">
-                {editingWP?.id === wp.id ? (
-                  <>
-                    <Button variant="success" size="sm" onClick={handleSave}>
-                      Guardar
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={handleCancel}>
-                      Cancelar
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setEditingWP({ ...wp })}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => onDelete(wp.id)}
-                    >
-                      Eliminar
-                    </Button>
-
-                    {/* Botón de expandir Deliverables */}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() =>
-                        setExpandedWP(expandedWP === wp.id ? null : wp.id)
+              </div>
+              <div className="wp-field dm">
+                <label>DM</label>
+                <div className="dm-inline">
+                  {isEditing ? (
+                    <input
+                      value={editingWP?.DM || ''}
+                      onChange={e => setEditingWP({ ...editingWP!, DM: e.target.value })}
+                      placeholder="DM"
+                      className="wp-input"
+                    />
+                  ) : (
+                    <div className="wp-static-value">{wp.DM || '-'}</div>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    title="Cascadear DM a todos los deliverables"
+                    onClick={() => {
+                      const dmValue = (isEditing ? editingWP?.DM : wp.DM) || '';
+                      if (!dmValue) {
+                        alert('Primero introduce un DM para el Work Package.');
+                        return;
                       }
-                    >
-                      {expandedWP === wp.id
-                        ? `▲ ${wp.deliverables.length}`
-                        : `▼ ${wp.deliverables.length}`}
-                    </Button>
-
-                    {/* ✅ Botón siempre visible para añadir Deliverable */}
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => handleAddDeliverable(wp.id)}
-                      disabled={creatingDeliverable === wp.id}
-                    >
-                      + Deliverable
-                    </Button>
-                  </>
-                )}
-              </td>
-            </tr>
-
-            {/* Fila expandida con DeliverablesTable */}
-            {expandedWP === wp.id && (
-              <tr className="deliverables-row">
-                <td colSpan={2}>
-                  <DeliverablesTable
-                    deliverables={wp.deliverables}
-                    onAdd={(d: Deliverable) => {
-                      wp.deliverables.push(d);
-                      onUpdate({ ...wp });
-                      setCreatingDeliverable(null); // Ocultar fila editable tras añadir
+                      const updatedDeliverables: Deliverable[] = wp.deliverables.map(d => ({ ...d, DM: dmValue }));
+                      const updatedWP: WorkPackage = { ...wp, DM: dmValue, deliverables: updatedDeliverables } as WorkPackage;
+                      if (isEditing) setEditingWP({ ...editingWP!, DM: dmValue });
+                      onUpdate(updatedWP);
                     }}
-                    onUpdate={(d: Deliverable) => {
-                      const updated = wp.deliverables.map((x) =>
-                        x.id === d.id ? d : x
-                      );
-                      onUpdate({ ...wp, deliverables: updated });
-                    }}
-                    onDelete={(id: number) => {
-                      const updated = wp.deliverables.filter((x) => x.id !== id);
-                      onUpdate({ ...wp, deliverables: updated });
-                    }}
-                    projectYears={projectYears}
-                    createNew={creatingDeliverable === wp.id}
-                    onCancelCreate={() => setCreatingDeliverable(null)}
-                  />
-                </td>
-              </tr>
+                  >
+                    ⇨
+                  </Button>
+                </div>
+              </div>
+              <div className="wp-field actions-field">
+                <label>Actions</label>
+                <div className="wp-actions-buttons">
+                  {isEditing ? (
+                    <>
+                      <Button variant="success" size="sm" onClick={handleSave}>Save</Button>
+                      <Button variant="secondary" size="sm" onClick={handleCancel}>Cancel</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="primary" size="sm" onClick={() => setEditingWP({ ...wp })}>Edit</Button>
+                      <Button variant="danger" size="sm" onClick={() => onDelete(wp.id)}>Delete</Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setExpandedWP(isExpanded ? null : wp.id)}
+                      >
+                        {isExpanded ? `▲ ${wp.deliverables.length}` : `▼ ${wp.deliverables.length}`}
+                      </Button>
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={() => handleAddDeliverable(wp.id)}
+                        disabled={creatingDeliverable === wp.id}
+                      >
+                        + Deliverable
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            {isExpanded && (
+              <div className="wp-deliverables-block">
+                <DeliverablesTable
+                  deliverables={wp.deliverables}
+                  onAdd={(d: Deliverable) => {
+                    wp.deliverables.push(d);
+                    onUpdate({ ...wp });
+                    setCreatingDeliverable(null);
+                  }}
+                  onUpdate={(d: Deliverable) => {
+                    const updated = wp.deliverables.map(x => x.id === d.id ? d : x);
+                    onUpdate({ ...wp, deliverables: updated });
+                  }}
+                  onDelete={(id: number) => {
+                    const updated = wp.deliverables.filter(x => x.id !== id);
+                    onUpdate({ ...wp, deliverables: updated });
+                  }}
+                  projectYears={projectYears}
+                  createNew={creatingDeliverable === wp.id}
+                  onCancelCreate={() => setCreatingDeliverable(null)}
+                />
+              </div>
             )}
-          </React.Fragment>
-        ))}
-
-        {/* Fila editable para nuevo WP */}
-        {editingWP && !editingWP.id && (
-          <tr className="new-row">
-            <td>
-              <input
-                value={editingWP.name || ''}
-                onChange={(e) =>
-                  setEditingWP({ ...editingWP, name: e.target.value })
-                }
-                className="wp-input"
-              />
-            </td>
-            <td className="table-row-actions">
-              <Button variant="success" size="sm" onClick={handleSave}>
-                Guardar
-              </Button>
-              <Button variant="secondary" size="sm" onClick={handleCancel}>
-                Cancelar
-              </Button>
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 

@@ -14,11 +14,13 @@
 }
 
 .table th {
-  text-align: left;
+  text-align: center; /* centrado títulos */
   padding: 0.8rem 1rem;
   font-weight: 600;
   color: #333;
 }
+
+/* Ajuste específico si alguna tabla necesita alinear cuerpo distinto */
 
 .table td {
   padding: 0.8rem 1rem;
@@ -61,6 +63,167 @@
   animation: fadeIn 0.3s ease-in;
 }
 
+/* ===== Nuevo layout tipo cards para WorkPackages ===== */
+.work-packages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 0.5rem;
+}
+
+.work-package-card {
+  border: 1px solid #d5dbe3;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  padding: 0.9rem 1rem 1.1rem;
+  position: relative;
+  transition: box-shadow .25s ease, transform .25s ease;
+}
+
+.work-package-card:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+}
+
+.work-package-card.editing {
+  border-color: #4c8bf5;
+  box-shadow: 0 0 0 2px rgba(76,139,245,0.25);
+}
+
+.work-package-card.new-card {
+  border-style: dashed;
+  background: #f7fbff;
+}
+
+.wp-header-grid {
+  display: grid;
+  /* Código | Nombre (flex) | DM ampliado | Acciones ampliadas */
+  grid-template-columns: 120px 1fr 220px 340px;
+  gap: 1rem 1.2rem;
+  align-items: stretch; /* estira para igual altura */
+  min-height: 64px; /* altura base consistente */
+}
+
+@media (max-width: 1100px) {
+  /* Ajuste responsive manteniendo más espacio relativo para DM y Acciones */
+  .wp-header-grid { grid-template-columns: 105px 1fr 200px 300px; }
+}
+@media (max-width: 900px) {
+  .wp-header-grid { grid-template-columns: 1fr 1fr; }
+  .wp-actions { grid-column: 1 / -1; }
+}
+
+.wp-field label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+  color: #555;
+}
+
+/* Centrado específico para code, name y dm */
+.wp-field.code,
+.wp-field.name,
+.wp-field.dm {
+  align-items: center;
+  text-align: center;
+}
+
+.wp-field.code label,
+.wp-field.name label,
+.wp-field.dm label { width:100%; text-align:center; }
+
+.wp-field.code .wp-input,
+.wp-field.name .wp-input,
+.wp-field.dm .wp-input,
+.wp-field.code .wp-static-value,
+.wp-field.name .wp-static-value,
+.wp-field.dm .wp-static-value { text-align:center; }
+
+.wp-field .wp-static-value {
+  padding: 0; /* sin caja */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 0.95rem; /* aumentado */
+  min-height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #222;
+}
+
+.work-package-card .wp-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.95rem; /* aumentado */
+  border-radius: 6px;
+  border: 1px solid #c7ccd4;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.work-package-card .wp-input:focus {
+  outline: none;
+  border-color: #4c8bf5;
+  box-shadow: 0 0 0 2px rgba(76,139,245,0.15);
+}
+
+.dm-inline {
+  display: flex;
+  gap: 1rem; /* mayor separación valor vs botón */
+  align-items: center; /* centrado vertical */
+}
+
+/* Afinar separación específica del botón si se requiere ajuste fino */
+.dm-inline > .btn { margin-left: 0.25rem; }
+
+.wp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+}
+
+.wp-actions-title {
+  width: 100%;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  font-weight: 600;
+  color: #666;
+  margin: 0 0 0.15rem 0;
+}
+
+.wp-actions-buttons { display:flex; flex-wrap:wrap; gap:0.4rem; }
+
+/* Actions como un campo más */
+.actions-field { display:flex; flex-direction:column; height:100%; }
+.actions-field { display:flex; flex-direction:column; height:100%; align-items:center; text-align:center; }
+.actions-field .wp-actions-buttons { flex:1 1 auto; align-items:center; justify-content:center; }
+.actions-field label { margin-bottom:0.35rem; width:100%; text-align:center; }
+
+/* Alinear verticalmente valores, inputs y dm-inline */
+.wp-field {display:flex; flex-direction:column; height:100%;}
+.wp-field label {margin-bottom:0.25rem;}
+.wp-field .wp-static-value,
+.wp-field .wp-input,
+.dm-inline {flex:1 1 auto; display:flex; align-items:center;}
+.dm-inline .wp-input {height:100%;}
+
+.wp-deliverables-block { margin-top: 0.85rem; }
+
+/* Ajustar tabla de deliverables dentro de card */
+.work-package-card .deliverables-table {
+  border-left: 3px solid #4c8bf5;
+  margin: 0.25rem 0 0 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
 /* -------------------- Deliverables (Nivel 2) -------------------- */
 
 .deliverables-row td {
@@ -68,24 +231,78 @@
   padding: 0;
 }
 
+.deliverables-table-wrapper {
+  width: 100%;
+  overflow-x: auto; /* siempre controlar overflow */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Compatibilidad con clase existente (no necesaria pero no rompe) */
+.deliverables-table-wrapper.scroll { overflow-x: auto; }
+
 .deliverables-table {
   width: 100%;
+  min-width: 880px; /* fuerza scroll en pantallas estrechas evitando colapsar columnas */
   margin: 0.75rem 0 0 0;
   border-left: 3px solid #4c8bf5;
   border-radius: 4px;
+  table-layout: fixed;
+  border-collapse: separate; /* evitar mezclas de border width que desplacen header */
 }
+
+@media (max-width: 920px) {
+  .deliverables-table { min-width: 820px; }
+}
+@media (max-width: 820px) {
+  .deliverables-table { min-width: 760px; }
+}
+@media (max-width: 760px) {
+  .deliverables-table { min-width: 700px; }
+}
+
+/* Cuando hay más de 5 años se añade years-scroll y las columnas de años tienen min-width para provocar overflow */
+.deliverables-table.years-scroll {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Year columns now fluid; removed fixed min-width for scroll mode */
 
 .deliverables-table th {
   background-color: #eef4ff;
   font-size: 0.9rem;
   padding: 0.7rem 0.9rem;
+  box-sizing: border-box;
 }
 
 .deliverables-table td {
   font-size: 0.9rem;
   padding: 0.7rem 0.9rem;
   border-bottom: 1px solid #dbe3f1;
+  box-sizing: border-box;
 }
+
+/* Quitar padding en celdas estrechas (código, nombre, DM) */
+.deliverables-table td.tight-cell,
+.work-packages-table td.tight-cell,
+.steps-table td.tight-cell {
+  padding: 0.2rem 0.25rem; /* pequeño padding */
+}
+
+.deliverables-table td.tight-cell .wp-input,
+.work-packages-table td.tight-cell .wp-input,
+.steps-table td.tight-cell .wp-input,
+.steps-table td.tight-cell select.wp-input {
+  width: 100%;
+  padding: 0.35rem 0.45rem; /* pequeño espacio interno */
+  border-radius: 2px;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+/* Eliminar doble borde entre celdas tight consecutivas */
+
 
 .deliverables-table tbody tr:nth-child(odd) {
   background-color: #fdfefe;
@@ -95,14 +312,206 @@
   background-color: #e7f0ff;
 }
 
-.deliverables-table .table-row-actions {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+/* Centrar contenido de celdas en tablas de WorkPackages y Deliverables */
+.work-packages-table td,
+.deliverables-table td {
+  text-align: center;
 }
+
+/* Acciones deliverables: usar flujo natural y solo espaciar botones */
+.deliverables-table .table-row-actions {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+/* Celda específica de acciones de deliverables */
+.deliverables-table .deliverable-actions {
+  white-space: nowrap;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.deliverables-table .deliverable-actions > .btn + .btn {
+  margin-left: 0.5rem;
+}
+
+.deliverables-table .table-row-actions .btn + .btn {
+  margin-left: 0.4rem;
+}
+
+/* Si el espacio es muy reducido, permitir scroll horizontal en la celda de acciones */
+.deliverables-table td.table-row-actions {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* Columna acciones: asegurar que rellena el ancho cuando <=5 años */
+.deliverables-table .actions-col {
+  /* Permite que la celda de acciones use el espacio asignado */
+  vertical-align: middle;
+}
+
+/* -------- Years compact layout (deliverables) -------- */
+.deliverables-table .years-cell {
+  padding: 0.15rem 0.2rem; /* pequeño espacio */
+  overflow: hidden; /* contiene el wrapper */
+}
+
+.deliverables-table .years-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0.18rem; /* pequeño gap */
+  width: 100%;
+}
+
+.deliverables-table .years-wrapper.scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  max-width: 100%;
+}
+
+.deliverables-table .year-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem; /* pequeño */
+  min-width: 70px;
+  flex: 0 0 auto;
+  align-items: center;
+  text-align: center;
+}
+
+.deliverables-table .year-label {
+  font-size: 0.75rem; /* ligeramente más grande */
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #444;
+  letter-spacing: .5px;
+}
+
+.deliverables-table .year-item .wp-input {
+  width: 58px; /* más estrecho */
+  padding: 0.3rem 0.35rem;
+  font-size: 0.8rem; /* mantiene legibilidad */
+  text-align: center;
+}
+
+.deliverables-table .year-value {
+  font-size: 0.85rem; /* ligeramente más grande */
+  font-weight: 600;
+}
+
+/* Cuando no hay scroll de años, distribuir mejor los botones */
+.deliverables-table:not(.years-scroll) .table-row-actions .btn {
+  flex: 0 0 auto;
+}
+
+/* Si hay muchos años (scroll) reducir tamaño para que quepan más */
+.deliverables-table.years-scroll .table-row-actions .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  min-height: 24px;
+}
+
+/* Ajustar tamaño de botones dentro de acciones para caber mejor */
+/* (mantener tamaños por defecto; se quitó estilizado específico de botones en acciones) */
 
 .deliverables-table .new-row {
   background-color: #f2f9ff !important;
+}
+
+/* Diferenciar fila principal de deliverable y panel de steps */
+.deliverables-table tr.deliverable-main-row.expanded {
+  box-shadow: inset 0 0 0 2px #c8defd;
+  background: #f7fbff;
+}
+
+.deliverable-steps-panel {
+  margin-top: 0.35rem;
+  border: 1px solid #d4ece4;
+  border-left: 4px solid #5bc49f;
+  background: linear-gradient(135deg,#f5fef9 0%, #f0fbf5 100%);
+  padding: 0.6rem 0.75rem 0.85rem;
+  border-radius: 8px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.deliverable-steps-panel:before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(91,196,159,0.35) 0,
+    rgba(91,196,159,0.35) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  border-radius: 2px;
+}
+
+/* Responsive font scaling for deliverables table */
+@media (max-width: 920px) {
+  .deliverables-table th { font-size: 0.85rem; }
+  .deliverables-table td { font-size: 0.85rem; }
+}
+@media (max-width: 820px) {
+  .deliverables-table th { font-size: 0.8rem; }
+  .deliverables-table td { font-size: 0.8rem; }
+}
+@media (max-width: 760px) {
+  .deliverables-table th { font-size: 0.78rem; }
+  .deliverables-table td { font-size: 0.78rem; }
+}
+
+.steps-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.steps-badge {
+  background: #5bc49f;
+  color: #fff;
+  font-size: 0.65rem;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+.steps-context-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #2d6855;
+  opacity: 0.85;
+}
+
+/* Ajustar tabla steps dentro del panel para más compacidad */
+.deliverable-steps-panel .steps-table {
+  margin-top: 0.4rem;
+  border-left: none;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.deliverable-steps-panel .steps-table th {
+  background: #e6faf2;
+  padding: 0.5rem 0.6rem;
+}
+
+.deliverable-steps-panel .steps-table td {
+  padding: 0.45rem 0.55rem;
+}
+
+.deliverable-steps-panel .steps-table tbody tr:nth-child(odd) {
+  background: #fcfefc;
 }
 
 /* -------------------- Steps (Nivel 3) -------------------- */
@@ -117,6 +526,7 @@
   margin: 0.75rem 0 0 0;
   border-left: 3px solid #5bc49f;
   border-radius: 4px;
+  table-layout: fixed; /* para que colgroup funcione de forma predecible */
 }
 
 .steps-table th {

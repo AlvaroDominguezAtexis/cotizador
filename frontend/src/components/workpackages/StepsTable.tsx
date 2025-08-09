@@ -62,6 +62,16 @@ const StepsTable: React.FC<Props> = ({
 
   return (
     <table className="table steps-table">
+      <colgroup>
+        <col style={{ width: '22%' }} /> {/* Name */}
+        <col style={{ width: '20%' }} /> {/* Profile */}
+        <col style={{ width: '14%' }} /> {/* Country */}
+        <col style={{ width: '6%' }} /> {/* Process Time */}
+        <col style={{ width: '8%' }} />  {/* Units */}
+        <col style={{ width: '6%' }} />  {/* Office */}
+        <col style={{ width: '6%' }} />  {/* % Mng */}
+        <col style={{ width: '18%' }} /> {/* Actions */}
+      </colgroup>
       <thead>
         <tr>
           <th>Name</th>
@@ -77,7 +87,7 @@ const StepsTable: React.FC<Props> = ({
       <tbody>
         {steps.map((s) => (
           <tr key={s.id} className={editingStep?.id === s.id ? 'new-row' : ''}>
-            <td>
+            <td className="tight-cell">
               {editingStep?.id === s.id ? (
                 <input
                   value={editingStep.name || ''}
@@ -90,7 +100,7 @@ const StepsTable: React.FC<Props> = ({
                 s.name
               )}
             </td>
-            <td>
+            <td className="tight-cell">
               {editingStep?.id === s.id ? (
                 <select
                   value={editingStep.profile || ''}
@@ -108,7 +118,7 @@ const StepsTable: React.FC<Props> = ({
                 s.profile
               )}
             </td>
-            <td>
+            <td className="tight-cell">
               {editingStep?.id === s.id ? (
                 <select
                   value={editingStep.country || ''}
@@ -126,7 +136,7 @@ const StepsTable: React.FC<Props> = ({
                 s.country
               )}
             </td>
-            <td>
+            <td className="tight-cell">
               {editingStep?.id === s.id ? (
                 <input
                   type="number"
@@ -140,7 +150,7 @@ const StepsTable: React.FC<Props> = ({
                 s.processTime
               )}
             </td>
-            <td>
+            <td className="tight-cell">
               {editingStep?.id === s.id ? (
                 <select
                   value={editingStep.units || 'Hours'}
@@ -157,7 +167,7 @@ const StepsTable: React.FC<Props> = ({
                 s.units
               )}
             </td>
-            <td>
+            <td className="tight-cell">
               {editingStep?.id === s.id ? (
                 <select
                   value={editingStep.office || 'No'}
@@ -173,7 +183,7 @@ const StepsTable: React.FC<Props> = ({
                 s.office
               )}
             </td>
-            <td>
+            <td className="tight-cell">
               {editingStep?.id === s.id ? (
                 <input
                   type="number"
@@ -222,7 +232,7 @@ const StepsTable: React.FC<Props> = ({
         {/* Fila editable para nuevo Step */}
         {editingStep && !editingStep.id && (
           <tr className="new-row">
-            <td>
+            <td className="tight-cell">
               <input
                 value={editingStep.name || ''}
                 onChange={(e) =>
@@ -231,7 +241,7 @@ const StepsTable: React.FC<Props> = ({
                 className="wp-input"
               />
             </td>
-            <td>
+            <td className="tight-cell">
               <select
                 value={editingStep.profile || ''}
                 onChange={(e) =>
@@ -245,7 +255,7 @@ const StepsTable: React.FC<Props> = ({
                 ))}
               </select>
             </td>
-            <td>
+            <td className="tight-cell">
               <select
                 value={editingStep.country || ''}
                 onChange={(e) =>
@@ -259,7 +269,7 @@ const StepsTable: React.FC<Props> = ({
                 ))}
               </select>
             </td>
-            <td>
+            <td className="tight-cell">
               <input
                 type="number"
                 value={editingStep.processTime ?? 0}
@@ -269,7 +279,7 @@ const StepsTable: React.FC<Props> = ({
                 className="wp-input"
               />
             </td>
-            <td>
+            <td className="tight-cell">
               <select
                 value={editingStep.units || 'Hours'}
                 onChange={(e) =>
@@ -282,7 +292,7 @@ const StepsTable: React.FC<Props> = ({
                 <option value="Months">Months</option>
               </select>
             </td>
-            <td>
+            <td className="tight-cell">
               <select
                 value={editingStep.office || 'No'}
                 onChange={(e) =>
@@ -294,7 +304,7 @@ const StepsTable: React.FC<Props> = ({
                 <option value="No">No</option>
               </select>
             </td>
-            <td>
+            <td className="tight-cell">
               <input
                 type="number"
                 value={editingStep.mngPercent ?? 0}

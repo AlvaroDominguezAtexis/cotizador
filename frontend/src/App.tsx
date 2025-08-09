@@ -244,7 +244,14 @@ const App: React.FC = () => {
           projectId={projectFormData?.id || 0}
         />;
       case 'work-packages':
-        return <WorkPackagesTab workPackages={workPackagesData} onChange={setWorkPackagesData} />;
+        return (
+          <WorkPackagesTab
+            workPackages={workPackagesData}
+            onChange={setWorkPackagesData}
+            projectStartDate={projectFormData?.startDate}
+            projectEndDate={projectFormData?.endDate}
+          />
+        );
       case 'non-operational-costs':
           return (
             <CostsTab

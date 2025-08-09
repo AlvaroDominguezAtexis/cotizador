@@ -10,9 +10,10 @@ import './WorkPackages.css';
 interface WorkPackagesManagementProps {
   workPackages: any[];
   onChange: (workPackages: any[]) => void;
+  projectYears?: number[];
 }
 
-const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPackages, onChange }) => {
+const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPackages, onChange, projectYears = [] }) => {
   const [tableData, setTableData] = useState<any[]>(workPackages);
   const [creatingNew, setCreatingNew] = useState(false);
 
@@ -61,7 +62,7 @@ const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPac
         onDelete={handleDelete}
         createNew={creatingNew}
         onCancelCreate={handleCancelCreate}
-        // projectYears={projectYears} // You can wire this up if needed
+        projectYears={projectYears}
       />
     </Card>
   );

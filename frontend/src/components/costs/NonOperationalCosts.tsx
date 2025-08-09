@@ -8,9 +8,9 @@ import EmptyState from '../ui/EmptyState';
 import { CostTable } from './CostTable';
 import './Costs.css';
 
-interface NonOperationalCostsProps { projectId: number; context: NonOperationalCost['context']; }
+interface NonOperationalCostsProps { projectId: number; context: NonOperationalCost['context']; projectYears?: number[]; }
 
-export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projectId, context }) => {
+export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projectId, context, projectYears }) => {
   const [loading, setLoading] = useState(false);
   const [tableData, setTableData] = useState<NonOperationalCost[]>([]);
   const [editingCost, setEditingCost] = useState<Partial<NonOperationalCost> | null>(null);
@@ -213,20 +213,32 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       {
         key: 'year',
         title: 'Year',
-  render: (value: number | undefined, record: NonOperationalCost) => {
+        render: (value: number | undefined, record: NonOperationalCost) => {
+          const years = projectYears || [];
+          // Si no hay rango definido mostramos '-'
+          if (years.length === 0) {
+            // Caso sin fechas definidas todavía
+            return value || '-';
+          }
+          // Si sólo hay un año, mostrarlo plano (sin select)
+            if (years.length === 1) {
+            return years[0];
+          }
           return editingCost?.id === record.id ? (
             <select
               value={editingCost?.year || ''}
-              onChange={e => 
-                setEditingCost({ 
-                  ...editingCost, 
-                  year: e.target.value ? Number(e.target.value) : undefined 
+              onChange={e =>
+                setEditingCost({
+                  ...editingCost,
+                  year: e.target.value ? Number(e.target.value) : undefined
                 })
               }
               className="cost-input"
             >
               <option value="">Select...</option>
-              {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => <option key={y} value={y}>{y}</option>)}
+              {years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
             </select>
           ) : (
             value || '-'

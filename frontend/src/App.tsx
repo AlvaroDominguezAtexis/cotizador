@@ -246,7 +246,15 @@ const App: React.FC = () => {
       case 'work-packages':
         return <WorkPackagesTab workPackages={workPackagesData} onChange={setWorkPackagesData} />;
       case 'non-operational-costs':
-        return <CostsTab projectId={projectFormData?.id || 0} costs={costsData} onChange={setCostsData} />;
+          return (
+            <CostsTab
+              projectId={projectFormData?.id || 0}
+              projectStartDate={projectFormData?.startDate}
+              projectEndDate={projectFormData?.endDate}
+              costs={costsData}
+              onChange={setCostsData}
+            />
+          );
       case 'summary':
         return <SummaryTab project={projectFormData} profiles={profilesData} workPackages={workPackagesData} costs={costsData} />;
       default:

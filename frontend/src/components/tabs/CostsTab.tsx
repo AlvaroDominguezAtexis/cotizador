@@ -7,12 +7,24 @@ import './Tabs.css';
 
 interface CostsTabProps {
   projectId: number;
+  projectStartDate?: string;
+  projectEndDate?: string;
   costs: NonOperationalCost[];
   onChange: (costs: NonOperationalCost[]) => void;
 }
 
-export const CostsTab: React.FC<CostsTabProps> = ({ projectId, costs, onChange }) => {
+const computeProjectYears = (startDate?: string, endDate?: string): number[] => {
+  if (!startDate || !endDate) return [];
+  const startYear = new Date(startDate).getFullYear();
+  const endYear = new Date(endDate).getFullYear();
+  if (isNaN(startYear) || isNaN(endYear)) return [];
+  // Si mismo año => devolver array con ese único año para mostrar fijo (sin desplegable en componente hijo)
+  return Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+};
+
+export const CostsTab: React.FC<CostsTabProps> = ({ projectId, projectStartDate, projectEndDate, costs, onChange }) => {
   const [activeSubTab, setActiveSubTab] = useState<'travel' | 'subcontract' | 'it'>('travel');
+  const years = computeProjectYears(projectStartDate, projectEndDate);
 
   const handleExport = () => {
     try {
@@ -113,7 +125,7 @@ export const CostsTab: React.FC<CostsTabProps> = ({ projectId, costs, onChange }
         </div>
 
         <div className="tab-content">
-          <NonOperationalCosts projectId={projectId} context={activeSubTab} />
+          <NonOperationalCosts projectId={projectId} context={activeSubTab} projectYears={years} />
         </div>
       </div>
     </div>

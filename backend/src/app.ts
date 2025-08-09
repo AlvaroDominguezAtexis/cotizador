@@ -11,6 +11,7 @@ import buLinesRoutes from './routes/Project/buLinesRoutes';
 import clientsRoutes from './routes/Project/clientsRoutes';
 import projectProfilesRoutes from './routes/Project/projectProfilesRoutes';
 import projectProfileSalariesRoutes from './routes/Project/projectProfileSalariesRoutes';
+import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 
 dotenv.config();
 const app = express();
@@ -19,9 +20,6 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => res.send('Backend Cotizador funcionando'));
-
-
-
 
 app.use('/projects', projectsRoutes);
 app.use('/countries', countriesRoutes);
@@ -32,5 +30,7 @@ app.use('/bu-lines', buLinesRoutes);
 app.use('/clients', clientsRoutes);
 app.use('/project-profile-salaries', projectProfileSalariesRoutes);
 app.use('/project-profiles', projectProfilesRoutes);
+// Non operational costs endpoints mounted without extra prefix so they match /projects/:projectId/non-operational-costs
+app.use('', nonOperationalCostsRoutes);
 
 export default app;

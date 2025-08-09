@@ -10,7 +10,7 @@ import { SummaryTab } from './components/tabs/SummaryTab';
 import { TabName } from './types/common';
 import { Menu } from './components/Menu';
 import { TabNavigation } from './components/layout/TabNavigation';
-import { NonOperationalCost } from './types/costs';
+import { NonOperationalCost } from './types/nonOperationalCost';
 import './App.css';
 
 // 🔹 Función para mapear proyectos desde el backend
@@ -246,7 +246,7 @@ const App: React.FC = () => {
       case 'work-packages':
         return <WorkPackagesTab workPackages={workPackagesData} onChange={setWorkPackagesData} />;
       case 'non-operational-costs':
-        return <CostsTab costs={costsData} onChange={setCostsData} />;
+        return <CostsTab projectId={projectFormData?.id || 0} costs={costsData} onChange={setCostsData} />;
       case 'summary':
         return <SummaryTab project={projectFormData} profiles={profilesData} workPackages={workPackagesData} costs={costsData} />;
       default:

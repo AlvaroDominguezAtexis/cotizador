@@ -2,15 +2,16 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 import { NonOperationalCosts } from '../costs/NonOperationalCosts';
-import { NonOperationalCost } from '../../types/costs';
+import { NonOperationalCost } from '../../types/nonOperationalCost';
 import './Tabs.css';
 
 interface CostsTabProps {
+  projectId: number;
   costs: NonOperationalCost[];
   onChange: (costs: NonOperationalCost[]) => void;
 }
 
-export const CostsTab: React.FC<CostsTabProps> = ({ costs, onChange }) => {
+export const CostsTab: React.FC<CostsTabProps> = ({ projectId, costs, onChange }) => {
   const [activeSubTab, setActiveSubTab] = useState<'travel' | 'subcontract' | 'it'>('travel');
 
   const handleExport = () => {
@@ -112,16 +113,7 @@ export const CostsTab: React.FC<CostsTabProps> = ({ costs, onChange }) => {
         </div>
 
         <div className="tab-content">
-          <NonOperationalCosts 
-            context={activeSubTab}
-            costs={filteredCosts}
-            onChange={(updatedCosts: NonOperationalCost[]) => {
-              // Reemplazar los costes del contexto actual
-              const updatedAllCosts: NonOperationalCost[] = costs.filter((cost: NonOperationalCost) => cost.context !== activeSubTab)
-          .concat(updatedCosts);
-              onChange(updatedAllCosts);
-            }}
-          />
+          <NonOperationalCosts projectId={projectId} context={activeSubTab} />
         </div>
       </div>
     </div>

@@ -24,19 +24,26 @@ export const CostTable: React.FC<CostTableProps> = ({
   // Calcular coste total
   const totalCost = useMemo(() => {
     return data.reduce((total, item) => {
-      return total + (item.quantity * item.unitCost);
+      const unit = item.unit_cost ?? item.unitCost ?? 0;
+      return total + (Number(item.quantity || 0) * Number(unit));
     }, 0);
   }, [data]);
 
   // Calcular desglose de costes refacturables
   const costBreakdown = useMemo(() => {
     const refacturable = data
-      .filter(item => item.refactorable)
-      .reduce((total, item) => total + (item.quantity * item.unitCost), 0);
+      .filter(item => item.reinvoiced || item.refactorable)
+      .reduce((total, item) => {
+        const unit = item.unit_cost ?? item.unitCost ?? 0;
+        return total + (Number(item.quantity || 0) * Number(unit));
+      }, 0);
 
     const noRefacturable = data
-      .filter(item => !item.refactorable)
-      .reduce((total, item) => total + (item.quantity * item.unitCost), 0);
+      .filter(item => !(item.reinvoiced || item.refactorable))
+      .reduce((total, item) => {
+        const unit = item.unit_cost ?? item.unitCost ?? 0;
+        return total + (Number(item.quantity || 0) * Number(unit));
+      }, 0);
 
     return { refacturable, noRefacturable };
   }, [data]);

@@ -12,7 +12,10 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ costs, profi
   // Calcular costes totales
   const totalCosts = useMemo(() => {
     const calculateTotal = (costsArr: any[] = []) => 
-      costsArr.reduce((total, cost) => total + (cost.quantity * cost.unitCost), 0);
+      costsArr.reduce((total, cost) => {
+        const unit = cost.unit_cost ?? cost.unitCost ?? 0;
+        return total + (Number(cost.quantity || 0) * Number(unit));
+      }, 0);
 
     return {
       travel: calculateTotal(costs?.travelCosts),

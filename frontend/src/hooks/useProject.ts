@@ -4,7 +4,7 @@ import { ProjectData} from '../types/project';
 import { WorkPackage} from '../types/workPackages';
 import { Profile } from '../types/profile';
 import { License } from '../types/license';
-import { NonOperationalCost} from '../types/costs';
+import { NonOperationalCost } from '../types/nonOperationalCost';
 
 export const useProject = () => {
   // Estados para diferentes aspectos del proyecto

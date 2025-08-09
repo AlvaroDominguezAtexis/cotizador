@@ -510,53 +510,49 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
     try {
       let profileId;
       if (officialProfile) {
-        // Si es oficial, solo crear la relación en project_profiles
         const resProjectProfile = await fetch('/project-profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            project_id: projectId, 
+          body: JSON.stringify({
+            project_id: projectId,
             profile_id: officialProfile.id,
-            salaries: editingProfile.salaries || {} 
+            salaries: editingProfile.salaries || {}
           })
         });
-
-        if (!resProjectProfile.ok) {
-          const errorText = await resProjectProfile.text();
-          throw new Error(errorText || 'No se pudo asociar el perfil oficial');
+        if (resProjectProfile.status === 409) {
+          alert('This profile is already existing in this project');
+          return;
         }
-
+        if (!resProjectProfile.ok) {
+          throw new Error((await resProjectProfile.text()) || 'Error linking profile');
+        }
         profileId = officialProfile.id;
       } else {
-        // Si no es oficial, crear el perfil y luego la relación
+        // Crear perfil (o reutilizado si backend lo devuelve reused)
         const res = await fetch('/profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: editingProfile.name, is_official: false })
         });
+        if (!res.ok) throw new Error((await res.text()) || 'Error creating profile');
+        const created = await res.json();
+        profileId = created.id;
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || 'No se pudo guardar el perfil');
-        }
-
-        const data = await res.json();
-        profileId = data.id;
-
-        // Crear relación del nuevo perfil con el proyecto y sus salarios
         const resProjectProfile = await fetch('/project-profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            project_id: projectId, 
+          body: JSON.stringify({
+            project_id: projectId,
             profile_id: profileId,
-            salaries: editingProfile.salaries || {} 
+            salaries: editingProfile.salaries || {}
           })
         });
-
+        if (resProjectProfile.status === 409) {
+          alert('This profile is already existing in this project');
+          return;
+        }
         if (!resProjectProfile.ok) {
-          const errorText = await resProjectProfile.text();
-          throw new Error(errorText || 'No se pudo asociar el perfil');
+          throw new Error((await resProjectProfile.text()) || 'Error linking profile');
         }
       }
 

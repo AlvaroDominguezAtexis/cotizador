@@ -51,50 +51,65 @@ export const addProjectProfile = async (req: Request, res: Response) => {
   if (!project_id || !profile_id) {
     return res.status(400).json({ error: 'project_id y profile_id son requeridos' });
   }
-  
-  const client = await Pool.connect(); // Iniciar transacción
-  
+
+  const client = await Pool.connect();
   try {
     await client.query('BEGIN');
-    
-    // Crear relación project_profile
-    const projectProfileResult = await client.query(
-      `INSERT INTO project_profiles (project_id, profile_id)
-       VALUES ($1, $2)
-       ON CONFLICT (project_id, profile_id) DO NOTHING
-       RETURNING id`,
+
+    // ✅ Verificar si ya existe por profile_id
+    const existsById = await client.query(
+      'SELECT 1 FROM project_profiles WHERE project_id=$1 AND profile_id=$2 LIMIT 1',
       [project_id, profile_id]
     );
-    
-    const projectProfileId = projectProfileResult.rows[0]?.id;
-    
-    if (!projectProfileId) {
+    if (existsById.rows.length > 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'No se pudo crear la relación project_profile' });
+      return res.status(409).json({ error: 'This profile is already existing in this project' });
     }
-    
-    // Guardar salarios si se proporcionan
-    if (salaries && Object.keys(salaries).length > 0) {
-      const salaryPromises = Object.entries(salaries).map(([country_id, salary]) => 
-        client.query(
-          `INSERT INTO project_profile_salaries (project_profile_id, country_id, salary)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (project_profile_id, country_id) 
-           DO UPDATE SET salary = EXCLUDED.salary`,
-          [projectProfileId, country_id, salary]
-        )
-      );
-      
-      await Promise.all(salaryPromises);
+
+    // ✅ Verificar duplicado por nombre (independiente del profile_id) — evita duplicados con mismo nombre
+    const dupName = await client.query(
+      `SELECT 1
+         FROM project_profiles pp
+         JOIN profiles p ON p.id = pp.profile_id
+        WHERE pp.project_id = $1
+          AND LOWER(p.name) = LOWER( (SELECT name FROM profiles WHERE id = $2) )
+        LIMIT 1`,
+      [project_id, profile_id]
+    );
+    if (dupName.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'This profile is already existing in this project' });
     }
-    
+
+    // Insert relación
+    const inserted = await client.query(
+      'INSERT INTO project_profiles (project_id, profile_id) VALUES ($1,$2) RETURNING id',
+      [project_id, profile_id]
+    );
+    const projectProfileId = inserted.rows[0].id;
+
+    // Salarios opcionales
+    if (salaries && typeof salaries === 'object') {
+      for (const [countryId, salary] of Object.entries(salaries)) {
+        const val = Number(salary);
+        if (!isNaN(val) && val > 0) {
+          await client.query(
+            `INSERT INTO project_profile_salaries (project_profile_id, country_id, salary)
+             VALUES ($1,$2,$3)
+             ON CONFLICT (project_profile_id, country_id)
+             DO UPDATE SET salary = EXCLUDED.salary`,
+            [projectProfileId, countryId, val]
+          );
+        }
+      }
+    }
+
     await client.query('COMMIT');
-    
-    res.status(201).json({ id: projectProfileId });
+    return res.status(201).json({ id: projectProfileId });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error al crear relación project_profile:', err);
-    res.status(500).json({ error: 'Error al crear relación project_profile', details: err });
+    console.error('Error addProjectProfile:', err);
+    return res.status(500).json({ error: 'Error creando relación project_profile' });
   } finally {
     client.release();
   }

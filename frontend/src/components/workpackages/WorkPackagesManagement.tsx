@@ -68,6 +68,7 @@ const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPac
         createNew={creatingNew}
         onCancelCreate={handleCancelCreate}
         projectYears={projectYears}
+  projectId={effectiveProjectId}
       />
     </Card>
   );

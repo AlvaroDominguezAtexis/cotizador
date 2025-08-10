@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { WorkPackage, Deliverable } from '../../types/workPackages';
 import { Button } from '../ui/Button';
 import DeliverablesTable from './deliverablesTable';
+import { updateDeliverableApi } from '../../api/deliverablesApi';
 import './WorkPackages.css';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   createNew?: boolean;
   onCancelCreate?: () => void;
   projectYears?: number[];
+  projectId?: number | null;
 }
 
 const WorkPackagesTable: React.FC<Props> = ({
@@ -22,10 +24,13 @@ const WorkPackagesTable: React.FC<Props> = ({
   createNew = false,
   onCancelCreate,
   projectYears = [],
+  projectId = null,
 }) => {
   const [editingWP, setEditingWP] = useState<Partial<WorkPackage> | null>(null);
   const [expandedWP, setExpandedWP] = useState<number | null>(null);
   const [creatingDeliverable, setCreatingDeliverable] = useState<number | null>(null);
+  const [wpError, setWpError] = useState<string | null>(null);
+  const [reloadCounters, setReloadCounters] = useState<Record<number, number>>({});
 
   /** Activar fila de creación de WP */
   useEffect(() => {
@@ -33,7 +38,12 @@ const WorkPackagesTable: React.FC<Props> = ({
   }, [createNew]);
 
   const handleSave = () => {
-    if (!editingWP || !editingWP.name?.trim()) return;
+    if (!editingWP) return;
+    const code = editingWP.code?.trim();
+    const name = editingWP.name?.trim();
+    if (!code) { setWpError('Código WP obligatorio'); return; }
+    if (!name) { setWpError('Nombre WP obligatorio'); return; }
+    setWpError(null);
 
     if (!editingWP.id) {
       const newWP: WorkPackage = {
@@ -101,11 +111,12 @@ const WorkPackagesTable: React.FC<Props> = ({
                 </Button>
               </div>
             </div>
-            <div className="wp-field actions-field">
+      <div className="wp-field actions-field">
               <label>Actions</label>
               <div className="wp-actions-buttons">
-                <Button variant="success" size="sm" onClick={handleSave}>Save</Button>
+        <Button variant="success" size="sm" onClick={handleSave}>Save</Button>
                 <Button variant="secondary" size="sm" onClick={handleCancel}>Cancel</Button>
+        {wpError && <span className="error-tip" data-tip={wpError}>!</span>}
               </div>
             </div>
           </div>
@@ -160,20 +171,25 @@ const WorkPackagesTable: React.FC<Props> = ({
                     variant="secondary"
                     size="sm"
                     title="Cascadear DM a todos los deliverables"
-                    onClick={() => {
+                    onClick={async () => {
                       const dmValue = (isEditing ? editingWP?.DM : wp.DM) || '';
-                      if (!dmValue) {
-                        alert('Primero introduce un DM para el Work Package.');
-                        return;
-                      }
-                      const updatedDeliverables: Deliverable[] = wp.deliverables.map(d => ({ ...d, DM: dmValue }));
-                      const updatedWP: WorkPackage = { ...wp, DM: dmValue, deliverables: updatedDeliverables } as WorkPackage;
+                      if (!dmValue) { alert('Primero introduce un DM para el Work Package.'); return; }
+                      // Local update of WP & deliverables DM field
+                      const updatedDeliverablesLocal: Deliverable[] = wp.deliverables.map(d => ({ ...d, DM: dmValue }));
+                      const updatedWP: WorkPackage = { ...wp, DM: dmValue, deliverables: updatedDeliverablesLocal } as WorkPackage;
                       if (isEditing) setEditingWP({ ...editingWP!, DM: dmValue });
                       onUpdate(updatedWP);
+                      // Backend cascading (best-effort)
+                      if (projectId) {
+                        try {
+                          await Promise.all(updatedDeliverablesLocal.map(d => updateDeliverableApi(projectId, wp.id, d.id, { dm: Number(dmValue) })));
+                          setReloadCounters(prev => ({ ...prev, [wp.id]: (prev[wp.id] || 0) + 1 }));
+                        } catch (e) {
+                          console.warn('Error en cascada DM backend', e);
+                        }
+                      }
                     }}
-                  >
-                    ⇨
-                  </Button>
+                  >⇨</Button>
                 </div>
               </div>
               <div className="wp-field actions-field">
@@ -208,7 +224,7 @@ const WorkPackagesTable: React.FC<Props> = ({
                 </div>
               </div>
             </div>
-            {isExpanded && (
+    {isExpanded && (
               <div className="wp-deliverables-block">
                 <DeliverablesTable
                   deliverables={wp.deliverables}
@@ -228,7 +244,15 @@ const WorkPackagesTable: React.FC<Props> = ({
                   projectYears={projectYears}
                   createNew={creatingDeliverable === wp.id}
                   onCancelCreate={() => setCreatingDeliverable(null)}
+                  projectId={projectId || null}
+                  workPackageId={wp.id}
+      key={`delivs-${wp.id}-${reloadCounters[wp.id] || 0}`}
                 />
+              </div>
+            )}
+            {wpError && isEditing && (
+              <div style={{color:'#d9534f', fontSize:'.7rem', marginTop:4, textAlign:'center'}}>
+                <span style={{fontWeight:600}}>Error:</span> {wpError}
               </div>
             )}
           </div>

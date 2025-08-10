@@ -13,6 +13,7 @@ import projectProfilesRoutes from './routes/Project/projectProfilesRoutes';
 import projectProfileSalariesRoutes from './routes/Project/projectProfileSalariesRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
+import deliverablesRoutes from './routes/Project/deliverablesRoutes';
 
 dotenv.config();
 const app = express();
@@ -35,5 +36,6 @@ app.use('/project-profiles', projectProfilesRoutes);
 app.use('', nonOperationalCostsRoutes);
 // Workpackages nested under projects
 app.use('/projects/:projectId/workpackages', workPackagesRoutes);
+app.use('/projects/:projectId/workpackages/:workPackageId/deliverables', deliverablesRoutes);
 
 export default app;

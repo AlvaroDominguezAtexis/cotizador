@@ -26,8 +26,8 @@ export interface Deliverable {
   id: number;
   code?: string; // Código identificador del deliverable
   name: string;
-  margin?: number;
-  DM?: string; // Delivery Manager específico del deliverable (heredable)
+  dm?: number; // Valor numérico (antes margin) alineado con backend
+  DM?: string; // Delivery Manager nombre (solo frontend, no persistido)
   yearlyQuantities?: number[]; // Ej: [10, 15, 20]
   steps: Step[];
 }

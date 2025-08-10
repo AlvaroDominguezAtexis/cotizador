@@ -3,10 +3,11 @@ import { Deliverable, Step } from '../../types/workPackages';
 import { Button } from '../ui/Button';
 import StepsTable from './StepsTable';
 import './WorkPackages.css';
+import { createDeliverableApi, updateDeliverableApi, deleteDeliverableApi, fetchDeliverables } from '../../api/deliverablesApi';
 
 interface Props {
-  deliverables: Deliverable[];
-  onAdd: (d: Deliverable) => void;
+  deliverables: Deliverable[]; // initial fallback list (will be overridden by backend fetch)
+  onAdd: (d: Deliverable) => void; // kept for upward sync/backward compat
   onUpdate: (d: Deliverable) => void;
   onDelete: (id: number) => void;
   projectYears: number[]; // siempre >= 1
@@ -14,6 +15,8 @@ interface Props {
   countries?: string[];
   createNew?: boolean;
   onCancelCreate?: () => void;
+  projectId?: number | null;
+  workPackageId?: number | null;
 }
 
 const DeliverablesTable: React.FC<Props> = ({
@@ -25,33 +28,67 @@ const DeliverablesTable: React.FC<Props> = ({
   profiles = [],
   countries = [],
   createNew = false,
-  onCancelCreate
+  onCancelCreate,
+  projectId,
+  workPackageId
 }) => {
   const [editingDeliverable, setEditingDeliverable] = useState<Partial<Deliverable> | null>(null);
   const [expandedDeliverable, setExpandedDeliverable] = useState<number | null>(null);
   const [creatingStepFor, setCreatingStepFor] = useState<number | null>(null);
+  const [items, setItems] = useState<Deliverable[]>(deliverables || []);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  // Load from backend
+  useEffect(() => {
+    const load = async () => {
+      if (!projectId || !workPackageId) return;
+      setLoading(true); setError(null);
+      try {
+        const data = await fetchDeliverables(projectId, workPackageId, projectYears.length);
+        setItems(data);
+      } catch (e:any) {
+        setError(e.message || 'Error');
+      } finally { setLoading(false); }
+    };
+    load();
+  }, [projectId, workPackageId, projectYears.length, reloadToken]);
 
   useEffect(() => {
-    if (createNew) {
-      setEditingDeliverable({ yearlyQuantities: new Array(projectYears.length).fill(0) });
-    }
+    if (createNew) setEditingDeliverable({ yearlyQuantities: new Array(projectYears.length).fill(0) });
   }, [createNew, projectYears.length]);
 
   const yearCount = projectYears.length; // >0
   const isScrollableYears = yearCount > 5;
 
-  const handleSave = () => {
-    if (!editingDeliverable || !editingDeliverable.name?.trim()) return;
+  const handleSave = async () => {
+    if (!editingDeliverable) return;
+    const code = editingDeliverable.code?.trim();
+    const name = editingDeliverable.name?.trim();
+  const dmVal = editingDeliverable.dm ?? 0;
+    if (!code) { setFormError('Código obligatorio'); return; }
+    if (!name) { setFormError('Nombre obligatorio'); return; }
+    if (isNaN(Number(dmVal))) { setFormError('DM numérico obligatorio'); return; }
+    setFormError(null);
+    if (!projectId || !workPackageId) return;
     if (!editingDeliverable.id) {
-      const newDeliverable: Deliverable = {
-        ...editingDeliverable,
-        id: Date.now(),
-        steps: [],
+      const created = await createDeliverableApi(projectId, workPackageId, {
+        codigo: editingDeliverable.code || '',
+        nombre: editingDeliverable.name || '',
+  dm: Number(editingDeliverable.dm || 0),
         yearlyQuantities: editingDeliverable.yearlyQuantities || new Array(projectYears.length).fill(0)
-      } as Deliverable;
-      onAdd(newDeliverable);
+      }).catch(e => { if (e.message === 'DUPLICATE_CODE') { setFormError('Código duplicado'); return null; } throw e; });
+      if (created) { setItems(prev => [created, ...prev]); onAdd(created); } else { return; }
     } else {
-      onUpdate(editingDeliverable as Deliverable);
+      const updated = await updateDeliverableApi(projectId, workPackageId, editingDeliverable.id as number, {
+        codigo: editingDeliverable.code,
+        nombre: editingDeliverable.name,
+  dm: Number(editingDeliverable.dm || 0),
+        yearlyQuantities: editingDeliverable.yearlyQuantities
+      }).catch(e => { if (e.message === 'DUPLICATE_CODE') { setFormError('Código duplicado'); return null; } throw e; });
+      if (updated) { setItems(prev => prev.map(i => i.id === updated.id ? updated : i)); onUpdate(updated); } else { return; }
     }
     setEditingDeliverable(null);
   };
@@ -86,7 +123,13 @@ const DeliverablesTable: React.FC<Props> = ({
           </tr>
         </thead>
         <tbody>
-          {deliverables.map(d => (
+          {loading && (
+            <tr><td colSpan={5} style={{ textAlign:'center', fontSize:'.8rem' }}>Cargando deliverables...</td></tr>
+          )}
+          {error && (
+            <tr><td colSpan={5} style={{ textAlign:'center', color:'red', fontSize:'.8rem' }}>{error}</td></tr>
+          )}
+          {items.map(d => (
             <React.Fragment key={d.id}>
               <tr
                 className={`deliverable-main-row ${editingDeliverable?.id === d.id ? 'new-row' : ''} ${expandedDeliverable === d.id ? 'expanded' : ''}`}
@@ -118,12 +161,12 @@ const DeliverablesTable: React.FC<Props> = ({
                   {editingDeliverable?.id === d.id ? (
                     <input
                       type="number"
-                      value={editingDeliverable.margin || 0}
-                      onChange={e => setEditingDeliverable({ ...editingDeliverable, margin: Number(e.target.value) })}
+                      value={editingDeliverable.dm || 0}
+                      onChange={e => setEditingDeliverable({ ...editingDeliverable, dm: Number(e.target.value) })}
                       className="wp-input"
                     />
                   ) : (
-                    `${d.margin ?? 0}%`
+                    `${d.dm ?? 0}%`
                   )}
                 </td>
                 <td className="years-cell" style={{ width: '39%' }}>
@@ -154,7 +197,7 @@ const DeliverablesTable: React.FC<Props> = ({
                   </div>
                 </td>
                 <td className="deliverable-actions actions-col" style={{ width: '24%' }}>
-                  {editingDeliverable?.id === d.id ? (
+          {editingDeliverable?.id === d.id ? (
                     <>
                       <Button variant="success" size="sm" onClick={handleSave}>
                         Save
@@ -162,13 +205,14 @@ const DeliverablesTable: React.FC<Props> = ({
                       <Button variant="secondary" size="sm" onClick={handleCancel}>
                         Cancel
                       </Button>
+            {formError && <span className="error-tip" data-tip={formError}>!</span>}
                     </>
                   ) : (
                     <>
                       <Button variant="primary" size="sm" onClick={() => setEditingDeliverable({ ...d })}>
                         Edit
                       </Button>
-                      <Button variant="danger" size="sm" onClick={() => onDelete(d.id)}>
+                      <Button variant="danger" size="sm" onClick={async () => { if(!projectId||!workPackageId) return; await deleteDeliverableApi(projectId, workPackageId, d.id); setItems(prev=>prev.filter(x=>x.id!==d.id)); onDelete(d.id); }}>
                         Delete
                       </Button>
                       <Button
@@ -243,8 +287,8 @@ const DeliverablesTable: React.FC<Props> = ({
               <td className="tight-cell" style={{ width: '7%' }}>
                 <input
                   type="number"
-                  value={editingDeliverable.margin || 0}
-                  onChange={e => setEditingDeliverable({ ...editingDeliverable, margin: Number(e.target.value) })}
+                  value={editingDeliverable.dm || 0}
+                  onChange={e => setEditingDeliverable({ ...editingDeliverable, dm: Number(e.target.value) })}
                   className="wp-input"
                 />
               </td>
@@ -272,14 +316,16 @@ const DeliverablesTable: React.FC<Props> = ({
                 </div>
               </td>
               <td className="deliverable-actions actions-col" style={{ width: '24%' }}>
-                <Button variant="success" size="sm" onClick={handleSave}>
-                  Guardar
-                </Button>
-                <Button variant="secondary" size="sm" onClick={handleCancel}>
-                  Cancelar
-                </Button>
+                <Button variant="success" size="sm" onClick={handleSave}>Guardar</Button>
+                <Button variant="secondary" size="sm" onClick={handleCancel}>Cancelar</Button>
+                {formError && <span className="error-tip" data-tip={formError}>!</span>}
               </td>
             </tr>
+          )}
+          {formError && (
+            <tr><td colSpan={5} style={{ color:'#d9534f', fontSize:'.7rem', textAlign:'center' }}>
+              <strong>Error:</strong> {formError}
+            </td></tr>
           )}
         </tbody>
       </table>

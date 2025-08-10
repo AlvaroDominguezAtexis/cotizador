@@ -86,8 +86,8 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
       buLine: '',
       opsDomain: '',
       country: '',
-      scope: 'local',
-      additionalCountries: [],
+  scope: 'local',
+  countries: [],
       iqp: 1,
       segmentation: 'New Business',
       description: '',
@@ -241,9 +241,9 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         <div className="form-group">
           <label>País(es)</label>
           <CountrySelector
-            selectedCountries={formData.additionalCountries || []}
+            selectedCountries={formData.countries || []}
             onChange={(countries) => {
-              setFormData((prev) => ({ ...prev, additionalCountries: countries }));
+              setFormData((prev) => ({ ...prev, countries }));
             }}
             max={10}
           />

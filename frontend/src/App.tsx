@@ -37,10 +37,9 @@ export const mapProjectFromBackend = (data: any): ProjectData => {
     opsDomain: safeData.ops_domain ?? safeData.opsDomain ?? '',
     country: safeData.country ?? '',
     scope: safeData.scope ?? '',
-    additionalCountries:
-      typeof safeData.additional_countries === 'string'
-        ? JSON.parse(safeData.additional_countries)
-        : (safeData.additional_countries ?? safeData.additionalCountries ?? []),
+    countries: Array.isArray(safeData.countries)
+      ? safeData.countries.map((c: any) => String(c))
+      : [],
     iqp: safeData.iqp ?? '',
     segmentation: safeData.segmentation ?? '',
     description: safeData.description ?? '',
@@ -52,7 +51,7 @@ export const mapProjectFromBackend = (data: any): ProjectData => {
       'business_manager', 'business_unit', 'ops_domain', 'country', 'scope',
       'additional_countries', 'iqp', 'segmentation', 'description',
       'crmCode', 'startDate', 'endDate', 'businessManager', 'businessUnit',
-      'opsDomain', 'additionalCountries'
+  'opsDomain', 'countries'
     ];
     if (!mappedKeys.includes(key)) {
       console.warn(`Unmapped backend key: ${key}`);
@@ -195,10 +194,7 @@ const App: React.FC = () => {
       ops_domain: data.opsDomain?.trim() || '',
       country: data.country?.trim() || '',
       scope: data.scope?.trim() || '',
-      additional_countries:
-        data.additionalCountries && data.additionalCountries.length > 0
-          ? JSON.stringify(Array.isArray(data.additionalCountries) ? data.additionalCountries : [data.additionalCountries])
-          : JSON.stringify([]),
+  countries: data.countries && data.countries.length > 0 ? data.countries : [],
       iqp: data.iqp ? data.iqp.toString().trim() || '' : '',
       segmentation: data.segmentation?.trim() || '',
       description: data.description?.trim() || '',
@@ -240,7 +236,7 @@ const App: React.FC = () => {
         return <ProfilesTab
           profiles={profilesData}
           onChange={setProfilesData}
-          additionalCountries={projectFormData?.additionalCountries || []}
+          additionalCountries={projectFormData?.countries || []}
           projectId={projectFormData?.id || 0}
         />;
       case 'work-packages':

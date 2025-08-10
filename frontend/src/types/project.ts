@@ -15,7 +15,7 @@ export interface ProjectData {
   opsDomain: string;
   country: string;
   scope: 'local' | 'transnational';
-  additionalCountries?: string[];
+  countries?: string[]; // IDs de países asociados
   iqp: number;
   segmentation: string;
   description?: string;

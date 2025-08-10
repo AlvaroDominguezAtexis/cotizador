@@ -11,7 +11,7 @@ import './Tabs.css';
 interface ProfilesTabProps {
   profiles: any[];
   onChange: (profiles: any[]) => void;
-  additionalCountries?: string[];
+  additionalCountries?: string[]; // mantén el nombre del prop para no romper uso existente
   projectId: number;
 }
 

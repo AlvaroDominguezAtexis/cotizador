@@ -11,7 +11,7 @@ export interface Project {
   opsDomain?: string;
   country?: string;
   scope?: string;
-  additionalCountries?: string[];
+  countries?: number[]; // IDs de países asociados (project_countries)
   iqp?: number;
   segmentation?: string;
   description?: string;

@@ -14,6 +14,8 @@ interface Props {
   onCancelCreate?: () => void;
   projectYears?: number[];
   projectId?: number | null;
+  profiles?: string[];
+  countries?: string[];
 }
 
 const WorkPackagesTable: React.FC<Props> = ({
@@ -25,6 +27,8 @@ const WorkPackagesTable: React.FC<Props> = ({
   onCancelCreate,
   projectYears = [],
   projectId = null,
+  profiles = [],
+  countries = [],
 }) => {
   const [editingWP, setEditingWP] = useState<Partial<WorkPackage> | null>(null);
   const [expandedWP, setExpandedWP] = useState<number | null>(null);
@@ -247,6 +251,8 @@ const WorkPackagesTable: React.FC<Props> = ({
                   projectId={projectId || null}
                   workPackageId={wp.id}
       key={`delivs-${wp.id}-${reloadCounters[wp.id] || 0}`}
+                  profiles={profiles}
+                  countries={countries}
                 />
               </div>
             )}

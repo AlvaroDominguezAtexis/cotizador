@@ -12,9 +12,11 @@ interface WorkPackagesTabProps {
   projectStartDate?: string;
   projectEndDate?: string;
   projectId?: number;
+  profiles?: string[];       // 🔹 Nombres de perfiles del proyecto
+  countries?: string[];      // 🔹 Nombres de países del proyecto
 }
 
-export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, onChange, projectStartDate, projectEndDate, projectId }) => {
+export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, onChange, projectStartDate, projectEndDate, projectId, profiles = [], countries = [] }) => {
   const years = getProjectYears(projectStartDate, projectEndDate);
   const handleExport = () => {
     const workPackagesJson = JSON.stringify(workPackages, null, 2);
@@ -71,7 +73,14 @@ export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, 
       </div>
 
       <div className="tab-content">
-        <WorkPackagesManagement workPackages={workPackages} onChange={onChange} projectYears={years} projectId={projectId} />
+        <WorkPackagesManagement
+          workPackages={workPackages}
+          onChange={onChange}
+          projectYears={years}
+          projectId={projectId}
+          profiles={profiles}
+          countries={countries}
+        />
       </div>
     </div>
   );

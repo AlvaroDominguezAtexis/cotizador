@@ -12,6 +12,7 @@ import { Menu } from './components/Menu';
 import { TabNavigation } from './components/layout/TabNavigation';
 import { NonOperationalCost } from './types/nonOperationalCost';
 import './App.css';
+import { useCountryNames } from './hooks/useCountryNames';
 
 // 🔹 Función para mapear proyectos desde el backend
 export const mapProjectFromBackend = (data: any): ProjectData => {
@@ -168,6 +169,13 @@ const App: React.FC = () => {
   const [workPackagesData, setWorkPackagesData] = useState<any[]>([]);
   const [costsData, setCostsData] = useState<NonOperationalCost[]>([]);
 
+  // Derivar nombres de perfiles
+  const profileNames = React.useMemo(() => (profilesData || []).map(p => p.name).filter(Boolean), [profilesData]);
+  // Hook para obtener nombres de países a partir de IDs del proyecto
+  const projectCountryIds = projectFormData?.countries || [];
+  const { countries: projectCountryObjs } = useCountryNames(projectCountryIds as string[]);
+  const projectCountryNames = React.useMemo(() => projectCountryObjs.map(c => c.name), [projectCountryObjs]);
+
   const handleLoginSubmit = async (credentials: { username: string; password: string }): Promise<boolean> => {
     const success = await login(credentials.username, credentials.password);
     return success;
@@ -247,6 +255,8 @@ const App: React.FC = () => {
             projectStartDate={projectFormData?.startDate}
             projectEndDate={projectFormData?.endDate}
             projectId={projectFormData?.id}
+            profiles={profileNames}
+            countries={projectCountryNames}
           />
         );
       case 'non-operational-costs':

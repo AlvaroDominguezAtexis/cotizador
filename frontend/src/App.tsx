@@ -250,6 +250,7 @@ const App: React.FC = () => {
             onChange={setWorkPackagesData}
             projectStartDate={projectFormData?.startDate}
             projectEndDate={projectFormData?.endDate}
+            projectId={projectFormData?.id}
           />
         );
       case 'non-operational-costs':

@@ -7,13 +7,14 @@ import WorkPackagesManagement from '../workpackages/WorkPackagesManagement';
 import './Tabs.css';
 
 interface WorkPackagesTabProps {
-  workPackages: any[];
+  workPackages: any[]; // kept for backward compatibility but ignored in favor of backend data
   onChange: (workPackages: any[]) => void;
   projectStartDate?: string;
   projectEndDate?: string;
+  projectId?: number;
 }
 
-export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, onChange, projectStartDate, projectEndDate }) => {
+export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, onChange, projectStartDate, projectEndDate, projectId }) => {
   const years = getProjectYears(projectStartDate, projectEndDate);
   const handleExport = () => {
     const workPackagesJson = JSON.stringify(workPackages, null, 2);
@@ -70,7 +71,7 @@ export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({ workPackages, 
       </div>
 
       <div className="tab-content">
-        <WorkPackagesManagement workPackages={workPackages} onChange={onChange} projectYears={years} />
+        <WorkPackagesManagement workPackages={workPackages} onChange={onChange} projectYears={years} projectId={projectId} />
       </div>
     </div>
   );

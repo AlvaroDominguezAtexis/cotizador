@@ -12,6 +12,7 @@ import clientsRoutes from './routes/Project/clientsRoutes';
 import projectProfilesRoutes from './routes/Project/projectProfilesRoutes';
 import projectProfileSalariesRoutes from './routes/Project/projectProfileSalariesRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
+import workPackagesRoutes from './routes/Project/workPackagesRoutes';
 
 dotenv.config();
 const app = express();
@@ -32,5 +33,7 @@ app.use('/project-profile-salaries', projectProfileSalariesRoutes);
 app.use('/project-profiles', projectProfilesRoutes);
 // Non operational costs endpoints mounted without extra prefix so they match /projects/:projectId/non-operational-costs
 app.use('', nonOperationalCostsRoutes);
+// Workpackages nested under projects
+app.use('/projects/:projectId/workpackages', workPackagesRoutes);
 
 export default app;

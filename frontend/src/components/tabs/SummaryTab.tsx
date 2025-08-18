@@ -3,9 +3,7 @@
 import React from 'react';
 import { Button } from '../ui/Button';
 import Card from '../ui/Card';
-import { ProjectSummary } from '../summary/ProjectSummary';
-import { FinancialSummary } from '../summary/FinancialSummary';
-import { StatisticsCard } from '../summary/StatisticsCards';
+import SummaryDocument from '../summary/SummaryDocument';
 import './Tabs.css';
 
 interface SummaryTabProps {
@@ -58,17 +56,10 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
       </div>
 
       <div className="summary-grid">
-        <div className="summary-main-content">
+        <div className="summary-main-content" style={{ width: '100%' }}>
           <Card>
-            <ProjectSummary project={project} workPackages={workPackages} />
+            <SummaryDocument project={project} workPackages={workPackages} profiles={profiles} costs={costs} />
           </Card>
-          <Card>
-            <FinancialSummary costs={costs} profiles={profiles} />
-          </Card>
-        </div>
-
-        <div className="summary-sidebar">
-          <StatisticsCard profiles={profiles} workPackages={workPackages} />
         </div>
       </div>
     </div>

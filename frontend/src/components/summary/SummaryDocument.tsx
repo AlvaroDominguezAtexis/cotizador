@@ -1,89 +1,356 @@
 // src/components/summary/SummaryDocument.tsx
-import React, { useMemo } from 'react';
-import './Summary.css';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
+import "./Summary.css";
 
-interface SummaryDocumentProps {
-  project: any;
-  profiles: any[];
-  workPackages: any[];
-  costs: any;
+/**
+ * ============================
+ *   Tipos y utilidades
+ * ============================
+ */
+
+export type Allocation = {
+  hours: number;
+  country?: string | null;
+  year?: number | string | null;
+  profileType?: string | null;
+  step?: string | null;
+  deliverable?: string | null;
+  workPackage?: string | null;
+};
+
+type WorkPackageLite = { dm?: number | string | null };
+
+type CostsInput = {
+  /** Ingresos (TO: Turnover) del proyecto */
+  revenue?: number; // TO total
+  /** Costes totales de personal (si ya vienen agregados) */
+  personnel?: number;
+  /** Otros costes (viajes, subcontrata, IT, etc.) */
+  nonPersonnel?: number;
+};
+
+type Props = {
+  /** Puedes pasar el objeto proyecto o sólo su id; si hay ambos, prevalece projectId */
+  project?: any;
+  projectId?: string | number;
+
+  /** Asignaciones/hours. Si no se pasan, se hace fetch con projectId/effectiveProjectId. */
+  allocations?: Allocation[];
+
+  /** Costes e ingresos (para KPIs económicos). Todo opcional. */
+  costs?: CostsInput;
+
+  /** Paquetes de trabajo para sumar DM */
+  workPackages?: WorkPackageLite[];
+
+  /** Admite profiles para compatibilidad con el uso actual (aunque no se usan aquí) */
+  profiles?: any[];
+
+  /**
+   * Overrides opcionales si quieres forzar el cálculo sin depender de costs:
+   * Si hourlyPrice está presente y no hay costs.revenue, se usa: revenue = hourlyPrice * totalHours
+   * Si hourlyCost está presente y no hay costs.personnel/nonPersonnel, se usa: costTotal = hourlyCost * totalHours
+   */
+  hourlyPrice?: number;
+  hourlyCost?: number;
+
+  /** Si lo tienes precomputado, puedes inyectar total de horas. Si no, se suma de allocations. */
+  totalHoursOverride?: number;
+};
+
+/** Convención solicitada: FTE = horasTotales / 1600 */
+export const computeFTE = (totalHours: number) => totalHours / 1600;
+
+const round = (v: number, d = 2) => Number(v.toFixed(d));
+
+/** Agrega horas y convierte a FTE por una clave */
+function aggregateFTE<T extends Allocation>(rows: T[], key: keyof Allocation) {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const kRaw = r[key];
+    const k =
+      kRaw === undefined || kRaw === null || kRaw === ""
+        ? "(N/D)"
+        : String(kRaw);
+    map.set(k, (map.get(k) || 0) + (r.hours || 0));
+  }
+  return Array.from(map.entries())
+    .map(([name, hours]) => ({ name, hours, fte: round(computeFTE(hours)) }))
+    .sort((a, b) => b.fte - a.fte);
 }
 
-const SummaryRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div className="summary-card-item">
-    <span className="summary-card-item-label">{label}</span>
-    <span className="summary-card-item-value">{value}</span>
-  </div>
-);
+/**
+ * ============================
+ *   Capa de datos (fetch opcional)
+ * ============================
+ */
+async function fetchAllocations(projectId: string | number): Promise<Allocation[]> {
+  // Usa el proxy del frontend hacia el backend: /projects/:id/allocations
+  const res = await fetch(`/projects/${projectId}/allocations`);
+  if (!res.ok) throw new Error(`No se pudo cargar allocations (${res.status})`);
+  const raw = await res.json();
+  return (raw as any[]).map((r) => ({
+    // Sumamos horas desde steps.process_time cuando esté disponible
+    hours: Number(r?.process_time ?? r?.hours ?? r?.totalHours ?? 0),
+    // Preferimos nombres si el backend los expone; si no, caemos a ids/alternativos
+    country: r?.country_name ?? r?.country ?? null,
+    year: r?.year ?? (r?.date ? new Date(r.date).getFullYear() : null),
+    profileType: r?.profile_name ?? r?.profileType ?? r?.profile_type ?? null,
+    step: r?.step_name ?? r?.step ?? r?.stepName ?? null,
+    deliverable: r?.deliverable_name ?? r?.deliverable ?? r?.deliverableName ?? r?.name ?? null,
+    workPackage: r?.workpackage_name ?? r?.workpackage ?? r?.wp ?? r?.workPackageName ?? null,
+  }));
+}
 
-export const SummaryDocument: React.FC<SummaryDocumentProps> = ({ project, profiles, workPackages, costs }) => {
-  // Financial totals (reuse logic from FinancialSummary)
-  const totals = useMemo(() => {
-    const calc = (arr: any[] = []) => arr.reduce((t, c) => {
-      const unit = c.unit_cost ?? c.unitCost ?? 0;
-      return t + (Number(c.quantity || 0) * Number(unit));
-    }, 0);
-    const travel = calc(costs?.travelCosts);
-    const subcontract = calc(costs?.subcontractCosts);
-    const it = calc(costs?.itCosts);
-    const other = calc(costs?.otherCosts);
-    return { travel, subcontract, it, other };
-  }, [costs]);
+/**
+ * ============================
+ *   Componente principal
+ * ============================
+ */
+const SummaryDocument: React.FC<Props> = ({
+  project,
+  projectId,
+  allocations,
+  costs,
+  workPackages,
+  profiles, // compat
+  hourlyPrice,
+  hourlyCost,
+  totalHoursOverride,
+}) => {
+  // Permite pasar project o projectId; si ambos existen, prevalece projectId
+  const effectiveProjectId = projectId ?? project?.id ?? project?.projectId ?? undefined;
 
-  const personnelCosts = useMemo(() => {
-    return (profiles || []).reduce((total, profile) => {
-      const countrySalaries = Object.values(profile.salaries || {});
-      const profileTotal = (countrySalaries as number[]).reduce((sum, salary) => sum + salary, 0);
-      return total + profileTotal;
-    }, 0);
-  }, [profiles]);
+  const [rows, setRows] = useState<Allocation[] | null>(allocations ?? null);
+  const [loading, setLoading] = useState(!allocations && !!effectiveProjectId);
+  const [tab, setTab] = useState<
+    "country" | "year" | "profileType" | "step" | "deliverable" | "workPackage"
+  >("country");
 
-  const totalProjectCost = useMemo(() => {
-    const nonPersonnel = Object.values(totals).reduce((a, b) => a + b, 0);
-    return nonPersonnel + personnelCosts;
-  }, [totals, personnelCosts]);
+  // Fetch allocations if not provided
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (rows || effectiveProjectId == null) return;
+      try {
+        setLoading(true);
+        const data = await fetchAllocations(effectiveProjectId);
+        if (!cancelled) setRows(data);
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setRows([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveProjectId, rows]);
+
+  // Total horas y FTEs desde steps.process_time
+  const totalHours = useMemo(() => {
+    if (typeof totalHoursOverride === "number") return totalHoursOverride;
+    return (rows ?? []).reduce((acc, r) => acc + (Number(r.hours) || 0), 0);
+  }, [rows, totalHoursOverride]);
+
+  const totalFTEs = useMemo(() => computeFTE(totalHours), [totalHours]);
+
+  // DM desde workPackages
+  const dm = useMemo(() => {
+    return (workPackages ?? []).reduce((acc, wp) => acc + (Number(wp?.dm) || 0), 0);
+  }, [workPackages]);
+
+  /**
+   * KPIs económicos básicos (derivados por si no llegan precomputados):
+   * - hourlyPriceCalc = revenue / totalHours
+   * - hourlyCostCalc  = costTotal / totalHours
+   * - GM = (revenue - costTotal) / revenue
+   */
+  const { revenue, costTotal, hourlyPriceCalc, hourlyCostCalc, gm } = useMemo(() => {
+    const hasHours = totalHours > 0;
+
+    const revenueInput =
+      costs?.revenue ??
+      (hourlyPrice && hasHours ? hourlyPrice * totalHours : undefined);
+
+    const personnel = costs?.personnel ?? 0;
+    const nonPersonnel = costs?.nonPersonnel ?? 0;
+
+    const costInput =
+      personnel + nonPersonnel > 0
+        ? personnel + nonPersonnel
+        : (hourlyCost && hasHours ? hourlyCost * totalHours : undefined);
+
+    const hp = hasHours && revenueInput != null ? revenueInput / totalHours : undefined;
+    const hc = hasHours && costInput != null ? costInput / totalHours : undefined;
+
+    const gmVal =
+      revenueInput != null && costInput != null && revenueInput !== 0
+        ? (revenueInput - costInput) / revenueInput
+        : undefined;
+
+    return {
+      revenue: revenueInput ?? 0,
+      costTotal: costInput ?? 0,
+      hourlyPriceCalc: hp ?? 0,
+      hourlyCostCalc: hc ?? 0,
+      gm: gmVal ?? 0,
+    };
+  }, [costs, hourlyPrice, hourlyCost, totalHours]);
+
+  /** Datos para dashboards de FTEs */
+  const dataByCountry = useMemo(() => aggregateFTE(rows ?? [], "country"), [rows]);
+  const dataByYear = useMemo(() => aggregateFTE(rows ?? [], "year"), [rows]);
+  const dataByProfile = useMemo(() => aggregateFTE(rows ?? [], "profileType"), [rows]);
+  const dataByStep = useMemo(() => aggregateFTE(rows ?? [], "step"), [rows]);
+  const dataByDeliverable = useMemo(() => aggregateFTE(rows ?? [], "deliverable"), [rows]);
+  const dataByWP = useMemo(() => aggregateFTE(rows ?? [], "workPackage"), [rows]);
+
+  const currentData =
+    tab === "country"
+      ? dataByCountry
+      : tab === "year"
+      ? dataByYear
+      : tab === "profileType"
+      ? dataByProfile
+      : tab === "step"
+      ? dataByStep
+      : tab === "deliverable"
+      ? dataByDeliverable
+      : dataByWP;
 
   return (
-    <div className="summary-card" style={{ padding: 0 }}>
-      <div className="summary-card-header" style={{ borderBottom: '1px solid #eee' }}>
-        <h2>Resumen del Proyecto</h2>
-      </div>
-      <div className="summary-card-content">
-        {/* Project section */}
-        <h3 style={{ marginTop: 0 }}>Proyecto</h3>
-        <SummaryRow label="Título" value={project?.title || 'No definido'} />
-        <SummaryRow label="Código CRM" value={project?.crmCode || 'No definido'} />
-        <SummaryRow label="Cliente" value={project?.client || 'No definido'} />
-        <SummaryRow label="Actividad" value={project?.activity || 'No definida'} />
-        <SummaryRow label="Fecha de Inicio" value={project?.startDate ? new Date(project.startDate).toLocaleDateString() : 'No definida'} />
-        <SummaryRow label="Fecha de Fin" value={project?.endDate ? new Date(project.endDate).toLocaleDateString() : 'No definida'} />
-        <SummaryRow label="Ámbito" value={project?.scope === 'local' ? 'Local' : 'Transnacional'} />
-        <SummaryRow label="Segmentación" value={project?.segmentation || 'No definida'} />
-
-        {/* Divider */}
-        <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid #eee' }} />
-
-        {/* Financial section */}
-        <h3>Finanzas</h3>
-        <SummaryRow label="Costes de Viaje" value={(totals.travel || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
-        <SummaryRow label="Costes de Subcontrata" value={(totals.subcontract || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
-        <SummaryRow label="Costes de IT" value={(totals.it || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
-        <SummaryRow label="Otros Costes" value={(totals.other || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
-        <SummaryRow label="Costes de Personal" value={(personnelCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
-        <div className="summary-card-item">
-          <span className="summary-card-item-label">Coste Total del Proyecto</span>
-          <span className="summary-card-item-value" style={{ color: '#28a745' }}>
-            {totalProjectCost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          </span>
+    <div className="summary-wrapper">
+      {/* ===================== */}
+      {/*   Summary Detail      */}
+      {/* ===================== */}
+      <div className="summary-card kpi-card">
+        <div className="summary-card-header kpi-header">
+          <h2>Summary Detail</h2>
+          {loading && <span className="tag subtle">Cargando horas…</span>}
         </div>
 
-        {/* Divider */}
-        <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid #eee' }} />
+        <div className="kpi-grid">
+          <div className="summary-card-item kpi-item">
+            <span className="summary-card-item-label kpi-label">TO Total</span>
+            <span className="summary-card-item-value kpi-value emph">
+              {revenue.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
+            </span>
+          </div>
+          <div className="summary-card-item kpi-item">
+            <span className="summary-card-item-label kpi-label">Hourly Cost</span>
+            <span className="summary-card-item-value kpi-value">
+              {hourlyCostCalc
+                ? `${hourlyCostCalc.toLocaleString("es-ES", {
+                    style: "currency",
+                    currency: "EUR",
+                    maximumFractionDigits: 2,
+                  })}/h`
+                : "-"}
+            </span>
+          </div>
+          <div className="summary-card-item kpi-item">
+            <span className="summary-card-item-label kpi-label">Hourly Price</span>
+            <span className="summary-card-item-value kpi-value">
+              {hourlyPriceCalc
+                ? `${hourlyPriceCalc.toLocaleString("es-ES", {
+                    style: "currency",
+                    currency: "EUR",
+                    maximumFractionDigits: 2,
+                  })}/h`
+                : "-"}
+            </span>
+          </div>
+          <div className="summary-card-item kpi-item">
+            <span className="summary-card-item-label kpi-label">GM</span>
+            <span className={`summary-card-item-value kpi-value gm ${gm >= 0.0 ? "pos" : "neg"}`}>
+              {`${(gm * 100).toFixed(1)}%`}
+            </span>
+          </div>
+          <div className="summary-card-item kpi-item">
+            <span className="summary-card-item-label kpi-label">DM</span>
+            <span className="summary-card-item-value kpi-value">
+              {dm.toLocaleString("es-ES", { maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="summary-card-item kpi-item">
+            <span className="summary-card-item-label kpi-label">Total FTEs</span>
+            <span className="summary-card-item-value kpi-value">
+              {totalFTEs.toLocaleString("es-ES")}
+            </span>
+          </div>
+        </div>
+      </div>
 
-        {/* Statistics section */}
-        <h3>Estadísticas</h3>
-        <SummaryRow label="Perfiles" value={profiles?.length || 0} />
-        <SummaryRow label="Paquetes de Trabajo" value={workPackages?.length || 0} />
+      {/* ===================== */}
+      {/*   Dashboards detalle  */}
+      {/* ===================== */}
+      <div className="summary-card dash-card">
+        <div className="summary-card-header dash-header">
+          <h3>FTEs Breakdown</h3>
+          <div className="tabs">
+            <button className={`tab ${tab === "country" ? "active" : ""}`} onClick={() => setTab("country")}>
+              País
+            </button>
+            <button className={`tab ${tab === "year" ? "active" : ""}`} onClick={() => setTab("year")}>
+              Año
+            </button>
+            <button className={`tab ${tab === "profileType" ? "active" : ""}`} onClick={() => setTab("profileType")}>
+              Tipo perfil
+            </button>
+            <button className={`tab ${tab === "step" ? "active" : ""}`} onClick={() => setTab("step")}>
+              Paso
+            </button>
+            <button className={`tab ${tab === "deliverable" ? "active" : ""}`} onClick={() => setTab("deliverable")}>
+              Deliverable
+            </button>
+            <button className={`tab ${tab === "workPackage" ? "active" : ""}`} onClick={() => setTab("workPackage")}>
+              WP
+            </button>
+          </div>
+        </div>
+
+        <div className="summary-card-content chart-wrapper">
+          {currentData.length === 0 ? (
+            <div className="summary-hint empty">Sin datos para esta dimensión.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={currentData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} height={48} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(v: any, n: any) => (n === "fte" ? `${v} FTE` : v)} />
+                <Bar dataKey="fte" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="table-mini">
+          <div className="table-mini-head">
+            <span>Grupo</span>
+            <span>Horas</span>
+            <span>FTE</span>
+          </div>
+          {currentData.slice(0, 8).map((r) => (
+            <div className="table-mini-row" key={r.name}>
+              <span title={r.name}>{r.name}</span>
+              <span>{r.hours.toLocaleString("es-ES")}</span>
+              <span>{r.fte.toLocaleString("es-ES", { maximumFractionDigits: 2 })}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

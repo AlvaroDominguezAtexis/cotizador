@@ -15,6 +15,7 @@ import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
 import deliverablesRoutes from './routes/Project/deliverablesRoutes';
 import stepsRoutes from './routes/Project/stepsRoutes';
+import allocationsRoutes from './routes/Project/allocationsRoutes';
 
 dotenv.config();
 const app = express();
@@ -39,5 +40,6 @@ app.use('', nonOperationalCostsRoutes);
 app.use('/projects/:projectId/workpackages', workPackagesRoutes);
 app.use('/projects/:projectId/workpackages/:workPackageId/deliverables', deliverablesRoutes);
 app.use('/projects/:projectId/workpackages/:workPackageId/deliverables/:deliverableId/steps', stepsRoutes);
+app.use('/projects/:projectId/allocations', allocationsRoutes);
 
 export default app;

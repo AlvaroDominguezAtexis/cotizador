@@ -55,7 +55,7 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
         </div>
       </div>
 
-      <div className="summary-grid">
+      <div >
         <div className="summary-main-content" style={{ width: '100%' }}>
           <Card>
             <SummaryDocument project={project} workPackages={workPackages} profiles={profiles} costs={costs} />

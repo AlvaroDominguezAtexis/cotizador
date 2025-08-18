@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { WorkPackage, Deliverable } from '../../types/workPackages';
 import { Button } from '../ui/Button';
 import DeliverablesTable from './deliverablesTable';
-import { updateDeliverableApi } from '../../api/deliverablesApi';
+import { updateDeliverableApi, fetchDeliverables } from '../../api/deliverablesApi';
 import './WorkPackages.css';
 
 interface Props {
@@ -35,6 +35,39 @@ const WorkPackagesTable: React.FC<Props> = ({
   const [creatingDeliverable, setCreatingDeliverable] = useState<number | null>(null);
   const [wpError, setWpError] = useState<string | null>(null);
   const [reloadCounters, setReloadCounters] = useState<Record<number, number>>({});
+  const [deliverableCounts, setDeliverableCounts] = useState<Record<number, number>>({});
+
+  // Prefetch deliverable counts so the toggle displays numbers on tab open
+  useEffect(() => {
+    let cancelled = false;
+    const loadCounts = async () => {
+      if (!projectId) return;
+      try {
+        const entries = await Promise.all(
+          data.map(async (wp) => {
+            try {
+              const delivs = await fetchDeliverables(projectId, wp.id, projectYears.length || 0);
+              return [wp.id, delivs.length] as [number, number];
+            } catch {
+              return [wp.id, wp.deliverables?.length || 0] as [number, number];
+            }
+          })
+        );
+        if (cancelled) return;
+        setDeliverableCounts((prev) => {
+          const next = { ...prev };
+          entries.forEach(([id, count]) => {
+            next[id] = count;
+          });
+          return next;
+        });
+      } catch {
+        // ignore
+      }
+    };
+    loadCounts();
+    return () => { cancelled = true; };
+  }, [projectId, data.length, projectYears.length]);
 
   /** Activar fila de creación de WP */
   useEffect(() => {
@@ -213,7 +246,7 @@ const WorkPackagesTable: React.FC<Props> = ({
                         size="sm"
                         onClick={() => setExpandedWP(isExpanded ? null : wp.id)}
                       >
-                        {isExpanded ? `▲ ${wp.deliverables.length}` : `▼ ${wp.deliverables.length}`}
+                        {isExpanded ? `▲ ${deliverableCounts[wp.id] ?? wp.deliverables.length}` : `▼ ${deliverableCounts[wp.id] ?? wp.deliverables.length}`}
                       </Button>
                       <Button
                         variant="success"
@@ -253,6 +286,7 @@ const WorkPackagesTable: React.FC<Props> = ({
       key={`delivs-${wp.id}-${reloadCounters[wp.id] || 0}`}
                   profileOptions={profileOptions}
                   countryOptions={countryOptions}
+                  onLoadedCount={(count:number)=> setDeliverableCounts(prev=>({ ...prev, [wp.id]: count }))}
                 />
               </div>
             )}

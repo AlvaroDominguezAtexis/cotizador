@@ -18,6 +18,7 @@ interface Props {
   onCancelCreate?: () => void;
   projectId?: number | null;
   workPackageId?: number | null;
+  onLoadedCount?: (count: number) => void;
 }
 
 const DeliverablesTable: React.FC<Props> = ({
@@ -31,7 +32,8 @@ const DeliverablesTable: React.FC<Props> = ({
   createNew = false,
   onCancelCreate,
   projectId,
-  workPackageId
+  workPackageId,
+  onLoadedCount
 }) => {
   const [editingDeliverable, setEditingDeliverable] = useState<Partial<Deliverable> | null>(null);
   const [expandedDeliverable, setExpandedDeliverable] = useState<number | null>(null);
@@ -41,6 +43,36 @@ const DeliverablesTable: React.FC<Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+
+  const mapRemoteStep = (r: any): Step => {
+    const profileName = profileOptions.find(p => p.id === r.profile_id)?.name || String(r.profile_id);
+    const countryName = countryOptions.find(c => String(c.id) === String(r.country_id))?.name || String(r.country_id);
+    return {
+      id: r.id,
+      name: r.nombre,
+      profile: profileName,
+      country: countryName,
+      processTime: r.process_time,
+      units: r.unit,
+      office: (r.office ? 'Yes' : 'No') as Step['office'],
+      mngPercent: r.mng,
+      licenses: [],
+    } as Step;
+  };
+
+  const refreshDeliverableSteps = async (deliverableId: number) => {
+    if (!projectId || !workPackageId) return;
+    try {
+      const remote = await fetchSteps(projectId, workPackageId, deliverableId);
+      const mapped: Step[] = (remote || []).map(mapRemoteStep);
+      setItems(prev => prev.map(di => di.id === deliverableId ? { ...di, steps: mapped } : di));
+      const current = items.find(x => x.id === deliverableId);
+      if (current) onUpdate({ ...current, steps: mapped });
+    } catch (e) {
+      // keep previous steps on error
+      console.warn('Failed to refresh steps', e);
+    }
+  };
 
   // Load from backend
   useEffect(() => {
@@ -73,7 +105,8 @@ const DeliverablesTable: React.FC<Props> = ({
             return { ...d, steps: [] };
           }
         }));
-        setItems(withSteps);
+  setItems(withSteps);
+  onLoadedCount?.(withSteps.length);
       } catch (e:any) {
         setError(e.message || 'Error');
       } finally { setLoading(false); }
@@ -105,7 +138,12 @@ const DeliverablesTable: React.FC<Props> = ({
   dm: Number(editingDeliverable.dm || 0),
         yearlyQuantities: editingDeliverable.yearlyQuantities || new Array(projectYears.length).fill(0)
       }).catch(e => { if (e.message === 'DUPLICATE_CODE') { setFormError('Código duplicado'); return null; } throw e; });
-      if (created) { setItems(prev => [created, ...prev]); onAdd(created); } else { return; }
+      if (created) {
+        const newList = [created, ...items];
+        setItems(newList);
+        onLoadedCount?.(newList.length);
+        onAdd(created);
+      } else { return; }
     } else {
       const updated = await updateDeliverableApi(projectId, workPackageId, editingDeliverable.id as number, {
         codigo: editingDeliverable.code,
@@ -237,7 +275,14 @@ const DeliverablesTable: React.FC<Props> = ({
                       <Button variant="primary" size="sm" onClick={() => setEditingDeliverable({ ...d })}>
                         Edit
                       </Button>
-                      <Button variant="danger" size="sm" onClick={async () => { if(!projectId||!workPackageId) return; await deleteDeliverableApi(projectId, workPackageId, d.id); setItems(prev=>prev.filter(x=>x.id!==d.id)); onDelete(d.id); }}>
+                      <Button variant="danger" size="sm" onClick={async () => {
+                        if(!projectId||!workPackageId) return;
+                        await deleteDeliverableApi(projectId, workPackageId, d.id);
+                        const updated = items.filter(x=>x.id!==d.id);
+                        setItems(updated);
+                        onLoadedCount?.(updated.length);
+                        onDelete(d.id);
+                      }}>
                         Delete
                       </Button>
                       <Button
@@ -297,6 +342,7 @@ const DeliverablesTable: React.FC<Props> = ({
                               licenses: [],
                             });
                             onUpdate({ ...d });
+                            await refreshDeliverableSteps(d.id);
                           } catch (e: any) {
                             const msg = e.message === 'DUPLICATE_STEP' ? 'Step duplicado' : (e.message === 'INVALID_SELECTION' ? 'Selecciona perfil y país válidos' : 'Error creando step');
                             alert(msg);
@@ -332,17 +378,19 @@ const DeliverablesTable: React.FC<Props> = ({
                               licenses: x.licenses || [],
                             } : x));
                             onUpdate({ ...d, steps: updated });
+                            await refreshDeliverableSteps(d.id);
                           } catch (e: any) {
                             const msg = e.message === 'DUPLICATE_STEP' ? 'Step duplicado' : (e.message === 'INVALID_SELECTION' ? 'Selecciona perfil y país válidos' : 'Error actualizando step');
                             alert(msg);
                           }
                         }}
-                        onDelete={async (id: number) => {
+            onDelete={async (id: number) => {
                           if (!projectId || !workPackageId) return;
                           try {
                             await deleteStepApi(projectId, workPackageId, d.id, id);
                             const updated = d.steps.filter(x => x.id !== id);
-                            onUpdate({ ...d, steps: updated });
+              onUpdate({ ...d, steps: updated });
+              await refreshDeliverableSteps(d.id);
                           } catch {
                             alert('Error eliminando step');
                           }

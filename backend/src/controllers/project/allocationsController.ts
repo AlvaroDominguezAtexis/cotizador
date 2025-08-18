@@ -15,6 +15,7 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
         c.name as country_name,
         s.profile_id,
         p.name as profile_name,
+        pps.year as salary_year,
         d.id as deliverable_id,
         d.nombre as deliverable_name,
         w.id as workpackage_id,
@@ -24,6 +25,8 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
       JOIN workpackages w ON w.id = d.workpackage_id
       LEFT JOIN countries c ON c.id = s.country_id
       LEFT JOIN profiles p ON p.id = s.profile_id
+      LEFT JOIN project_profiles pp ON (pp.project_id = w.project_id AND pp.profile_id = s.profile_id)
+      LEFT JOIN project_profile_salaries pps ON (pps.project_profile_id = pp.id AND pps.country_id = s.country_id)
       WHERE w.project_id = $1
     `;
     const { rows } = await db.query(query, [projectId]);
@@ -35,6 +38,7 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
   country_name: r.country_name,
       profile_id: r.profile_id,
   profile_name: r.profile_name,
+      salary_year: r.salary_year ?? null,
       deliverable_id: r.deliverable_id,
       deliverable: r.deliverable_name,
       workpackage_id: r.workpackage_id,

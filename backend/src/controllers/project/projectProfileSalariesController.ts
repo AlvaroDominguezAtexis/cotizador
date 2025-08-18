@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import pool from '../../db'; // Tu conexión a PostgreSQL
 
 export const createProjectProfileSalary = async (req: Request, res: Response) => {
-  const { project_profile_id, country_id, salary } = req.body;
+  const { project_profile_id, country_id, salary, year } = req.body;
 
   if (!project_profile_id || !country_id || salary == null) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -11,13 +11,13 @@ export const createProjectProfileSalary = async (req: Request, res: Response) =>
   try {
     const result = await pool.query(
       `
-      INSERT INTO project_profile_salaries (project_profile_id, country_id, salary)
-      VALUES ($1, $2, $3)
+      INSERT INTO project_profile_salaries (project_profile_id, country_id, salary, year)
+      VALUES ($1, $2, $3, $4)
       ON CONFLICT (project_profile_id, country_id)
-      DO UPDATE SET salary = EXCLUDED.salary
+      DO UPDATE SET salary = EXCLUDED.salary, year = COALESCE(EXCLUDED.year, project_profile_salaries.year)
       RETURNING *;
       `,
-      [project_profile_id, country_id, salary]
+      [project_profile_id, country_id, salary, year ?? null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -38,7 +38,7 @@ export const getProjectProfileSalaries = async (req: Request, res: Response) => 
   
   try {
     const result = await pool.query(
-      'SELECT id, country_id, salary FROM project_profile_salaries WHERE project_profile_id = $1',
+  'SELECT id, country_id, salary, year FROM project_profile_salaries WHERE project_profile_id = $1',
       [project_profile_id]
     );
     
@@ -51,7 +51,7 @@ export const getProjectProfileSalaries = async (req: Request, res: Response) => 
 
 export const updateProjectProfileSalary = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { project_profile_id, country_id, salary } = req.body;
+  const { project_profile_id, country_id, salary, year } = req.body;
 
   console.log('🔹 PUT /project-profile-salaries/:id', id, req.body);
 
@@ -61,10 +61,10 @@ export const updateProjectProfileSalary = async (req: Request, res: Response) =>
   try {
     const result = await pool.query(
       `UPDATE project_profile_salaries 
-       SET salary = $1
+  SET salary = $1, year = COALESCE($3, year)
        WHERE id = $2
        RETURNING *`,
-      [salary, id]
+      [salary, id, year ?? null]
     );
 
     if (result.rowCount === 0) {

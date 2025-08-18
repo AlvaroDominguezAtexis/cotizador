@@ -12,11 +12,11 @@ interface WorkPackagesManagementProps {
   onChange: (workPackages: any[]) => void;
   projectYears?: number[];
   projectId?: number | null; // allow passing explicit project id
-  profiles?: string[];
-  countries?: string[];
+  profileOptions?: { id: number; name: string }[];
+  countryOptions?: { id: string; name: string }[];
 }
 
-const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPackages, onChange, projectYears = [], projectId, profiles = [], countries = [] }) => {
+const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPackages, onChange, projectYears = [], projectId, profileOptions = [], countryOptions = [] }) => {
   // If projectId not provided, try to obtain from useProject hook if it exposes current project
   const { projectData } = useProject?.() || ({} as any);
   const effectiveProjectId = projectId ?? projectData?.id ?? null;
@@ -71,8 +71,8 @@ const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPac
         onCancelCreate={handleCancelCreate}
         projectYears={projectYears}
   projectId={effectiveProjectId}
-  profiles={profiles}
-  countries={countries}
+  profileOptions={profileOptions}
+  countryOptions={countryOptions}
       />
     </Card>
   );

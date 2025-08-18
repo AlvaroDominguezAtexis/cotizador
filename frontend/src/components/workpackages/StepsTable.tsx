@@ -8,8 +8,8 @@ interface Props {
   onAdd: (s: Step) => void;
   onUpdate: (s: Step) => void;
   onDelete: (id: number) => void;
-  profiles: string[];        // 🔹 Lista de perfiles disponibles
-  countries: string[];       // 🔹 Lista de países para el selector
+  profiles: string[];        // nombres visibles
+  countries: string[];       // nombres visibles
   createNew?: boolean;
   onCancelCreate?: () => void;
 }
@@ -115,7 +115,7 @@ const StepsTable: React.FC<Props> = ({
                   ))}
                 </select>
               ) : (
-                s.profile
+                s.profile && profiles.includes(s.profile) ? s.profile : s.profile
               )}
             </td>
             <td className="tight-cell">
@@ -133,7 +133,7 @@ const StepsTable: React.FC<Props> = ({
                   ))}
                 </select>
               ) : (
-                s.country
+                s.country && countries.includes(s.country) ? s.country : s.country
               )}
             </td>
             <td className="tight-cell">

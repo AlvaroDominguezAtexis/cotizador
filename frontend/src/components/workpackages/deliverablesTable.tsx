@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import StepsTable from './StepsTable';
 import './WorkPackages.css';
 import { createDeliverableApi, updateDeliverableApi, deleteDeliverableApi, fetchDeliverables } from '../../api/deliverablesApi';
+import { fetchSteps, createStepApi, updateStepApi, deleteStepApi } from '../../api/stepsApi';
 
 interface Props {
   deliverables: Deliverable[]; // initial fallback list (will be overridden by backend fetch)
@@ -11,8 +12,8 @@ interface Props {
   onUpdate: (d: Deliverable) => void;
   onDelete: (id: number) => void;
   projectYears: number[]; // siempre >= 1
-  profiles?: string[];
-  countries?: string[];
+  profileOptions?: { id: number; name: string }[];
+  countryOptions?: { id: string; name: string }[];
   createNew?: boolean;
   onCancelCreate?: () => void;
   projectId?: number | null;
@@ -25,8 +26,8 @@ const DeliverablesTable: React.FC<Props> = ({
   onUpdate,
   onDelete,
   projectYears,
-  profiles = [],
-  countries = [],
+  profileOptions = [],
+  countryOptions = [],
   createNew = false,
   onCancelCreate,
   projectId,
@@ -48,13 +49,37 @@ const DeliverablesTable: React.FC<Props> = ({
       setLoading(true); setError(null);
       try {
         const data = await fetchDeliverables(projectId, workPackageId, projectYears.length);
-        setItems(data);
+        // Para cada deliverable, cargar steps
+        const withSteps = await Promise.all(data.map(async d => {
+          try {
+            const remote = await fetchSteps(projectId, workPackageId, d.id);
+            const steps = (remote || []).map((r: any) => {
+              const profileName = profileOptions.find(p => p.id === r.profile_id)?.name || String(r.profile_id);
+              const countryName = countryOptions.find(c => String(c.id) === String(r.country_id))?.name || String(r.country_id);
+              return {
+                id: r.id,
+                name: r.nombre,
+                profile: profileName,
+                country: countryName,
+                processTime: r.process_time,
+                units: r.unit,
+                office: (r.office ? 'Yes' : 'No') as Step['office'],
+                mngPercent: r.mng,
+                licenses: [],
+              } as Step;
+            });
+            return { ...d, steps };
+          } catch {
+            return { ...d, steps: [] };
+          }
+        }));
+        setItems(withSteps);
       } catch (e:any) {
         setError(e.message || 'Error');
       } finally { setLoading(false); }
     };
     load();
-  }, [projectId, workPackageId, projectYears.length, reloadToken]);
+  }, [projectId, workPackageId, projectYears.length, reloadToken, profileOptions, countryOptions]);
 
   useEffect(() => {
     if (createNew) setEditingDeliverable({ yearlyQuantities: new Array(projectYears.length).fill(0) });
@@ -243,23 +268,89 @@ const DeliverablesTable: React.FC<Props> = ({
                       </div>
                       <StepsTable
                         steps={d.steps}
-                        onAdd={(s: Step) => {
-                          d.steps.push(s);
-                          onUpdate({ ...d });
+                        onAdd={async (s: Step) => {
+                          if (!projectId || !workPackageId) return;
+                          try {
+                            const profileId = profileOptions.find(p => p.name === s.profile)?.id;
+                            const countryId = countryOptions.find(c => c.name === s.country)?.id;
+                            if (!profileId || !countryId) throw new Error('INVALID_SELECTION');
+                            const created = await createStepApi(projectId, workPackageId, d.id, {
+                              profile_id: Number(profileId),
+                              country_id: Number(countryId),
+                              nombre: s.name,
+                              process_time: s.processTime,
+                              unit: s.units,
+                              office: s.office === 'Yes',
+                              mng: s.mngPercent,
+                            });
+                            const profileName = profileOptions.find(p => p.id === created.profile_id)?.name || String(created.profile_id);
+                            const countryName = countryOptions.find(c => String(c.id) === String(created.country_id))?.name || String(created.country_id);
+                            d.steps.push({
+                              id: created.id,
+                              name: created.nombre,
+                              profile: profileName,
+                              country: countryName,
+                              processTime: created.process_time,
+                              units: created.unit,
+                              office: created.office ? 'Yes' : 'No',
+                              mngPercent: created.mng,
+                              licenses: [],
+                            });
+                            onUpdate({ ...d });
+                          } catch (e: any) {
+                            const msg = e.message === 'DUPLICATE_STEP' ? 'Step duplicado' : (e.message === 'INVALID_SELECTION' ? 'Selecciona perfil y país válidos' : 'Error creando step');
+                            alert(msg);
+                          }
                           setCreatingStepFor(null);
                         }}
-                        onUpdate={(s: Step) => {
-                          const updated = d.steps.map(x => (x.id === s.id ? s : x));
-                          onUpdate({ ...d, steps: updated });
+                        onUpdate={async (s: Step) => {
+                          if (!projectId || !workPackageId) return;
+                          try {
+                            const profileId = profileOptions.find(p => p.name === s.profile)?.id;
+                            const countryId = countryOptions.find(c => c.name === s.country)?.id;
+                            if (!profileId || !countryId) throw new Error('INVALID_SELECTION');
+                            const updatedRemote = await updateStepApi(projectId, workPackageId, d.id, s.id, {
+                              profile_id: Number(profileId),
+                              country_id: Number(countryId),
+                              nombre: s.name,
+                              process_time: s.processTime,
+                              unit: s.units,
+                              office: s.office === 'Yes',
+                              mng: s.mngPercent,
+                            });
+                            const profileName = profileOptions.find(p => p.id === updatedRemote.profile_id)?.name || String(updatedRemote.profile_id);
+                            const countryName = countryOptions.find(c => String(c.id) === String(updatedRemote.country_id))?.name || String(updatedRemote.country_id);
+                            const updated = d.steps.map(x => (x.id === s.id ? {
+                              id: updatedRemote.id,
+                              name: updatedRemote.nombre,
+                              profile: profileName,
+                              country: countryName,
+                              processTime: updatedRemote.process_time,
+                              units: updatedRemote.unit,
+                              office: (updatedRemote.office ? 'Yes' : 'No') as Step['office'],
+                              mngPercent: updatedRemote.mng,
+                              licenses: x.licenses || [],
+                            } : x));
+                            onUpdate({ ...d, steps: updated });
+                          } catch (e: any) {
+                            const msg = e.message === 'DUPLICATE_STEP' ? 'Step duplicado' : (e.message === 'INVALID_SELECTION' ? 'Selecciona perfil y país válidos' : 'Error actualizando step');
+                            alert(msg);
+                          }
                         }}
-                        onDelete={(id: number) => {
-                          const updated = d.steps.filter(x => x.id !== id);
-                          onUpdate({ ...d, steps: updated });
+                        onDelete={async (id: number) => {
+                          if (!projectId || !workPackageId) return;
+                          try {
+                            await deleteStepApi(projectId, workPackageId, d.id, id);
+                            const updated = d.steps.filter(x => x.id !== id);
+                            onUpdate({ ...d, steps: updated });
+                          } catch {
+                            alert('Error eliminando step');
+                          }
                         }}
+                        profiles={profileOptions.map(p => p.name)}
+                        countries={countryOptions.map(c => c.name)}
                         createNew={creatingStepFor === d.id}
                         onCancelCreate={() => setCreatingStepFor(null)}
-                        profiles={profiles}
-                        countries={countries}
                       />
                     </div>
                   </td>

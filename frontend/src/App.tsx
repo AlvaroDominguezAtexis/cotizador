@@ -170,11 +170,11 @@ const App: React.FC = () => {
   const [costsData, setCostsData] = useState<NonOperationalCost[]>([]);
 
   // Derivar nombres de perfiles
-  const profileNames = React.useMemo(() => (profilesData || []).map(p => p.name).filter(Boolean), [profilesData]);
+  const profileOptions = React.useMemo(() => (profilesData || []).filter(p=>p && p.name).map(p => ({ id: p.id, name: p.name })), [profilesData]);
   // Hook para obtener nombres de países a partir de IDs del proyecto
   const projectCountryIds = projectFormData?.countries || [];
   const { countries: projectCountryObjs } = useCountryNames(projectCountryIds as string[]);
-  const projectCountryNames = React.useMemo(() => projectCountryObjs.map(c => c.name), [projectCountryObjs]);
+  const projectCountryOptions = React.useMemo(() => projectCountryObjs.map(c => ({ id: c.id, name: c.name })), [projectCountryObjs]);
 
   const handleLoginSubmit = async (credentials: { username: string; password: string }): Promise<boolean> => {
     const success = await login(credentials.username, credentials.password);
@@ -211,7 +211,7 @@ const App: React.FC = () => {
     return cleanData;
   };
   useEffect(() => {
-    if (activeTab !== 'profiles') return;
+    if (activeTab !== 'profiles' && activeTab !== 'work-packages') return;
     const fetchProjectProfiles = async () => {
       if (projectFormData?.id) {
         try {
@@ -255,8 +255,8 @@ const App: React.FC = () => {
             projectStartDate={projectFormData?.startDate}
             projectEndDate={projectFormData?.endDate}
             projectId={projectFormData?.id}
-            profiles={profileNames}
-            countries={projectCountryNames}
+            profiles={profileOptions}
+            countries={projectCountryOptions}
           />
         );
       case 'non-operational-costs':

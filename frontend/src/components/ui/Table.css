@@ -399,6 +399,24 @@
   color: var(--color-danger);
 }
 
+/* Expandable rows */
+.table-expand-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-light);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.table-expand-btn:hover {
+  background: var(--color-bg-secondary);
+}
+.table-expanded-row .table-expanded-cell {
+  background: #fafbfd;
+  border-top: none;
+}
+
 .table-badge-info {
   background: rgba(23, 162, 184, 0.1);
   color: var(--color-info);

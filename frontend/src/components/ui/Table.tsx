@@ -55,6 +55,12 @@ export interface TableProps<T = any> {
   data: T[];
   columns: TableColumn<T>[];
   rowKey?: keyof T | ((record: T) => string | number);
+  expandable?: {
+    expandedRowRender: (record: T, index: number) => React.ReactNode;
+    rowExpandable?: (record: T) => boolean;
+    expandedRowKeys?: (string | number)[];
+    onExpand?: (expanded: boolean, record: T) => void;
+  };
   title?: string;
   description?: string;
   loading?: boolean;
@@ -111,9 +117,11 @@ export const Table = <T extends Record<string, any>>({
   onRowDoubleClick,
   headerActions,
   footer,
-  rowClassName
+  rowClassName,
+  expandable
 }: TableProps<T>) => {
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [internalExpandedKeys, setInternalExpandedKeys] = useState<(string | number)[]>([]);
 
   // Obtener clave única de fila
   const getRowKey = useCallback((record: T, index: number): string | number => {
@@ -280,6 +288,7 @@ export const Table = <T extends Record<string, any>>({
                   />
                 </th>
               )}
+              {expandable && <th className="table-header-cell" style={{ width: 36 }}></th>}
               {columns.map(renderColumnHeader)}
             </tr>
           </thead>
@@ -303,32 +312,68 @@ export const Table = <T extends Record<string, any>>({
                 const recordKey = getRowKey(record, index);
                 const isSelected = selectedRows.includes(recordKey);
                 const dynamicClass = rowClassName?.(record, index) || '';
+                const isExpanded = (expandable?.expandedRowKeys ?? internalExpandedKeys).includes(recordKey);
 
                 return (
-                  <tr
-                    key={recordKey}
-                    className={`table-row ${isSelected ? 'table-row-selected' : ''} ${dynamicClass}`}
-                    onClick={() => onRowClick?.(record, index)}
-                    onDoubleClick={() => onRowDoubleClick?.(record, index)}
-                  >
-                    {selectable && (
-                      <td className="table-cell table-selection-cell">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={e => handleRowSelection(recordKey, record, e.target.checked)}
-                        />
-                      </td>
+                  <>
+                    <tr
+                      key={recordKey}
+                      className={`table-row ${isSelected ? 'table-row-selected' : ''} ${dynamicClass}`}
+                      onClick={() => onRowClick?.(record, index)}
+                      onDoubleClick={() => onRowDoubleClick?.(record, index)}
+                    >
+                      {selectable && (
+                        <td className="table-cell table-selection-cell">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={e => handleRowSelection(recordKey, record, e.target.checked)}
+                          />
+                        </td>
+                      )}
+                      {expandable && (
+                        <td className="table-cell" style={{ textAlign: 'center' }}>
+                          {(!expandable.rowExpandable || expandable.rowExpandable(record)) && (
+                            <button
+                              className="table-expand-btn"
+                              aria-label={isExpanded ? 'Contraer' : 'Expandir'}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const next = new Set<string | number>(
+                                  (expandable?.expandedRowKeys as (string | number)[] | undefined) ?? internalExpandedKeys
+                                );
+                                if (isExpanded) {
+                                  next.delete(recordKey);
+                                  expandable?.onExpand?.(false, record);
+                                } else {
+                                  next.add(recordKey);
+                                  expandable?.onExpand?.(true, record);
+                                }
+                                setInternalExpandedKeys(Array.from(next) as (string | number)[]);
+                              }}
+                            >
+                              {isExpanded ? '▲' : '▼'}
+                            </button>
+                          )}
+                        </td>
+                      )}
+                      {columns.map(column => (
+                        <td 
+                          key={column.key} 
+                          className={`table-cell ${column.className || ''} ${column.align ? `text-${column.align}` : ''}`}
+                        >
+                          {renderCell(column, record, index)}
+                        </td>
+                      ))}
+                    </tr>
+                    {expandable && isExpanded && (
+                      <tr className="table-expanded-row">
+                        <td colSpan={columns.length + (selectable ? 1 : 0) + 1} className="table-cell table-expanded-cell">
+                          {expandable.expandedRowRender(record, index)}
+                        </td>
+                      </tr>
                     )}
-                    {columns.map(column => (
-                      <td 
-                        key={column.key} 
-                        className={`table-cell ${column.className || ''} ${column.align ? `text-${column.align}` : ''}`}
-                      >
-                        {renderCell(column, record, index)}
-                      </td>
-                    ))}
-                  </tr>
+                  </>
                 );
               })
             )}

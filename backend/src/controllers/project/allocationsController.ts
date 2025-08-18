@@ -4,8 +4,10 @@ import db from '../../db';
 // GET /projects/:projectId/allocations
 export const getProjectAllocations = async (req: Request, res: Response) => {
   const { projectId } = req.params as { projectId: string };
+  const yearParam = (req.query?.year as string) ? Number(req.query.year as string) : undefined;
   if (!projectId) return res.status(400).send('projectId required');
   try {
+  // Join a single salary row per profile-country. If year is provided, filter by it; else pick earliest available year to avoid duplicates.
     const query = `
       SELECT
         s.id as step_id,
@@ -26,10 +28,18 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
       LEFT JOIN countries c ON c.id = s.country_id
       LEFT JOIN profiles p ON p.id = s.profile_id
       LEFT JOIN project_profiles pp ON (pp.project_id = w.project_id AND pp.profile_id = s.profile_id)
-      LEFT JOIN project_profile_salaries pps ON (pps.project_profile_id = pp.id AND pps.country_id = s.country_id)
+      LEFT JOIN LATERAL (
+        SELECT pps1.*
+        FROM project_profile_salaries pps1
+        WHERE pps1.project_profile_id = pp.id
+          AND pps1.country_id = s.country_id
+          AND ($2::int IS NULL OR pps1.year = $2::int)
+        ORDER BY pps1.year ASC
+        LIMIT 1
+      ) pps ON true
       WHERE w.project_id = $1
     `;
-    const { rows } = await db.query(query, [projectId]);
+    const { rows } = await db.query(query, [projectId, yearParam ?? null]);
     const mapped = rows.map((r: any) => ({
       stepId: r.step_id,
       step: r.step_name,

@@ -136,3 +136,137 @@
 .table-hoverable .new-profile-row:hover {
   background-color: #e9ecef;
 }
+
+/* Fancy styles for Profile Year Salaries accordion */
+.profile-ys-wrapper {
+  padding: 10px 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+  border: 1px solid #e5eaf0;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(25, 118, 210, 0.08);
+}
+
+.profile-ys-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.profile-ys-title {
+  font-weight: 600;
+  color: #2a2f45;
+}
+
+.profile-ys-table-wrap {
+  overflow-x: auto;
+}
+
+.profile-ys-cpi-btn {
+  margin-left: 10px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1;
+  border: 1px solid #1976d2;
+  color: #1976d2;
+  background: #e3f2fd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.profile-ys-cpi-btn:hover {
+  background: #bbdefb;
+}
+
+/* Pending changes indicator */
+.pending-badge {
+  display: inline-block;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #fff;
+  color: #ff9800;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 18px;
+  border: 1px solid #ffb74d;
+}
+
+.profile-ys-pending {
+  margin-left: 12px;
+  background: #fff8e1;
+  color: #f57c00;
+  border: 1px dashed #ffb74d;
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* Edited cell highlighting */
+.profile-ys-td-dirty {
+  background: #fff8e1;
+}
+.profile-ys-input-dirty {
+  border-color: #ffb74d;
+  box-shadow: 0 0 0 3px rgba(255, 183, 77, 0.25);
+}
+
+.profile-ys-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.profile-ys-th {
+  background: #f0f4fa;
+  color: #495057;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-bottom: 2px solid #dde5ee;
+  white-space: nowrap;
+}
+.profile-ys-th.left { text-align: left; }
+.profile-ys-th.right { text-align: right; }
+
+.profile-ys-td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef2f7;
+  color: #2a2f45;
+}
+.profile-ys-td.left { text-align: left; }
+.profile-ys-td.right { text-align: right; }
+
+.profile-ys-value {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f6f8fb;
+  color: #2a2f45;
+  min-width: 80px;
+}
+
+.profile-ys-edit {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.profile-ys-input {
+  width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #cfd8e3;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+  text-align: right;
+}
+.profile-ys-input:focus {
+  outline: none;
+  border-color: #0070CE;
+  box-shadow: 0 0 0 3px rgba(0, 112, 206, 0.12);
+}
+
+.profile-ys-actions {
+  display: inline-flex;
+  gap: 6px;
+}

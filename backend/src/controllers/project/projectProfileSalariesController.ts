@@ -11,10 +11,10 @@ export const createProjectProfileSalary = async (req: Request, res: Response) =>
   try {
     const result = await pool.query(
       `
-      INSERT INTO project_profile_salaries (project_profile_id, country_id, salary, year)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (project_profile_id, country_id)
-      DO UPDATE SET salary = EXCLUDED.salary, year = COALESCE(EXCLUDED.year, project_profile_salaries.year)
+  INSERT INTO project_profile_salaries (project_profile_id, country_id, salary, year)
+  VALUES ($1, $2, $3, $4)
+  ON CONFLICT (project_profile_id, country_id, year)
+  DO UPDATE SET salary = EXCLUDED.salary
       RETURNING *;
       `,
       [project_profile_id, country_id, salary, year ?? null]

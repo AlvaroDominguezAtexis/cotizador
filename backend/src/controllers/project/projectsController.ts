@@ -119,15 +119,17 @@ export const createProject = async (req: Request, res: Response) => {
     const projectResult = await client.query(insertProjectQuery, projectValues);
     const newProject = projectResult.rows[0];
 
-    // Insertar países (si vienen)
+    // Insertar países (si vienen) con CPI por defecto tomado de countries.cpi_by_default
     if (Array.isArray(countries) && countries.length > 0) {
-      const insertValues: any[] = [];
-      const placeholders = countries.map((c: any, idx: number) => {
-        insertValues.push(newProject.id, c);
-        return `($${idx * 2 + 1}, $${idx * 2 + 2})`;
-      }).join(',');
-      const insertCountriesQuery = `INSERT INTO project_countries (project_id, country_id) VALUES ${placeholders} ON CONFLICT DO NOTHING`;
-      await client.query(insertCountriesQuery, insertValues);
+      // Inserta mediante SELECT para tomar el cpi_by_default de cada país
+      const insertCountriesQuery = `
+        INSERT INTO project_countries (project_id, country_id, cpi)
+        SELECT $1 AS project_id, c.id AS country_id, c.cpi_by_default AS cpi
+        FROM countries c
+        WHERE c.id = ANY($2::int[])
+        ON CONFLICT (project_id, country_id) DO NOTHING;
+      `;
+      await client.query(insertCountriesQuery, [newProject.id, countries]);
     }
 
     await client.query('COMMIT');
@@ -212,16 +214,38 @@ export const updateProject = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Proyecto no encontrado' });
     }
 
-    // Reemplazar países asociados
-    await clientConn.query('DELETE FROM project_countries WHERE project_id = $1', [id]);
-    if (Array.isArray(countries) && countries.length > 0) {
-      const insertValues: any[] = [];
-      const placeholders = countries.map((c: any, idx: number) => {
-        insertValues.push(id, c);
-        return `($${idx * 2 + 1}, $${idx * 2 + 2})`;
-      }).join(',');
-      const insertCountriesQuery = `INSERT INTO project_countries (project_id, country_id) VALUES ${placeholders} ON CONFLICT DO NOTHING`;
-      await clientConn.query(insertCountriesQuery, insertValues);
+    // Actualizar países asociados preservando CPI existente
+    const existingRes = await clientConn.query(
+      'SELECT country_id, cpi FROM project_countries WHERE project_id = $1',
+      [id]
+    );
+    const existingMap = new Map<number, number | null>();
+    for (const row of existingRes.rows) existingMap.set(Number(row.country_id), row.cpi == null ? null : Number(row.cpi));
+
+    const newCountries: number[] = Array.isArray(countries) ? countries.map((c: any) => Number(c)) : [];
+    const newSet = new Set(newCountries);
+    const oldSet = new Set(Array.from(existingMap.keys()));
+
+    // Delete countries removed
+    const toDelete: number[] = Array.from(oldSet).filter((cid) => !newSet.has(cid));
+    if (toDelete.length > 0) {
+      await clientConn.query(
+        `DELETE FROM project_countries WHERE project_id = $1 AND country_id = ANY($2::int[])`,
+        [id, toDelete]
+      );
+    }
+
+    // Insertar países nuevos con CPI por defecto tomado de countries.cpi_by_default
+    const toInsert: number[] = newCountries.filter((cid) => !oldSet.has(cid));
+    if (toInsert.length > 0) {
+      const insertCountriesQuery = `
+        INSERT INTO project_countries (project_id, country_id, cpi)
+        SELECT $1 AS project_id, c.id AS country_id, c.cpi_by_default AS cpi
+        FROM countries c
+        WHERE c.id = ANY($2::int[])
+        ON CONFLICT (project_id, country_id) DO NOTHING;
+      `;
+      await clientConn.query(insertCountriesQuery, [id, toInsert]);
     }
 
     await clientConn.query('COMMIT');

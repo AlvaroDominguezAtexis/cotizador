@@ -11,6 +11,7 @@ import buLinesRoutes from './routes/Project/buLinesRoutes';
 import clientsRoutes from './routes/Project/clientsRoutes';
 import projectProfilesRoutes from './routes/Project/projectProfilesRoutes';
 import projectProfileSalariesRoutes from './routes/Project/projectProfileSalariesRoutes';
+import projectCountriesRoutes from './routes/Project/projectCountriesRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
 import deliverablesRoutes from './routes/Project/deliverablesRoutes';
@@ -41,5 +42,7 @@ app.use('/projects/:projectId/workpackages', workPackagesRoutes);
 app.use('/projects/:projectId/workpackages/:workPackageId/deliverables', deliverablesRoutes);
 app.use('/projects/:projectId/workpackages/:workPackageId/deliverables/:deliverableId/steps', stepsRoutes);
 app.use('/projects/:projectId/allocations', allocationsRoutes);
+// Project countries CPI
+app.use('/projects/:projectId/countries-cpi', projectCountriesRoutes);
 
 export default app;

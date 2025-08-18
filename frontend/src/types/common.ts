@@ -6,7 +6,8 @@ export type TabName =
   | 'profiles' 
   | 'work-packages' 
   | 'non-operational-costs' 
-  | 'summary';
+  | 'summary'
+  | 'advance-settings';
 
 // Interfaz base para props de modales
 export interface ModalProps {

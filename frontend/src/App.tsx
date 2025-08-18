@@ -7,6 +7,7 @@ import { ProfilesTab } from './components/tabs/ProfilesTab';
 import { WorkPackagesTab } from './components/tabs/WorkPackagesTab';
 import { CostsTab } from './components/tabs/CostsTab';
 import { SummaryTab } from './components/tabs/SummaryTab';
+import { AdvanceSettingsTab } from './components/tabs/AdvanceSettingsTab';
 import { TabName } from './types/common';
 import { Menu } from './components/Menu';
 import { TabNavigation } from './components/layout/TabNavigation';
@@ -271,6 +272,8 @@ const App: React.FC = () => {
           );
       case 'summary':
         return <SummaryTab project={projectFormData} profiles={profilesData} workPackages={workPackagesData} costs={costsData} />;
+      case 'advance-settings':
+        return <AdvanceSettingsTab projectId={projectFormData?.id || 0} countries={projectCountryOptions as any} />;
       default:
         return <ProjectDataTab project={selectedProject} onChange={setProjectFormData} onBackToMenu={handleBackToMenu} />;
     }

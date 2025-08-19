@@ -14,9 +14,10 @@ export interface ProjectData {
   buLine: string;
   opsDomain: string;
   country: string;
-  scope: 'local' | 'transnational';
   countries?: string[]; // IDs de países asociados
   iqp: number;
+  marginType?: 'DM' | 'GMBS' | '';
+  marginGoal?: number | '';
   segmentation: string;
   description?: string;
   licenses?: License[];

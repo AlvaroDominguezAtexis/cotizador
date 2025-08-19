@@ -82,23 +82,28 @@ export const createProject = async (req: Request, res: Response) => {
       start_date,
       end_date,
       business_manager,
-      business_unit,
-      ops_domain,
-      scope,
+  business_unit,
+  bu_line,
+  ops_domain,
       countries, // array de country_id
       iqp,
+  margin_type,
+  margin_goal,
       segmentation,
       description
     } = req.body;
 
     const insertProjectQuery = `
-      INSERT INTO projects
-      (title, crm_code, client, activity, start_date, end_date,
-       business_manager, business_unit, ops_domain, scope,
-       iqp, segmentation, description)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+    INSERT INTO projects
+  (title, crm_code, client, activity, start_date, end_date,
+   business_manager, business_unit, bu_line, ops_domain,
+   iqp, margin_type, margin_goal, segmentation, description)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *;
     `;
+    // Normalize margin fields
+    const marginTypeVal = (margin_type === '' || margin_type == null) ? null : String(margin_type);
+    const marginGoalVal = (margin_goal === '' || margin_goal == null || isNaN(Number(margin_goal))) ? null : Number(margin_goal);
 
     const projectValues = [
       title || null,
@@ -109,9 +114,11 @@ export const createProject = async (req: Request, res: Response) => {
       end_date || null,
       business_manager || null,
       business_unit || null,
+  bu_line || null,
       ops_domain || null,
-      scope || null,
       iqp || null,
+      marginTypeVal,
+      marginGoalVal,
       segmentation || null,
       description || null,
     ];
@@ -121,6 +128,7 @@ export const createProject = async (req: Request, res: Response) => {
 
   // Insertar países (si vienen) con CPI, Activity Rate y NPT Rate por defecto tomados de countries
     if (Array.isArray(countries) && countries.length > 0) {
+      const countryIds: number[] = countries.map((c: any) => Number(c)).filter((n: any) => !Number.isNaN(n));
       // Inserta mediante SELECT para tomar el cpi_by_default de cada país
       const insertCountriesQuery = `
   INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days)
@@ -129,7 +137,7 @@ export const createProject = async (req: Request, res: Response) => {
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;
       `;
-      await client.query(insertCountriesQuery, [newProject.id, countries]);
+      await client.query(insertCountriesQuery, [newProject.id, countryIds]);
     }
 
     await client.query('COMMIT');
@@ -170,26 +178,30 @@ export const updateProject = async (req: Request, res: Response) => {
       start_date,
       end_date,
       business_manager,
-      business_unit,
-      ops_domain,
-      scope,
+  business_unit,
+  bu_line,
+  ops_domain,
       countries, // array de country_id
       iqp,
+  margin_type,
+  margin_goal,
       segmentation,
       description
     } = req.body;
 
     const updateQuery = `
       UPDATE projects
-      SET title=$1, crm_code=$2, client=$3, activity=$4,
-          start_date=$5, end_date=$6,
-          business_manager=$7, business_unit=$8, ops_domain=$9,
-          scope=$10,
-          iqp=$11, segmentation=$12, description=$13,
-          updated_at=NOW()
-      WHERE id=$14
+    SET title=$1, crm_code=$2, client=$3, activity=$4,
+      start_date=$5, end_date=$6,
+      business_manager=$7, business_unit=$8, bu_line=$9, ops_domain=$10,
+      iqp=$11, margin_type=$12, margin_goal=$13, segmentation=$14, description=$15,
+      updated_at=NOW()
+    WHERE id=$16
       RETURNING *;
     `;
+    // Normalize margin fields on update as well
+    const updMarginTypeVal = (margin_type === '' || margin_type == null) ? null : String(margin_type);
+    const updMarginGoalVal = (margin_goal === '' || margin_goal == null || isNaN(Number(margin_goal))) ? null : Number(margin_goal);
 
     const updateValues = [
       title || null,
@@ -200,12 +212,14 @@ export const updateProject = async (req: Request, res: Response) => {
       end_date || null,
       business_manager || null,
       business_unit || null,
+  bu_line || null,
       ops_domain || null,
-      scope || null,
       iqp || null,
+      updMarginTypeVal,
+      updMarginGoalVal,
       segmentation || null,
       description || null,
-      id,
+  id,
     ];
 
     const result = await clientConn.query(updateQuery, updateValues);

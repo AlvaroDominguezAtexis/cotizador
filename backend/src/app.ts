@@ -18,7 +18,6 @@ import projectCountriesRoutes, {
 	projectCountriesPremisesRouter,
 	projectCountriesWorkingDaysRouter,
 } from './routes/Project/projectCountriesRoutes';
-import projectCountriesWorkingDaysRoutes from './routes/Project/projectCountriesWorkingDaysRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
 import deliverablesRoutes from './routes/Project/deliverablesRoutes';
@@ -56,6 +55,5 @@ app.use('/projects/:projectId/countries-npt-rate', projectCountriesNptRouter);
 app.use('/projects/:projectId/countries-it-cost', projectCountriesItRouter);
 app.use('/projects/:projectId/countries-premises-cost', projectCountriesPremisesRouter);
 app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRouter);
-app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRoutes);
 
 export default app;

@@ -20,8 +20,9 @@ export const useProject = () => {
     buLine: '',
     opsDomain: '',
     country: '',
-    scope: 'local',
     iqp: 1,
+  marginType: '',
+  marginGoal: '',
     segmentation: 'New Business'
   });
 
@@ -145,8 +146,9 @@ const updateProfile = (originalProfile: Profile, updatedProfile: Profile) => {
       buLine: '',
       opsDomain: '',
       country: '',
-      scope: 'local',
       iqp: 1,
+  marginType: '',
+  marginGoal: '',
       segmentation: 'New Business'
     });
     setWorkPackages([]);

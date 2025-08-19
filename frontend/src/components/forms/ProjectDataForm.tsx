@@ -85,10 +85,11 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
       businessUnit: '',
       buLine: '',
       opsDomain: '',
-      country: '',
-  scope: 'local',
+  country: '',
   countries: [],
       iqp: 1,
+  marginType: '',
+  marginGoal: '',
       segmentation: 'New Business',
       description: '',
     }
@@ -96,7 +97,11 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
   React.useEffect(() => {
     if (initialValues) {
-      setFormData(initialValues);
+      setFormData(prev => ({
+        ...prev,
+        ...initialValues,
+        marginGoal: typeof (initialValues as any).marginGoal === 'number' ? (initialValues as any).marginGoal : (initialValues as any).marginGoal || '',
+      }));
     }
   }, [initialValues]);
 
@@ -104,6 +109,14 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    // Keep numeric with decimals for marginGoal, everything else as string
+    if (name === 'marginGoal') {
+      const cleaned = value.replace(/,/g, '.');
+      // Accept empty string, else cast to number
+      const nextVal = cleaned === '' ? '' : Number(cleaned);
+      setFormData((prev) => ({ ...prev, marginGoal: nextVal }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -214,6 +227,8 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
           </select>
         </div>
 
+        
+
         <div className="form-group">
           <label>BU Line</label>
           <select
@@ -238,28 +253,9 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
           />
         </div>
 
-        <div className="form-group">
-          <label>País(es)</label>
-          <CountrySelector
-            selectedCountries={formData.countries || []}
-            onChange={(countries) => {
-              setFormData((prev) => ({ ...prev, countries }));
-            }}
-            max={10}
-          />
-        </div>
+        
 
-        <div className="form-group">
-          <label>Ámbito</label>
-          <select
-            name="scope"
-            value={formData.scope}
-            onChange={handleInputChange}
-          >
-            <option value="local">Local</option>
-            <option value="transnational">Transnacional</option>
-          </select>
-        </div>
+  {/* Ámbito eliminado */}
 
         <div className="form-group">
           <label>IQP</label>
@@ -285,6 +281,44 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
             <option value="New Business">New Business</option>
             <option value="Existing Business">Existing Business</option>
           </select>
+        </div>
+
+        {/* Last three: Countries, Margin Type, Margin Goal */}
+        <div className="form-group">
+          <label>País(es)</label>
+          <CountrySelector
+            selectedCountries={formData.countries || []}
+            onChange={(countries) => {
+              setFormData((prev) => ({ ...prev, countries }));
+            }}
+            max={10}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Tipo de Margen</label>
+          <select
+            name="marginType"
+            value={formData.marginType || ''}
+            onChange={handleInputChange}
+          >
+            <option value="">Seleccione</option>
+            <option value="DM">DM</option>
+            <option value="GMBS">GMBS</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Objetivo de Margen</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            name="marginGoal"
+            value={formData.marginGoal ?? ''}
+            onChange={handleInputChange}
+            placeholder="0.00"
+          />
         </div>
       </div>
 

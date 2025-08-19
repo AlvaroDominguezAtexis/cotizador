@@ -36,9 +36,11 @@ export const mapProjectFromBackend = (data: any): ProjectData => {
     endDate: safeFormatDate(safeData.end_date ?? safeData.endDate),
     businessManager: safeData.business_manager ?? safeData.businessManager ?? '',
     businessUnit: safeData.business_unit ?? safeData.businessUnit ?? '',
+  buLine: safeData.bu_line ?? safeData.buLine ?? '',
     opsDomain: safeData.ops_domain ?? safeData.opsDomain ?? '',
-    country: safeData.country ?? '',
-    scope: safeData.scope ?? '',
+  country: safeData.country ?? '',
+  marginType: safeData.margin_type ?? safeData.marginType ?? '',
+  marginGoal: typeof safeData.margin_goal === 'number' ? safeData.margin_goal : '',
     countries: Array.isArray(safeData.countries)
       ? safeData.countries.map((c: any) => String(c))
       : [],
@@ -50,9 +52,10 @@ export const mapProjectFromBackend = (data: any): ProjectData => {
   Object.keys(safeData).forEach(key => {
     const mappedKeys = [
       'title', 'crm_code', 'client', 'activity', 'start_date', 'end_date',
-      'business_manager', 'business_unit', 'ops_domain', 'country', 'scope',
-      'additional_countries', 'iqp', 'segmentation', 'description',
-      'crmCode', 'startDate', 'endDate', 'businessManager', 'businessUnit',
+  'business_manager', 'business_unit', 'bu_line', 'ops_domain', 'country',
+  'margin_type', 'margin_goal',
+  'additional_countries', 'iqp', 'segmentation', 'description',
+  'crmCode', 'startDate', 'endDate', 'businessManager', 'businessUnit', 'buLine', 'marginType', 'marginGoal',
   'opsDomain', 'countries'
     ];
     if (!mappedKeys.includes(key)) {
@@ -200,11 +203,13 @@ const App: React.FC = () => {
       end_date: formatDateLocal(data.endDate),
       business_manager: data.businessManager?.trim() || '',
       business_unit: data.businessUnit?.trim() || '',
-      ops_domain: data.opsDomain?.trim() || '',
-      country: data.country?.trim() || '',
-      scope: data.scope?.trim() || '',
+  bu_line: data.buLine?.trim() || '',
+  ops_domain: data.opsDomain?.trim() || '',
+  country: data.country?.trim() || '',
   countries: data.countries && data.countries.length > 0 ? data.countries : [],
       iqp: data.iqp ? data.iqp.toString().trim() || '' : '',
+  margin_type: data.marginType || '',
+  margin_goal: data.marginGoal === '' || data.marginGoal == null ? null : Number(data.marginGoal),
       segmentation: data.segmentation?.trim() || '',
       description: data.description?.trim() || '',
     };

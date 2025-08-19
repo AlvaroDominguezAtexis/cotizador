@@ -1,12 +1,43 @@
 import express from 'express';
-import { getProjectCountriesCpi, upsertProjectCountryCpi } from '../../controllers/project/projectCountriesController';
+import {
+	getProjectCountriesCpi,
+	upsertProjectCountryCpi,
+	getProjectCountriesActivityRate,
+	upsertProjectCountryActivityRate,
+	getProjectCountriesNptRate,
+	upsertProjectCountryNptRate,
+	getProjectCountriesItCost,
+	upsertProjectCountryItCost,
+	getProjectCountriesPremisesCost,
+	upsertProjectCountryPremisesCost,
+	getProjectCountriesWorkingDays,
+	upsertProjectCountryWorkingDays,
+} from '../../controllers/project/projectCountriesController';
 
-const router = express.Router({ mergeParams: true });
+// Individual routers with mergeParams to inherit :projectId from mount path
+export const projectCountriesCpiRouter = express.Router({ mergeParams: true });
+projectCountriesCpiRouter.get('/', getProjectCountriesCpi);
+projectCountriesCpiRouter.put('/:countryId', upsertProjectCountryCpi);
 
-// GET CPI values for all countries in a project
-router.get('/', getProjectCountriesCpi);
+export const projectCountriesActivityRouter = express.Router({ mergeParams: true });
+projectCountriesActivityRouter.get('/', getProjectCountriesActivityRate);
+projectCountriesActivityRouter.put('/:countryId', upsertProjectCountryActivityRate);
 
-// Upsert CPI for a specific country in a project
-router.put('/:countryId', upsertProjectCountryCpi);
+export const projectCountriesNptRouter = express.Router({ mergeParams: true });
+projectCountriesNptRouter.get('/', getProjectCountriesNptRate);
+projectCountriesNptRouter.put('/:countryId', upsertProjectCountryNptRate);
 
-export default router;
+export const projectCountriesItRouter = express.Router({ mergeParams: true });
+projectCountriesItRouter.get('/', getProjectCountriesItCost);
+projectCountriesItRouter.put('/:countryId', upsertProjectCountryItCost);
+
+export const projectCountriesPremisesRouter = express.Router({ mergeParams: true });
+projectCountriesPremisesRouter.get('/', getProjectCountriesPremisesCost);
+projectCountriesPremisesRouter.put('/:countryId', upsertProjectCountryPremisesCost);
+
+export const projectCountriesWorkingDaysRouter = express.Router({ mergeParams: true });
+projectCountriesWorkingDaysRouter.get('/', getProjectCountriesWorkingDays);
+projectCountriesWorkingDaysRouter.put('/:countryId', upsertProjectCountryWorkingDays);
+
+// For backward compatibility, export CPI router as default
+export default projectCountriesCpiRouter;

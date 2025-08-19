@@ -11,7 +11,14 @@ import buLinesRoutes from './routes/Project/buLinesRoutes';
 import clientsRoutes from './routes/Project/clientsRoutes';
 import projectProfilesRoutes from './routes/Project/projectProfilesRoutes';
 import projectProfileSalariesRoutes from './routes/Project/projectProfileSalariesRoutes';
-import projectCountriesRoutes from './routes/Project/projectCountriesRoutes';
+import projectCountriesRoutes, {
+	projectCountriesActivityRouter,
+	projectCountriesNptRouter,
+	projectCountriesItRouter,
+	projectCountriesPremisesRouter,
+	projectCountriesWorkingDaysRouter,
+} from './routes/Project/projectCountriesRoutes';
+import projectCountriesWorkingDaysRoutes from './routes/Project/projectCountriesWorkingDaysRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
 import deliverablesRoutes from './routes/Project/deliverablesRoutes';
@@ -44,5 +51,11 @@ app.use('/projects/:projectId/workpackages/:workPackageId/deliverables/:delivera
 app.use('/projects/:projectId/allocations', allocationsRoutes);
 // Project countries CPI
 app.use('/projects/:projectId/countries-cpi', projectCountriesRoutes);
+app.use('/projects/:projectId/countries-activity-rate', projectCountriesActivityRouter);
+app.use('/projects/:projectId/countries-npt-rate', projectCountriesNptRouter);
+app.use('/projects/:projectId/countries-it-cost', projectCountriesItRouter);
+app.use('/projects/:projectId/countries-premises-cost', projectCountriesPremisesRouter);
+app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRouter);
+app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRoutes);
 
 export default app;

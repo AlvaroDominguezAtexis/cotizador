@@ -7,7 +7,7 @@ export const getProjectCountriesCpi = async (req: Request, res: Response) => {
   if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
   try {
     const q = `
-      SELECT pc.country_id, c.name AS country_name, pc.cpi
+  SELECT pc.country_id, c.name AS country_name, pc.cpi
       FROM project_countries pc
       JOIN countries c ON c.id = pc.country_id
       WHERE pc.project_id = $1
@@ -41,6 +41,26 @@ export const getProjectCountriesWorkingDays = async (req: Request, res: Response
   }
 };
 
+// GET /projects/:projectId/countries-mng
+export const getProjectCountriesMng = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.mng
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesMng error', e);
+    res.status(500).json({ error: 'Error al obtener Mng por país' });
+  }
+};
+
 // PUT /projects/:projectId/countries-working-days/:countryId
 export const upsertProjectCountryWorkingDays = async (req: Request, res: Response) => {
   const { projectId, countryId } = req.params as { projectId: string; countryId: string };
@@ -62,6 +82,30 @@ export const upsertProjectCountryWorkingDays = async (req: Request, res: Respons
   } catch (e) {
     console.error('upsertProjectCountryWorkingDays error', e);
     res.status(500).json({ error: 'Error al guardar Working Days' });
+  }
+};
+
+// PUT /projects/:projectId/countries-mng/:countryId
+export const upsertProjectCountryMng = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { mng } = req.body as { mng?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (mng == null || isNaN(Number(mng))) return res.status(400).json({ error: 'mng numérico requerido' });
+  const mngNum = Number(mng);
+  if (mngNum < 0) return res.status(400).json({ error: 'mng debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, mng)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id)
+      DO UPDATE SET mng = EXCLUDED.mng
+      RETURNING project_id, country_id, mng
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, mngNum]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryMng error', e);
+    res.status(500).json({ error: 'Error al guardar Mng' });
   }
 };
 

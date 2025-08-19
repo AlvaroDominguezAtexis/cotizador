@@ -19,6 +19,8 @@ export interface Step {
   office: 'Yes' | 'No';
   mngPercent: number;   // 🔹 Porcentaje de gestión
   licenses: any[];      // Mantener si ya lo tenías
+  hardware?: 'Yes' | 'No';
+  year?: number | null;
 }
 
 /** Entregable dentro de un Work Package */

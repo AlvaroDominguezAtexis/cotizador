@@ -6,8 +6,9 @@ export interface StepPayload {
   nombre: string;
   process_time: number;
   unit: string;
-  office: boolean;
-  mng: number;
+  office?: boolean;
+  mng?: number;
+  hardware?: boolean;
 }
 
 export const fetchSteps = async (projectId: number, workPackageId: number, deliverableId: number) => {
@@ -37,5 +38,28 @@ export const updateStepApi = async (projectId: number, workPackageId: number, de
 export const deleteStepApi = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number) => {
   const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Error eliminando step');
+  return true;
+};
+
+// Annual data helpers
+export type AnnualData = { year: number; process_time: number | null; mng: number | null; office: boolean | null; hardware: boolean | null };
+
+export const fetchStepAnnualData = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number): Promise<AnnualData[]> => {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data`);
+  if (!res.ok) throw new Error('Error fetching annual data');
+  return res.json();
+};
+
+export const upsertStepAnnualData = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number, year: number, payload: Partial<AnnualData>): Promise<AnnualData> => {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data/${year}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('Error saving annual data');
+  return res.json();
+};
+
+export const deleteStepAnnualData = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number, year: number): Promise<boolean> => {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data/${year}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Error deleting annual data');
   return true;
 };

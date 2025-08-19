@@ -127,12 +127,19 @@ export const createProject = async (req: Request, res: Response) => {
     const newProject = projectResult.rows[0];
 
   // Insertar países (si vienen) con CPI, Activity Rate y NPT Rate por defecto tomados de countries
-    if (Array.isArray(countries) && countries.length > 0) {
+  if (Array.isArray(countries) && countries.length > 0) {
       const countryIds: number[] = countries.map((c: any) => Number(c)).filter((n: any) => !Number.isNaN(n));
       // Inserta mediante SELECT para tomar el cpi_by_default de cada país
-      const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days)
-  SELECT $1 AS project_id, c.id AS country_id, c.cpi_by_default AS cpi, c.activity_rate_by_default AS activity_rate, c.npt_rate_by_default AS npt_rate, c.it_cost_by_default AS it_cost, c.premises_cost_by_default AS premises_cost, c.working_days_by_default AS working_days
+    const insertCountriesQuery = `
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng)
+  SELECT $1 AS project_id, c.id AS country_id,
+     c.cpi_by_default AS cpi,
+     c.activity_rate_by_default AS activity_rate,
+     c.npt_rate_by_default AS npt_rate,
+     c.it_cost_by_default AS it_cost,
+     c.premises_cost_by_default AS premises_cost,
+     c.working_days_by_default AS working_days,
+     c.mng_by_default AS mng
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;
@@ -253,8 +260,15 @@ export const updateProject = async (req: Request, res: Response) => {
     const toInsert: number[] = newCountries.filter((cid) => !oldSet.has(cid));
     if (toInsert.length > 0) {
       const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days)
-  SELECT $1 AS project_id, c.id AS country_id, c.cpi_by_default AS cpi, c.activity_rate_by_default AS activity_rate, c.npt_rate_by_default AS npt_rate, c.it_cost_by_default AS it_cost, c.premises_cost_by_default AS premises_cost, c.working_days_by_default AS working_days
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng)
+  SELECT $1 AS project_id, c.id AS country_id,
+         c.cpi_by_default AS cpi,
+         c.activity_rate_by_default AS activity_rate,
+         c.npt_rate_by_default AS npt_rate,
+         c.it_cost_by_default AS it_cost,
+         c.premises_cost_by_default AS premises_cost,
+         c.working_days_by_default AS working_days,
+         c.mng_by_default AS mng
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;

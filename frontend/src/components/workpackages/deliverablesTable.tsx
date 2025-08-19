@@ -57,6 +57,8 @@ const DeliverablesTable: React.FC<Props> = ({
       office: (r.office ? 'Yes' : 'No') as Step['office'],
       mngPercent: r.mng,
       licenses: [],
+      hardware: (r.hardware ? 'Yes' : 'No'),
+      year: r.year ?? null,
     } as Step;
   };
 
@@ -312,6 +314,9 @@ const DeliverablesTable: React.FC<Props> = ({
                         <span className="steps-badge"> {d.name} Steps ({d.steps.length})</span>
                       </div>
                       <StepsTable
+                        projectId={projectId!}
+                        workPackageId={workPackageId!}
+                        deliverableId={d.id}
                         steps={d.steps}
                         onAdd={async (s: Step) => {
                           if (!projectId || !workPackageId) return;
@@ -325,8 +330,7 @@ const DeliverablesTable: React.FC<Props> = ({
                               nombre: s.name,
                               process_time: s.processTime,
                               unit: s.units,
-                              office: s.office === 'Yes',
-                              mng: s.mngPercent,
+                              // office/hardware default to Yes in backend; we don't send them from create form
                             });
                             const profileName = profileOptions.find(p => p.id === created.profile_id)?.name || String(created.profile_id);
                             const countryName = countryOptions.find(c => String(c.id) === String(created.country_id))?.name || String(created.country_id);
@@ -340,6 +344,8 @@ const DeliverablesTable: React.FC<Props> = ({
                               office: created.office ? 'Yes' : 'No',
                               mngPercent: created.mng,
                               licenses: [],
+                              hardware: (created.hardware ? 'Yes' : 'No'),
+                              year: created.year ?? null,
                             });
                             onUpdate({ ...d });
                             await refreshDeliverableSteps(d.id);
@@ -363,6 +369,7 @@ const DeliverablesTable: React.FC<Props> = ({
                               unit: s.units,
                               office: s.office === 'Yes',
                               mng: s.mngPercent,
+                              hardware: (s.hardware || 'No') === 'Yes',
                             });
                             const profileName = profileOptions.find(p => p.id === updatedRemote.profile_id)?.name || String(updatedRemote.profile_id);
                             const countryName = countryOptions.find(c => String(c.id) === String(updatedRemote.country_id))?.name || String(updatedRemote.country_id);
@@ -376,6 +383,8 @@ const DeliverablesTable: React.FC<Props> = ({
                               office: (updatedRemote.office ? 'Yes' : 'No') as Step['office'],
                               mngPercent: updatedRemote.mng,
                               licenses: x.licenses || [],
+                              hardware: (updatedRemote.hardware ? 'Yes' : 'No') as 'Yes' | 'No',
+                              year: updatedRemote.year ?? null,
                             } : x));
                             onUpdate({ ...d, steps: updated });
                             await refreshDeliverableSteps(d.id);
@@ -383,7 +392,7 @@ const DeliverablesTable: React.FC<Props> = ({
                             const msg = e.message === 'DUPLICATE_STEP' ? 'Step duplicado' : (e.message === 'INVALID_SELECTION' ? 'Selecciona perfil y país válidos' : 'Error actualizando step');
                             alert(msg);
                           }
-                        }}
+            }}
             onDelete={async (id: number) => {
                           if (!projectId || !workPackageId) return;
                           try {
@@ -394,11 +403,12 @@ const DeliverablesTable: React.FC<Props> = ({
                           } catch {
                             alert('Error eliminando step');
                           }
-                        }}
-                        profiles={profileOptions.map(p => p.name)}
-                        countries={countryOptions.map(c => c.name)}
-                        createNew={creatingStepFor === d.id}
-                        onCancelCreate={() => setCreatingStepFor(null)}
+            }}
+            profiles={profileOptions.map(p => p.name)}
+            countries={countryOptions.map(c => c.name)}
+            projectYears={projectYears}
+            createNew={creatingStepFor === d.id}
+            onCancelCreate={() => setCreatingStepFor(null)}
                       />
                     </div>
                   </td>

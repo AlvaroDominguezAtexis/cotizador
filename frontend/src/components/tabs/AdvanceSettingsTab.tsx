@@ -13,9 +13,10 @@ type SettingsRow = {
   it_cost: number | null;
   premises_cost: number | null;
   working_days: number | null;
+  mng: number | null;
 };
 
-type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'premises_cost' | 'working_days';
+type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'premises_cost' | 'working_days' | 'mng';
 
 interface Props {
   projectId: number | string;
@@ -38,13 +39,14 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
     const load = async () => {
       try {
         setLoading(true);
-        const [cpiRes, arRes, nptRes, itRes, premRes, wdRes] = await Promise.all([
+        const [cpiRes, arRes, nptRes, itRes, premRes, wdRes, mngRes] = await Promise.all([
           fetch(`/projects/${projectId}/countries-cpi`),
           fetch(`/projects/${projectId}/countries-activity-rate`),
           fetch(`/projects/${projectId}/countries-npt-rate`),
           fetch(`/projects/${projectId}/countries-it-cost`),
           fetch(`/projects/${projectId}/countries-premises-cost`),
           fetch(`/projects/${projectId}/countries-working-days`),
+          fetch(`/projects/${projectId}/countries-mng`),
         ]);
         if (!cpiRes.ok) throw new Error('Error cargando CPI del proyecto');
         if (!arRes.ok) throw new Error('Error cargando Activity Rate del proyecto');
@@ -52,13 +54,14 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         if (!itRes.ok) throw new Error('Error cargando IT Cost del proyecto');
         if (!premRes.ok) throw new Error('Error cargando Premises Cost del proyecto');
         if (!wdRes.ok) throw new Error('Error cargando Working Days del proyecto');
-        const [cpiJson, arJson, nptJson, itJson, premJson, wdJson] = await Promise.all([
+        const [cpiJson, arJson, nptJson, itJson, premJson, wdJson, mngJson] = await Promise.all([
           cpiRes.json(),
           arRes.json(),
           nptRes.json(),
           itRes.json(),
           premRes.json(),
           wdRes.json(),
+          mngRes.json(),
         ]);
 
         if (cancelled) return;
@@ -67,8 +70,9 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         const arMap = new Map<number, number | null>((arJson || []).map((r: any) => [r.country_id, r.activity_rate]));
         const nptMap = new Map<number, number | null>((nptJson || []).map((r: any) => [r.country_id, r.npt_rate]));
         const itMap = new Map<number, number | null>((itJson || []).map((r: any) => [r.country_id, r.it_cost]));
-        const premMap = new Map<number, number | null>((premJson || []).map((r: any) => [r.country_id, r.premises_cost]));
+  const premMap = new Map<number, number | null>((premJson || []).map((r: any) => [r.country_id, r.premises_cost]));
   const wdMap = new Map<number, number | null>((wdJson || []).map((r: any) => [r.country_id, r.working_days]));
+  const mngMap = new Map<number, number | null>((mngJson || []).map((r: any) => [r.country_id, r.mng]));
 
         const merged: SettingsRow[] = countries
           .map((c) => ({
@@ -80,6 +84,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
             it_cost: itMap.get(c.id) ?? null,
             premises_cost: premMap.get(c.id) ?? null,
             working_days: wdMap.get(c.id) ?? null,
+            mng: mngMap.get(c.id) ?? null,
           }))
           .sort((a, b) => a.country_name.localeCompare(b.country_name));
 
@@ -110,6 +115,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         it_cost: row.it_cost ?? 0,
   premises_cost: row.premises_cost ?? 0,
   working_days: row.working_days ?? 0,
+        mng: row.mng ?? 0,
       },
     }));
   };
@@ -141,7 +147,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
 
     // Determine which fields changed vs current row
     const changes: Partial<Record<ParamKey, number>> = {};
-  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'premises_cost', 'working_days'] as ParamKey[]).forEach((k) => {
+  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'premises_cost', 'working_days', 'mng'] as ParamKey[]).forEach((k) => {
       const newVal = draft[k];
       if (typeof newVal === 'number' && newVal !== (row[k] ?? null)) {
         changes[k] = newVal;
@@ -188,13 +194,18 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ working_days: changes.working_days }),
         }));
       }
+      if (changes.mng !== undefined) {
+        calls.push(fetch(`/projects/${projectId}/countries-mng/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mng: changes.mng }),
+        }));
+      }
 
       const results = await Promise.all(calls);
       const bad = results.find(r => !r.ok);
       if (bad) throw new Error('Error guardando cambios');
 
       // Apply changes locally
-      setRows(prev => prev.map(r => r.country_id === countryId ? ({ ...r, ...changes }) : r));
+  setRows(prev => prev.map(r => r.country_id === countryId ? ({ ...r, ...changes }) : r));
       setEditingRow(null);
       setDirty(prev => { const p = { ...prev }; delete p[countryId]; return p; });
     } catch (e) {
@@ -223,6 +234,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                 <th>IT Cost</th>
                 <th>Premises Cost</th>
                 <th>Working Days</th>
+                <th>%Mng</th>
                 <th></th>
               </tr>
             </thead>
@@ -275,6 +287,13 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                         <input className="settings-input" type="number" step="1" min={0} value={numberFormat(v('working_days'))} onChange={(e) => onChangeField(row.country_id, 'working_days', e.target.value)} />
                       ) : (
                         <span className="settings-value">{row.working_days == null ? '-' : Number(row.working_days).toFixed(0)}</span>
+                      )}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <input className="settings-input" type="number" step="0.01" min={0} value={numberFormat(v('mng'))} onChange={(e) => onChangeField(row.country_id, 'mng', e.target.value)} />
+                      ) : (
+                        <span className="settings-value">{row.mng == null ? '-' : Number(row.mng).toFixed(2)}%</span>
                       )}
                     </td>
                     <td>

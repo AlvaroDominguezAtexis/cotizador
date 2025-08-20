@@ -12,10 +12,14 @@ import {
 	upsertProjectCountryPremisesCost,
 	getProjectCountriesWorkingDays,
 	upsertProjectCountryWorkingDays,
+	getProjectCountriesHoursPerDay,
+	upsertProjectCountryHoursPerDay,
 	getProjectCountriesMng,
 	upsertProjectCountryMng,
 		getProjectCountriesMarkup,
 		upsertProjectCountryMarkup,
+		getProjectCountriesSocialContributionRate,
+		upsertProjectCountrySocialContributionRate,
 } from '../../controllers/project/projectCountriesController';
 
 // Individual routers with mergeParams to inherit :projectId from mount path
@@ -43,6 +47,10 @@ export const projectCountriesWorkingDaysRouter = express.Router({ mergeParams: t
 projectCountriesWorkingDaysRouter.get('/', getProjectCountriesWorkingDays);
 projectCountriesWorkingDaysRouter.put('/:countryId', upsertProjectCountryWorkingDays);
 
+export const projectCountriesHoursPerDayRouter = express.Router({ mergeParams: true });
+projectCountriesHoursPerDayRouter.get('/', getProjectCountriesHoursPerDay);
+projectCountriesHoursPerDayRouter.put('/:countryId', upsertProjectCountryHoursPerDay);
+
 export const projectCountriesMngRouter = express.Router({ mergeParams: true });
 projectCountriesMngRouter.get('/', getProjectCountriesMng);
 projectCountriesMngRouter.put('/:countryId', upsertProjectCountryMng);
@@ -50,6 +58,10 @@ projectCountriesMngRouter.put('/:countryId', upsertProjectCountryMng);
 export const projectCountriesMarkupRouter = express.Router({ mergeParams: true });
 projectCountriesMarkupRouter.get('/', getProjectCountriesMarkup);
 projectCountriesMarkupRouter.put('/:countryId', upsertProjectCountryMarkup);
+
+export const projectCountriesSocialContributionRateRouter = express.Router({ mergeParams: true });
+projectCountriesSocialContributionRateRouter.get('/', getProjectCountriesSocialContributionRate);
+projectCountriesSocialContributionRateRouter.put('/:countryId', upsertProjectCountrySocialContributionRate);
 
 // For backward compatibility, export CPI router as default
 export default projectCountriesCpiRouter;

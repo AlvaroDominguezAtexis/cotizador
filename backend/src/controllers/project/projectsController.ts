@@ -146,7 +146,7 @@ export const createProject = async (req: Request, res: Response) => {
       const countryIds: number[] = countries.map((c: any) => Number(c)).filter((n: any) => !Number.isNaN(n));
       // Inserta mediante SELECT para tomar el cpi_by_default de cada país
     const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng, markup)
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, hours_per_day, mng, markup, social_contribution_rate)
   SELECT $1 AS project_id, c.id AS country_id,
      c.cpi_by_default AS cpi,
      c.activity_rate_by_default AS activity_rate,
@@ -154,8 +154,10 @@ export const createProject = async (req: Request, res: Response) => {
      c.it_cost_by_default AS it_cost,
      c.premises_cost_by_default AS premises_cost,
      c.working_days_by_default AS working_days,
+     c.hours_per_day_by_default AS hours_per_day,
      c.mng_by_default AS mng,
-     c.markup_by_default AS markup
+     c.markup_by_default AS markup,
+     c.social_contribution_rate_by_default AS social_contribution_rate
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;
@@ -357,8 +359,8 @@ export const updateProject = async (req: Request, res: Response) => {
   // Insertar países nuevos con CPI, Activity Rate y NPT Rate por defecto tomados de countries
     const toInsert: number[] = newCountries.filter((cid) => !oldSet.has(cid));
     if (toInsert.length > 0) {
-      const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng, markup)
+    const insertCountriesQuery = `
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, hours_per_day, mng, markup, social_contribution_rate)
   SELECT $1 AS project_id, c.id AS country_id,
          c.cpi_by_default AS cpi,
          c.activity_rate_by_default AS activity_rate,
@@ -366,8 +368,10 @@ export const updateProject = async (req: Request, res: Response) => {
          c.it_cost_by_default AS it_cost,
          c.premises_cost_by_default AS premises_cost,
          c.working_days_by_default AS working_days,
-         c.mng_by_default AS mng,
-         c.markup_by_default AS markup
+         c.hours_per_day_by_default AS hours_per_day,
+     c.mng_by_default AS mng,
+     c.markup_by_default AS markup,
+     c.social_contribution_rate_by_default AS social_contribution_rate
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;

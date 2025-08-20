@@ -41,6 +41,26 @@ export const getProjectCountriesWorkingDays = async (req: Request, res: Response
   }
 };
 
+// GET /projects/:projectId/countries-hours-per-day
+export const getProjectCountriesHoursPerDay = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.hours_per_day
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesHoursPerDay error', e);
+    res.status(500).json({ error: 'Error al obtener Hours per Day por país' });
+  }
+};
+
 // GET /projects/:projectId/countries-mng
 export const getProjectCountriesMng = async (req: Request, res: Response) => {
   const { projectId } = req.params as { projectId: string };
@@ -105,6 +125,30 @@ export const upsertProjectCountryWorkingDays = async (req: Request, res: Respons
   }
 };
 
+// PUT /projects/:projectId/countries-hours-per-day/:countryId
+export const upsertProjectCountryHoursPerDay = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { hours_per_day } = req.body as { hours_per_day?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (hours_per_day == null || isNaN(Number(hours_per_day))) return res.status(400).json({ error: 'hours_per_day numérico requerido' });
+  const hpd = Number(hours_per_day);
+  if (hpd < 0) return res.status(400).json({ error: 'hours_per_day debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, hours_per_day)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id)
+      DO UPDATE SET hours_per_day = EXCLUDED.hours_per_day
+      RETURNING project_id, country_id, hours_per_day
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, hpd]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryHoursPerDay error', e);
+    res.status(500).json({ error: 'Error al guardar Hours per Day' });
+  }
+};
+
 // PUT /projects/:projectId/countries-mng/:countryId
 export const upsertProjectCountryMng = async (req: Request, res: Response) => {
   const { projectId, countryId } = req.params as { projectId: string; countryId: string };
@@ -126,6 +170,50 @@ export const upsertProjectCountryMng = async (req: Request, res: Response) => {
   } catch (e) {
     console.error('upsertProjectCountryMng error', e);
     res.status(500).json({ error: 'Error al guardar Mng' });
+  }
+};
+
+// GET /projects/:projectId/countries-social-contribution-rate
+export const getProjectCountriesSocialContributionRate = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.social_contribution_rate
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesSocialContributionRate error', e);
+    res.status(500).json({ error: 'Error al obtener Social Contribution Rate por país' });
+  }
+};
+
+// PUT /projects/:projectId/countries-social-contribution-rate/:countryId
+export const upsertProjectCountrySocialContributionRate = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { social_contribution_rate } = req.body as { social_contribution_rate?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (social_contribution_rate == null || isNaN(Number(social_contribution_rate))) return res.status(400).json({ error: 'social_contribution_rate numérico requerido' });
+  const scr = Number(social_contribution_rate);
+  if (scr < 0) return res.status(400).json({ error: 'social_contribution_rate debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, social_contribution_rate)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id)
+      DO UPDATE SET social_contribution_rate = EXCLUDED.social_contribution_rate
+      RETURNING project_id, country_id, social_contribution_rate
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, scr]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountrySocialContributionRate error', e);
+    res.status(500).json({ error: 'Error al guardar Social Contribution Rate' });
   }
 };
 

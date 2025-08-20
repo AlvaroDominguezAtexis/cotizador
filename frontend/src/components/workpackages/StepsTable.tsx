@@ -260,7 +260,6 @@ const StepsTable: React.FC<Props> = ({
                 >
                   <option value="Hours">Hours</option>
                   <option value="Days">Days</option>
-                  <option value="Months">Months</option>
                 </select>
               ) : (
                 base.units
@@ -501,7 +500,6 @@ const StepsTable: React.FC<Props> = ({
               >
                 <option value="Hours">Hours</option>
                 <option value="Days">Days</option>
-                <option value="Months">Months</option>
               </select>
             </td>
             <td className="table-row-actions">

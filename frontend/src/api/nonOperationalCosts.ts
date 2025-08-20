@@ -36,3 +36,9 @@ export async function deleteNonOperationalCost(projectId: number, id: number): P
   const res = await fetch(`/projects/${projectId}/non-operational-costs/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Error deleting non operational cost');
 }
+
+export async function fetchNonOperationalCostById(projectId: number, id: number): Promise<NonOperationalCost> {
+  const res = await fetch(`/projects/${projectId}/non-operational-costs/${id}`);
+  if (!res.ok) throw new Error('Error fetching non operational cost');
+  return normalizeNonOperationalCost(await res.json());
+}

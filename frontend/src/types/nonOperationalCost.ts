@@ -12,6 +12,8 @@ export interface NonOperationalCost {
   reinvoiced: boolean;
   created_at?: string;
   updated_at?: string;
+  // When assignation is 'per use', the backend may include the associated step IDs
+  step_ids?: number[];
   // Legacy optional fields kept for backward compatibility
   subcontractorName?: string; // mapped to concept
   unitCost?: number; // mapped to unit_cost
@@ -35,6 +37,7 @@ export function normalizeNonOperationalCost(raw: any): NonOperationalCost {
     reinvoiced: !!raw.reinvoiced,
     created_at: raw.created_at,
     updated_at: raw.updated_at,
+  step_ids: Array.isArray(raw.step_ids) ? raw.step_ids.map((n: any) => Number(n)).filter((n: number) => Number.isInteger(n)) : undefined,
     subcontractorName: raw.subcontractorName,
     unitCost: raw.unitCost
   };

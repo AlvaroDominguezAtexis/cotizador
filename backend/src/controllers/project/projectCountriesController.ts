@@ -61,6 +61,26 @@ export const getProjectCountriesMng = async (req: Request, res: Response) => {
   }
 };
 
+// GET /projects/:projectId/countries-markup
+export const getProjectCountriesMarkup = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.markup
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesMarkup error', e);
+    res.status(500).json({ error: 'Error al obtener Markup por país' });
+  }
+};
+
 // PUT /projects/:projectId/countries-working-days/:countryId
 export const upsertProjectCountryWorkingDays = async (req: Request, res: Response) => {
   const { projectId, countryId } = req.params as { projectId: string; countryId: string };
@@ -106,6 +126,30 @@ export const upsertProjectCountryMng = async (req: Request, res: Response) => {
   } catch (e) {
     console.error('upsertProjectCountryMng error', e);
     res.status(500).json({ error: 'Error al guardar Mng' });
+  }
+};
+
+// PUT /projects/:projectId/countries-markup/:countryId
+export const upsertProjectCountryMarkup = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { markup } = req.body as { markup?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (markup == null || isNaN(Number(markup))) return res.status(400).json({ error: 'markup numérico requerido' });
+  const mk = Number(markup);
+  if (mk < 0) return res.status(400).json({ error: 'markup debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, markup)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id)
+      DO UPDATE SET markup = EXCLUDED.markup
+      RETURNING project_id, country_id, markup
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, mk]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryMarkup error', e);
+    res.status(500).json({ error: 'Error al guardar Markup' });
   }
 };
 

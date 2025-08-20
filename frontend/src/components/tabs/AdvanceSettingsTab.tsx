@@ -14,9 +14,10 @@ type SettingsRow = {
   premises_cost: number | null;
   working_days: number | null;
   mng: number | null;
+  markup: number | null;
 };
 
-type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'premises_cost' | 'working_days' | 'mng';
+type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'premises_cost' | 'working_days' | 'mng' | 'markup';
 
 interface Props {
   projectId: number | string;
@@ -39,7 +40,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
     const load = async () => {
       try {
         setLoading(true);
-        const [cpiRes, arRes, nptRes, itRes, premRes, wdRes, mngRes] = await Promise.all([
+        const [cpiRes, arRes, nptRes, itRes, premRes, wdRes, mngRes, mkRes] = await Promise.all([
           fetch(`/projects/${projectId}/countries-cpi`),
           fetch(`/projects/${projectId}/countries-activity-rate`),
           fetch(`/projects/${projectId}/countries-npt-rate`),
@@ -47,6 +48,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
           fetch(`/projects/${projectId}/countries-premises-cost`),
           fetch(`/projects/${projectId}/countries-working-days`),
           fetch(`/projects/${projectId}/countries-mng`),
+          fetch(`/projects/${projectId}/countries-markup`),
         ]);
         if (!cpiRes.ok) throw new Error('Error cargando CPI del proyecto');
         if (!arRes.ok) throw new Error('Error cargando Activity Rate del proyecto');
@@ -54,7 +56,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         if (!itRes.ok) throw new Error('Error cargando IT Cost del proyecto');
         if (!premRes.ok) throw new Error('Error cargando Premises Cost del proyecto');
         if (!wdRes.ok) throw new Error('Error cargando Working Days del proyecto');
-        const [cpiJson, arJson, nptJson, itJson, premJson, wdJson, mngJson] = await Promise.all([
+        const [cpiJson, arJson, nptJson, itJson, premJson, wdJson, mngJson, mkJson] = await Promise.all([
           cpiRes.json(),
           arRes.json(),
           nptRes.json(),
@@ -62,6 +64,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
           premRes.json(),
           wdRes.json(),
           mngRes.json(),
+          mkRes.json(),
         ]);
 
         if (cancelled) return;
@@ -73,6 +76,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
   const premMap = new Map<number, number | null>((premJson || []).map((r: any) => [r.country_id, r.premises_cost]));
   const wdMap = new Map<number, number | null>((wdJson || []).map((r: any) => [r.country_id, r.working_days]));
   const mngMap = new Map<number, number | null>((mngJson || []).map((r: any) => [r.country_id, r.mng]));
+  const mkMap = new Map<number, number | null>((mkJson || []).map((r: any) => [r.country_id, r.markup]));
 
         const merged: SettingsRow[] = countries
           .map((c) => ({
@@ -85,6 +89,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
             premises_cost: premMap.get(c.id) ?? null,
             working_days: wdMap.get(c.id) ?? null,
             mng: mngMap.get(c.id) ?? null,
+            markup: mkMap.get(c.id) ?? null,
           }))
           .sort((a, b) => a.country_name.localeCompare(b.country_name));
 
@@ -116,6 +121,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
   premises_cost: row.premises_cost ?? 0,
   working_days: row.working_days ?? 0,
         mng: row.mng ?? 0,
+        markup: row.markup ?? 0,
       },
     }));
   };
@@ -147,7 +153,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
 
     // Determine which fields changed vs current row
     const changes: Partial<Record<ParamKey, number>> = {};
-  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'premises_cost', 'working_days', 'mng'] as ParamKey[]).forEach((k) => {
+  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'premises_cost', 'working_days', 'mng', 'markup'] as ParamKey[]).forEach((k) => {
       const newVal = draft[k];
       if (typeof newVal === 'number' && newVal !== (row[k] ?? null)) {
         changes[k] = newVal;
@@ -199,6 +205,11 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mng: changes.mng }),
         }));
       }
+      if (changes.markup !== undefined) {
+        calls.push(fetch(`/projects/${projectId}/countries-markup/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ markup: changes.markup }),
+        }));
+      }
 
       const results = await Promise.all(calls);
       const bad = results.find(r => !r.ok);
@@ -235,6 +246,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                 <th>Premises Cost</th>
                 <th>Working Days</th>
                 <th>%Mng</th>
+                <th>Markup</th>
                 <th></th>
               </tr>
             </thead>
@@ -294,6 +306,13 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                         <input className="settings-input" type="number" step="0.01" min={0} value={numberFormat(v('mng'))} onChange={(e) => onChangeField(row.country_id, 'mng', e.target.value)} />
                       ) : (
                         <span className="settings-value">{row.mng == null ? '-' : Number(row.mng).toFixed(2)}%</span>
+                      )}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <input className="settings-input" type="number" step="0.01" min={0} value={numberFormat(v('markup'))} onChange={(e) => onChangeField(row.country_id, 'markup', e.target.value)} />
+                      ) : (
+                        <span className="settings-value">{row.markup == null ? '-' : Number(row.markup).toFixed(2)}%</span>
                       )}
                     </td>
                     <td>

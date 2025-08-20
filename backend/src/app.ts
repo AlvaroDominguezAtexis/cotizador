@@ -18,6 +18,7 @@ import projectCountriesRoutes, {
 	projectCountriesPremisesRouter,
 	projectCountriesWorkingDaysRouter,
 	projectCountriesMngRouter,
+	projectCountriesMarkupRouter,
 } from './routes/Project/projectCountriesRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
@@ -57,5 +58,6 @@ app.use('/projects/:projectId/countries-it-cost', projectCountriesItRouter);
 app.use('/projects/:projectId/countries-premises-cost', projectCountriesPremisesRouter);
 app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRouter);
 app.use('/projects/:projectId/countries-mng', projectCountriesMngRouter);
+app.use('/projects/:projectId/countries-markup', projectCountriesMarkupRouter);
 
 export default app;

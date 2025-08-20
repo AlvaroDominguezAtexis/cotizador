@@ -169,22 +169,24 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Fecha de Inicio</label>
+          <label>Fecha de Inicio *</label>
           <input
             type="date"
             name="startDate"
             value={formData.startDate}
             onChange={handleInputChange}
+            required
           />
         </div>
 
         <div className="form-group">
-          <label>Fecha de Fin</label>
+          <label>Fecha de Fin *</label>
           <input
             type="date"
             name="endDate"
             value={formData.endDate}
             onChange={handleInputChange}
+            required
           />
         </div>
 
@@ -285,7 +287,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
         {/* Last three: Countries, Margin Type, Margin Goal */}
         <div className="form-group">
-          <label>País(es)</label>
+          <label>País(es) *</label>
           <CountrySelector
             selectedCountries={formData.countries || []}
             onChange={(countries) => {

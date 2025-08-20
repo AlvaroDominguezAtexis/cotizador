@@ -93,6 +93,21 @@ export const createProject = async (req: Request, res: Response) => {
       description
     } = req.body;
 
+    // Basic required fields validation
+    const missing: string[] = [];
+    if (!title || String(title).trim() === '') missing.push('title');
+    if (!start_date) missing.push('start_date');
+    if (!end_date) missing.push('end_date');
+    if (!Array.isArray(countries) || countries.length === 0) missing.push('countries');
+    if (missing.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['title', 'start_date', 'end_date', 'countries'],
+        missing
+      });
+    }
+
     const insertProjectQuery = `
     INSERT INTO projects
   (title, crm_code, client, activity, start_date, end_date,
@@ -131,7 +146,7 @@ export const createProject = async (req: Request, res: Response) => {
       const countryIds: number[] = countries.map((c: any) => Number(c)).filter((n: any) => !Number.isNaN(n));
       // Inserta mediante SELECT para tomar el cpi_by_default de cada país
     const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng)
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng, markup)
   SELECT $1 AS project_id, c.id AS country_id,
      c.cpi_by_default AS cpi,
      c.activity_rate_by_default AS activity_rate,
@@ -139,12 +154,95 @@ export const createProject = async (req: Request, res: Response) => {
      c.it_cost_by_default AS it_cost,
      c.premises_cost_by_default AS premises_cost,
      c.working_days_by_default AS working_days,
-     c.mng_by_default AS mng
+     c.mng_by_default AS mng,
+     c.markup_by_default AS markup
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;
       `;
       await client.query(insertCountriesQuery, [newProject.id, countryIds]);
+    }
+
+    // Auto-add Project Manager profile (id=69) to the project and preload salaries per country/year
+    try {
+      // 1) Ensure relation exists
+      const pmProfileId = 69;
+      const relRes = await client.query(
+        `INSERT INTO project_profiles (project_id, profile_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [newProject.id, pmProfileId]
+      );
+      // Retrieve the project_profile_id (either from RETURNING or existing row)
+      let projectProfileId: number | null = relRes.rows[0]?.id ?? null;
+      if (!projectProfileId) {
+        const sel = await client.query(
+          `SELECT id FROM project_profiles WHERE project_id = $1 AND profile_id = $2 LIMIT 1`,
+          [newProject.id, pmProfileId]
+        );
+        projectProfileId = sel.rows[0]?.id ?? null;
+      }
+
+      if (projectProfileId) {
+        // 2) Compute project years
+        const start = newProject.start_date ? new Date(newProject.start_date) : new Date();
+        const end = newProject.end_date ? new Date(newProject.end_date) : start;
+        const startYear = start.getFullYear();
+        const endYear = end.getFullYear();
+        const years: number[] = [];
+        for (let y = startYear; y <= endYear; y++) years.push(y);
+        if (years.length === 0) years.push(startYear);
+
+        // 3) Countries chosen for this project
+        const projCountriesRes = await client.query<{ country_id: number }>(
+          `SELECT country_id FROM project_countries WHERE project_id = $1`,
+          [newProject.id]
+        );
+        const projCountryIds = projCountriesRes.rows.map(r => Number(r.country_id));
+
+        if (projCountryIds.length > 0) {
+          // 4) CPI per project country (fallback to countries default)
+          const cpiRes = await client.query(
+            `SELECT c.id AS country_id, COALESCE(pc.cpi, c.cpi_by_default, 0) AS cpi
+               FROM countries c
+               LEFT JOIN project_countries pc ON pc.country_id = c.id AND pc.project_id = $1
+              WHERE c.id = ANY($2::int[])`,
+            [newProject.id, projCountryIds]
+          );
+          const cpiMap = new Map<number, number>();
+          for (const r of cpiRes.rows) cpiMap.set(Number(r.country_id), Number(r.cpi) || 0);
+
+          // 5) Official base salaries for Project Manager per country
+          const salRes = await client.query(
+            `SELECT country_id, salary FROM officialprofile_salaries WHERE profile_id = $1 AND country_id = ANY($2::int[])`,
+            [pmProfileId, projCountryIds]
+          );
+
+          // 6) Insert per year applying CPI compound
+          for (const row of salRes.rows) {
+            const countryId = Number(row.country_id);
+            const baseSalary = Number(row.salary);
+            if (!baseSalary || isNaN(baseSalary)) continue;
+            const cpi = cpiMap.get(countryId) ?? 0;
+            let current = baseSalary;
+            for (let i = 0; i < years.length; i++) {
+              const y = years[i];
+              if (i > 0) current = current * (1 + (cpi / 100));
+              await client.query(
+                `INSERT INTO project_profile_salaries (project_profile_id, country_id, salary, year)
+                 VALUES ($1,$2,$3,$4)
+                 ON CONFLICT (project_profile_id, country_id, year)
+                 DO UPDATE SET salary = EXCLUDED.salary`,
+                [projectProfileId, countryId, current, y]
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Non-fatal: log and continue project creation
+      console.warn('Auto-add Project Manager profile failed:', e);
     }
 
     await client.query('COMMIT');
@@ -260,7 +358,7 @@ export const updateProject = async (req: Request, res: Response) => {
     const toInsert: number[] = newCountries.filter((cid) => !oldSet.has(cid));
     if (toInsert.length > 0) {
       const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng)
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, premises_cost, working_days, mng, markup)
   SELECT $1 AS project_id, c.id AS country_id,
          c.cpi_by_default AS cpi,
          c.activity_rate_by_default AS activity_rate,
@@ -268,7 +366,8 @@ export const updateProject = async (req: Request, res: Response) => {
          c.it_cost_by_default AS it_cost,
          c.premises_cost_by_default AS premises_cost,
          c.working_days_by_default AS working_days,
-         c.mng_by_default AS mng
+         c.mng_by_default AS mng,
+         c.markup_by_default AS markup
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;

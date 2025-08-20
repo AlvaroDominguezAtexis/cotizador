@@ -115,11 +115,12 @@ const App: React.FC = () => {
 
   // Precargar perfiles del proyecto al abrir un proyecto existente
   
-  const saveProjectData = async () => {
-    if (!projectFormData) return;
+  const saveProjectData = async (): Promise<{ ok: boolean; project?: ProjectData }> => {
+    if (!projectFormData) return { ok: false };
     try {
       const backendData = mapToBackend(projectFormData, false);
       let response, responseText;
+      let mappedProject: ProjectData | null = null;
       if (!projectFormData.id) {
         response = await fetch('/projects', {
           method: 'POST',
@@ -128,10 +129,10 @@ const App: React.FC = () => {
         });
         responseText = await response.text();
         if (!response.ok) throw new Error(responseText);
-        const created = JSON.parse(responseText);
-        const mappedProject = mapProjectFromBackend(created);
-        setSelectedProject(mappedProject);
-        setProjectFormData(mappedProject);
+  const created = JSON.parse(responseText);
+  mappedProject = mapProjectFromBackend(created);
+  setSelectedProject(mappedProject);
+  setProjectFormData(mappedProject);
       } else {
         response = await fetch(`/projects/${projectFormData.id}`, {
           method: 'PUT',
@@ -141,26 +142,59 @@ const App: React.FC = () => {
         responseText = await response.text();
         if (!response.ok) throw new Error(responseText);
         const updated = JSON.parse(responseText);
-        const mappedProject = mapProjectFromBackend(updated);
+        mappedProject = mapProjectFromBackend(updated);
         setSelectedProject(mappedProject);
         setProjectFormData(mappedProject);
       }
+      return { ok: true, project: mappedProject || undefined };
     } catch (error) {
       console.error('Full Error saving project:', error);
       alert(`No se pudo guardar el proyecto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      return { ok: false };
     }
   };
 
   // Guardar y salir al menú
   const handleBackToMenu = async () => {
-    await saveProjectData();
-    setShowMainApp(false);
+    // If it's a new project and required fields are missing, confirm leaving
+    const isNew = !projectFormData?.id;
+    const missingRequired = isNew && (
+      !projectFormData?.title?.trim() ||
+      !projectFormData?.startDate ||
+      !projectFormData?.endDate ||
+      !(projectFormData?.countries && projectFormData.countries.length > 0)
+    );
+    if (missingRequired) {
+      const leave = window.confirm('There is an unfinished project creation. Do you want to discard it and exit, or stay to complete the information?\n\nOK = Discard and exit\nCancel = Stay');
+      if (!leave) return;
+      // Discard without saving
+      setShowMainApp(false);
+      return;
+    }
+  const res = await saveProjectData();
+  if (res.ok) setShowMainApp(false);
   };
 
   // Cambia de tab, guardando si se sale de 'project-data'
   const handleTabChange = async (tabName: TabName) => {
+    // Guard: if creating a new project and required fields not filled, block tab switch
+    const isNew = !projectFormData?.id;
+    const missingRequired = isNew && (
+      !projectFormData?.title?.trim() ||
+      !projectFormData?.startDate ||
+      !projectFormData?.endDate ||
+      !(projectFormData?.countries && projectFormData.countries.length > 0)
+    );
     if (activeTab === 'project-data' && tabName !== 'project-data') {
-      await saveProjectData();
+      if (missingRequired) {
+        alert('Los campos Título, Fecha de Inicio, Fecha de Fin y País(es) son obligatorios para crear el proyecto.');
+        return;
+      }
+      const res = await saveProjectData();
+      if (!res.ok) return;
+      if (tabName === 'profiles') {
+        await fetchProjectProfiles(res.project?.id || projectFormData?.id || undefined);
+      }
     }
     setActiveTab(tabName);
   };
@@ -216,31 +250,33 @@ const App: React.FC = () => {
     console.log('Mapped Backend Data:', JSON.stringify(cleanData, null, 2));
     return cleanData;
   };
-  useEffect(() => {
-    if (activeTab !== 'profiles' && activeTab !== 'work-packages') return;
-    const fetchProjectProfiles = async () => {
-      if (projectFormData?.id) {
-        try {
-          const res = await fetch(`/project-profiles/${projectFormData.id}`);
-          if (!res.ok) throw new Error('No se pudieron cargar los perfiles del proyecto');
-          const data = await res.json();
-          // Mapear para asegurar estructura
-          const mapped = (data || []).map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            salaries: p.salaries && typeof p.salaries === 'object' ? p.salaries : {},
-            is_official: p.is_official ?? false,
-          }));
-          setProfilesData(mapped);
-        } catch (e) {
-          setProfilesData([]);
-        }
-      } else {
+  const fetchProjectProfiles = React.useCallback(async (explicitProjectId?: number | string) => {
+    const pid = explicitProjectId ?? projectFormData?.id;
+    if (pid) {
+      try {
+        const res = await fetch(`/project-profiles/${pid}`);
+        if (!res.ok) throw new Error('No se pudieron cargar los perfiles del proyecto');
+        const data = await res.json();
+        const mapped = (data || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          salaries: p.salaries && typeof p.salaries === 'object' ? p.salaries : {},
+          is_official: p.is_official ?? false,
+        }));
+        setProfilesData(mapped);
+      } catch (e) {
         setProfilesData([]);
       }
-    };
-    fetchProjectProfiles();
-  }, [projectFormData?.id, activeTab]);
+    } else {
+      setProfilesData([]);
+    }
+  }, [projectFormData?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'profiles' || activeTab === 'work-packages') {
+      fetchProjectProfiles();
+    }
+  }, [activeTab, fetchProjectProfiles]);
 
   const renderTabContent = () => {
     switch (activeTab) {

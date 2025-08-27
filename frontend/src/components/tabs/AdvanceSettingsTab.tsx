@@ -50,7 +50,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
           fetch(`/projects/${projectId}/countries-premises-cost`),
           fetch(`/projects/${projectId}/countries-working-days`),
           fetch(`/projects/${projectId}/countries-hours-per-day`),
-          fetch(`/projects/${projectId}/countries-mng`),
+          fetch(`/projects/${projectId}/countries-management`),
           fetch(`/projects/${projectId}/countries-markup`),
           fetch(`/projects/${projectId}/countries-social-contribution-rate`),
         ]);
@@ -82,7 +82,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
   const premMap = new Map<number, number | null>((premJson || []).map((r: any) => [r.country_id, r.premises_cost]));
   const wdMap = new Map<number, number | null>((wdJson || []).map((r: any) => [r.country_id, r.working_days]));
   const hpdMap = new Map<number, number | null>((hpdJson || []).map((r: any) => [r.country_id, r.hours_per_day]));
-  const mngMap = new Map<number, number | null>((mngJson || []).map((r: any) => [r.country_id, r.mng]));
+  const mngMap = new Map<number, number | null>((mngJson || []).map((r: any) => [r.country_id, r.management_salary]));
   const mkMap = new Map<number, number | null>((mkJson || []).map((r: any) => [r.country_id, r.markup]));
   const scrMap = new Map<number, number | null>((scrJson || []).map((r: any) => [r.country_id, r.social_contribution_rate]));
 
@@ -218,8 +218,8 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         }));
       }
       if (changes.mng !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-mng/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mng: changes.mng }),
+        calls.push(fetch(`/projects/${projectId}/countries-management/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ management_salary: changes.mng }),
         }));
       }
       if (changes.markup !== undefined) {

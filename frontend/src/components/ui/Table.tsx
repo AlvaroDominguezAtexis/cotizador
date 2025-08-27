@@ -315,9 +315,8 @@ export const Table = <T extends Record<string, any>>({
                 const isExpanded = (expandable?.expandedRowKeys ?? internalExpandedKeys).includes(recordKey);
 
                 return (
-                  <>
+                  <React.Fragment key={recordKey}>
                     <tr
-                      key={recordKey}
                       className={`table-row ${isSelected ? 'table-row-selected' : ''} ${dynamicClass}`}
                       onClick={() => onRowClick?.(record, index)}
                       onDoubleClick={() => onRowDoubleClick?.(record, index)}
@@ -373,7 +372,7 @@ export const Table = <T extends Record<string, any>>({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })
             )}

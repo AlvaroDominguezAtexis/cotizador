@@ -4,6 +4,7 @@ import React from 'react';
 import { Button } from '../ui/Button';
 import Card from '../ui/Card';
 import SummaryDocument from '../summary/SummaryDocument';
+import { recalcProjectStepsCosts } from '../../api/stepsApi';
 import './Tabs.css';
 
 interface SummaryTabProps {
@@ -14,6 +15,26 @@ interface SummaryTabProps {
 }
 
 export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workPackages, costs }) => {
+  const [loading, setLoading] = React.useState(false);
+
+  // Recalculate costs when loading summary
+  React.useEffect(() => {
+    const recalcCosts = async () => {
+      if (!project?.id) return;
+      
+      try {
+        setLoading(true);
+        await recalcProjectStepsCosts(project.id);
+      } catch (e) {
+        console.error('Error recalculating project costs:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    recalcCosts();
+  }, [project?.id]);
+
   const handleExport = () => {
     const summaryData = {
       project,
@@ -39,6 +60,7 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
     <div className="tab-container">
       <div className="tab-header">
         <h1>Resumen del Proyecto</h1>
+        {loading && <span style={{ marginLeft: 10, color: '#666' }}>Recalculando costes...</span>}
         <div className="tab-actions">
           <Button 
             variant="secondary"

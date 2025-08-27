@@ -7,12 +7,17 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
   const yearParam = (req.query?.year as string) ? Number(req.query.year as string) : undefined;
   if (!projectId) return res.status(400).send('projectId required');
   try {
+    console.log('Getting allocations for project:', projectId);
+    // Check DB connection
+    await db.query('SELECT 1');
+    console.log('Database connection successful');
+    
   // Join a single salary row per profile-country. If year is provided, filter by it; else pick earliest available year to avoid duplicates.
     const query = `
       SELECT
         s.id as step_id,
         s.nombre as step_name,
-        s.process_time,
+        syd.process_time,
         s.country_id,
         c.name as country_name,
         s.profile_id,
@@ -21,10 +26,12 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
         d.id as deliverable_id,
         d.nombre as deliverable_name,
         w.id as workpackage_id,
-        w.nombre as workpackage_name
+        w.nombre as workpackage_name,
+        syd.year as step_year
       FROM steps s
       JOIN deliverables d ON d.id = s.deliverable_id
       JOIN workpackages w ON w.id = d.workpackage_id
+      LEFT JOIN step_yearly_data syd ON s.id = syd.step_id AND ($2::int IS NULL OR syd.year = $2)
       LEFT JOIN countries c ON c.id = s.country_id
       LEFT JOIN profiles p ON p.id = s.profile_id
       LEFT JOIN project_profiles pp ON (pp.project_id = w.project_id AND pp.profile_id = s.profile_id)
@@ -39,15 +46,18 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
       ) pps ON true
       WHERE w.project_id = $1
     `;
+    console.log('Executing query with params:', [projectId, yearParam ?? null]);
     const { rows } = await db.query(query, [projectId, yearParam ?? null]);
+    console.log('Found allocations:', rows.length);
     const mapped = rows.map((r: any) => ({
       stepId: r.step_id,
       step: r.step_name,
       process_time: Number(r.process_time) || 0,
-  country_id: r.country_id,
-  country_name: r.country_name,
+      year: r.step_year,
+      country_id: r.country_id,
+      country_name: r.country_name,
       profile_id: r.profile_id,
-  profile_name: r.profile_name,
+      profile_name: r.profile_name,
       salary_year: r.salary_year ?? null,
       deliverable_id: r.deliverable_id,
       deliverable: r.deliverable_name,

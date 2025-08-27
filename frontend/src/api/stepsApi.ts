@@ -63,3 +63,19 @@ export const deleteStepAnnualData = async (projectId: number, workPackageId: num
   if (!res.ok) throw new Error('Error deleting annual data');
   return true;
 };
+
+export const recalcProjectStepsCosts = async (projectId: number): Promise<{
+  project_id: number;
+  costs: Array<{
+    stepId: number;
+    year: number;
+    salariesCost: number;
+    managementCost: number;
+  }>;
+}> => {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/steps/recalc-costs`, {
+    method: 'POST'
+  });
+  if (!res.ok) throw new Error('Error recalculating project costs');
+  return res.json();
+};

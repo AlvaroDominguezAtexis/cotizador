@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import db from '../../db';
-// import { calcStepSalariesCost, saveStepSalariesCost } from '../../services/steps/costs';
+import { 
+  calcStepSalariesCost, 
+  saveStepSalariesCost, 
+  calcStepManagementCost, 
+  saveStepManagementCost,
+  batchCalculateProjectCosts 
+} from '../../services/steps/costs';
 
 
 const mapStep = (row: any) => ({
@@ -132,52 +138,12 @@ export const createStep = async (req: Request, res: Response) => {
         console.log('[stepsController#createStep] inserting yearly rows', { count: years.length });
         for (const y of years) {
           // Salary for the exact year
-          const salResY = await client.query(
-            `SELECT pps.salary
-               FROM project_profile_salaries pps
-               JOIN project_profiles pp ON pp.id = pps.project_profile_id
-              WHERE pp.project_id=$1 AND pp.profile_id=$2 AND pps.country_id=$3 AND pps.year=$4
-              LIMIT 1`,
-            [projectId, profile_id, country_id, y]
-          );
-          if (salResY.rows.length === 0 || salResY.rows[0].salary == null) {
-            const err: any = new Error(`No existe salary para (project_id, profile_id, country_id, year=${y})`);
-            err.status = 400;
-            throw err;
-          }
-          const salary = Number(salResY.rows[0].salary);
-          const hourlyRate = (salary * (1 + (cfg.social_contribution_rate / 100))) / annualHours;
-          const processHours = String(unit || '').toLowerCase() === 'days'
-            ? Number(process_time ?? 0) * cfg.hours_per_day
-            : Number(process_time ?? 0);
-          const salariesCost = processHours * hourlyRate;
-          // Log calculation context as JSON
-          try {
-            const logPayload = {
-              tag: 'step_salaries_calc',
-              mode: 'create',
-              step_id: step.id,
-              project_id: Number(projectId) || null,
-              profile_id: Number(profile_id) || null,
-              country_id: Number(country_id) || null,
-              year: Number(y),
-              salary_considered: Number(salary),
-              working_days: Number(cfg.working_days),
-              hours_per_day: Number(cfg.hours_per_day),
-              activity_rate: Number(cfg.activity_rate),
-              social_contribution_rate: Number(cfg.social_contribution_rate),
-              process_time_unit: String(unit || ''),
-              process_time: Number(process_time ?? 0),
-              annualHours: Number(annualHours),
-              hourlySalaries: Number(hourlyRate),
-            };
-            console.log(JSON.stringify(logPayload));
-          } catch {}
+          // Insert yearly data without calculating costs
           await client.query(
-            `INSERT INTO step_yearly_data (step_id, year, process_time, mng, office, hardware, salaries_cost)
-             VALUES ($1,$2,$3,$4,$5,$6,$7)
-             ON CONFLICT (step_id, year) DO UPDATE SET process_time=EXCLUDED.process_time, mng=EXCLUDED.mng, office=EXCLUDED.office, hardware=EXCLUDED.hardware, salaries_cost=EXCLUDED.salaries_cost`,
-            [step.id, y, process_time ?? null, resolvedMng, ofc, hw, salariesCost]
+            `INSERT INTO step_yearly_data (step_id, year, process_time, mng, office, hardware)
+             VALUES ($1,$2,$3,$4,$5,$6)
+             ON CONFLICT (step_id, year) DO UPDATE SET process_time=EXCLUDED.process_time, mng=EXCLUDED.mng, office=EXCLUDED.office, hardware=EXCLUDED.hardware`,
+            [step.id, y, process_time ?? null, resolvedMng, ofc, hw]
           );
         }
       } else {
@@ -295,10 +261,18 @@ export const updateStep = async (req: Request, res: Response) => {
         const salary = Number(salResY.rows[0].salary);
         const hourlyRate = (salary * (1 + (scr / 100))) / annualHours;
         const salariesCost = processHours * hourlyRate;
+        
+        // Calculate management cost
+        const { managementCost } = await calcStepManagementCost({ 
+          stepId: Number(stepId),
+          year: Number(r.year),
+          db: client 
+        });
+
         // Log JSON context
         try {
           const logPayload = {
-            tag: 'step_salaries_calc',
+            tag: 'step_costs_calc',
             mode: 'update',
             step_id: Number(stepId),
             project_id: Number(step.project_id) || null,
@@ -314,12 +288,15 @@ export const updateStep = async (req: Request, res: Response) => {
             process_time: pt,
             annualHours: Number(annualHours),
             hourlySalaries: Number(hourlyRate),
+            managementCost: Number(managementCost),
           };
           console.log(JSON.stringify(logPayload));
         } catch {}
+        
+        // Update both costs
         await client.query(
-          `UPDATE step_yearly_data SET salaries_cost=$1 WHERE step_id=$2 AND year=$3`,
-          [salariesCost, Number(stepId), Number(r.year)]
+          `UPDATE step_yearly_data SET salaries_cost=$1, management_costs=$2 WHERE step_id=$3 AND year=$4`,
+          [salariesCost, managementCost, Number(stepId), Number(r.year)]
         );
       }
 
@@ -421,6 +398,35 @@ export const deleteAnnualData = async (req: Request, res: Response) => {
   } catch (e) {
     console.error('Error delete annual data', e);
     res.status(500).json({ error: 'Error al eliminar dato anual' });
+  }
+};
+
+// POST /projects/:projectId/steps/recalc-costs
+export const recalcProjectStepsCosts = async (req: Request, res: Response) => {
+  const { projectId } = req.params as any;
+  
+  if (!projectId) {
+    return res.status(400).json({ error: 'Project ID is required' });
+  }
+  
+  try {
+    console.log('[stepsController#recalcProjectStepsCosts] starting recalc for project', projectId);
+    
+    // Calculate costs for all steps in project
+    const results = await batchCalculateProjectCosts({ 
+      projectId: Number(projectId), 
+      db
+    });
+
+    res.json({
+      project_id: Number(projectId),
+      costs: results
+    });
+  } catch (e: any) {
+    const status = e?.status || 500;
+    const message = e?.message || 'Error recalculating project costs';
+    console.error('[stepsController#recalcProjectStepsCosts] error:', e);
+    res.status(status).json({ error: message });
   }
 };
 

@@ -161,6 +161,135 @@ export async function calcStepSalariesCost(params: {
   };
 }
 
+export async function calcStepManagementCost(params: {
+  stepId: number;
+  db: DBClient;
+  year?: number;
+}): Promise<{
+  managementCost: number;
+  year: number;
+  managementHourlyRate: number;
+  processHours: number;
+  mngPercentage: number;
+}> {
+  const { stepId, db, year } = params;
+
+  // 1) Load step with project and country info
+  const stepRes = await db.query(
+    `SELECT s.id, s.country_id, wp.project_id
+     FROM steps s
+     JOIN deliverables d ON d.id = s.deliverable_id
+     JOIN workpackages wp ON wp.id = d.workpackage_id
+     WHERE s.id = $1
+     LIMIT 1`,
+    [stepId]
+  );
+
+  if (stepRes.rows.length === 0) {
+    const err: any = new Error('Step no encontrado');
+    err.status = 404;
+    throw err;
+  }
+
+  // 2) Get yearly data if it exists
+  let yearlyData;
+  if (typeof year === 'number') {
+    const yearRes = await db.query(
+      `SELECT year, process_time, mng 
+       FROM step_yearly_data 
+       WHERE step_id = $1 AND year = $2
+       LIMIT 1`,
+      [stepId, year]
+    );
+    yearlyData = yearRes.rows[0];
+  } else {
+    const yearRes = await db.query(
+      `SELECT year, process_time, mng 
+       FROM step_yearly_data 
+       WHERE step_id = $1 
+       ORDER BY year ASC 
+       LIMIT 1`,
+      [stepId]
+    );
+    yearlyData = yearRes.rows[0];
+  }
+
+  // If no yearly data found, try to get defaults from project_countries
+  if (!yearlyData) {
+    const defaultsRes = await db.query(
+      `SELECT mng FROM project_countries 
+       WHERE project_id = $1 AND country_id = $2 
+       LIMIT 1`,
+      [stepRes.rows[0].project_id, stepRes.rows[0].country_id]
+    );
+    yearlyData = {
+      year: year || new Date().getFullYear(),
+      process_time: 0,
+      mng: defaultsRes.rows[0]?.mng || 0
+    };
+  }
+
+  const step = stepRes.rows[0];
+  const targetYear = Number(yearlyData.year);
+  const processTime = Number(yearlyData.process_time || 0);
+  const mngPercentage = Number(yearlyData.mng || 0);
+
+  // 2) Get management yearly salary and social contribution rate
+  const countryConfigRes = await db.query(
+    `SELECT management_yearly_salary, social_contribution_rate
+     FROM project_countries
+     WHERE project_id = $1 AND country_id = $2`,
+    [step.project_id, step.country_id]
+  );
+
+  if (countryConfigRes.rows.length === 0) {
+    const err: any = new Error('Configuración de país no encontrada');
+    err.status = 404;
+    throw err;
+  }
+
+  const managementYearlySalary = Number(countryConfigRes.rows[0].management_yearly_salary || 0);
+  const socialContributionRate = Number(countryConfigRes.rows[0].social_contribution_rate || 0);
+
+  // 3) Calculate annual hours
+  const annualHours = await calcAnnualHours({
+    projectId: Number(step.project_id),
+    countryId: Number(step.country_id),
+    db
+  });
+
+  // 4) Calculate management hourly rate
+  const adjustedYearlySalary = managementYearlySalary * (1 + socialContributionRate/100);
+  const managementHourlyRate = adjustedYearlySalary / annualHours;
+
+  // 5) Calculate management cost
+  const processHours = processTime;  // Assuming process_time is already in hours
+  const managementCost = processHours * managementHourlyRate * (mngPercentage/100);
+
+  return {
+    managementCost,
+    year: targetYear,
+    managementHourlyRate,
+    processHours,
+    mngPercentage
+  };
+}
+
+export async function saveStepManagementCost(params: {
+  stepId: number;
+  year: number;
+  managementCost: number;
+  db: DBClient;
+}): Promise<void> {
+  const { stepId, year, managementCost, db } = params;
+  await db.query(
+    `UPDATE step_yearly_data 
+     SET management_costs = $3
+     WHERE step_id = $1 AND year = $2`,
+    [stepId, year, managementCost]
+  );
+}
+
 export async function saveStepSalariesCost(params: {
   stepId: number;
   year: number;
@@ -175,4 +304,93 @@ export async function saveStepSalariesCost(params: {
      DO UPDATE SET salaries_cost = EXCLUDED.salaries_cost`,
     [stepId, year, salariesCost]
   );
+}
+
+export async function batchCalculateProjectCosts(params: {
+  projectId: number;
+  db: DBClient;
+}): Promise<Array<{
+  stepId: number;
+  year: number;
+  salariesCost: number;
+  managementCost: number;
+}>> {
+  const { projectId, db } = params;
+
+  console.log('[batchCalculateProjectCosts] Starting batch calculation for project:', projectId);
+  
+  // 1) Get all steps in the project
+  const stepRes = await db.query(
+    `SELECT s.id
+     FROM steps s
+     JOIN deliverables d ON d.id = s.deliverable_id
+     JOIN workpackages wp ON wp.id = d.workpackage_id
+     WHERE wp.project_id = $1`,
+    [projectId]
+  );
+  
+  console.log('[batchCalculateProjectCosts] Found steps:', stepRes.rows.length);
+
+  const result: Array<{
+    stepId: number;
+    year: number;
+    salariesCost: number;
+    managementCost: number;
+  }> = [];
+
+  // 2) Calculate costs for each step
+  for (const { id: stepId } of stepRes.rows) {
+    console.log('[batchCalculateProjectCosts] Processing step:', stepId);
+    
+    // Get years for this step
+    const yearRes = await db.query(
+      `SELECT year FROM step_yearly_data WHERE step_id = $1 ORDER BY year`,
+      [stepId]
+    );
+    
+    console.log('[batchCalculateProjectCosts] Found years for step:', stepId, yearRes.rows.length);
+
+    // Calculate costs for each year
+    for (const { year } of yearRes.rows) {
+      try {
+        // Calculate and save salary costs
+        const { salariesCost } = await calcStepSalariesCost({ 
+          stepId, 
+          year: Number(year), 
+          db 
+        });
+        await saveStepSalariesCost({ 
+          stepId, 
+          year: Number(year), 
+          salariesCost, 
+          db 
+        });
+
+        // Calculate and save management costs
+        const { managementCost } = await calcStepManagementCost({ 
+          stepId, 
+          year: Number(year), 
+          db 
+        });
+        await saveStepManagementCost({ 
+          stepId, 
+          year: Number(year), 
+          managementCost, 
+          db 
+        });
+
+        result.push({
+          stepId,
+          year: Number(year),
+          salariesCost,
+          managementCost
+        });
+      } catch (error) {
+        console.error(`Error calculating costs for step ${stepId} year ${year}:`, error);
+        // Continue with next year/step even if one fails
+      }
+    }
+  }
+
+  return result;
 }

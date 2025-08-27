@@ -23,6 +23,7 @@ import projectCountriesRoutes, {
 	projectCountriesSocialContributionRateRouter,
 } from './routes/Project/projectCountriesRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
+import projectStepsRoutes from './routes/Project/projectStepsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
 import deliverablesRoutes from './routes/Project/deliverablesRoutes';
 import stepsRoutes from './routes/Project/stepsRoutes';
@@ -47,6 +48,8 @@ app.use('/project-profile-salaries', projectProfileSalariesRoutes);
 app.use('/project-profiles', projectProfilesRoutes);
 // Non operational costs endpoints mounted without extra prefix so they match /projects/:projectId/non-operational-costs
 app.use('', nonOperationalCostsRoutes);
+// Project-wide steps routes (like recalc)
+app.use('', projectStepsRoutes);
 // Workpackages nested under projects
 app.use('/projects/:projectId/workpackages', workPackagesRoutes);
 app.use('/projects/:projectId/workpackages/:workPackageId/deliverables', deliverablesRoutes);

@@ -1,0 +1,107 @@
+.tree-selector {
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tree-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  gap: 4px;
+}
+
+.tree-wp {
+  margin-left: 16px;
+}
+
+.tree-deliverable {
+  margin-left: 24px;
+}
+
+.tree-step {
+  margin-left: 32px;
+}
+
+.expand-button {
+  background: none;
+  border: none;
+  padding: 0 4px;
+  cursor: pointer;
+  font-size: 10px;
+  color: #666;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expand-button:hover {
+  color: #000;
+}
+
+.expand-placeholder {
+  width: 20px;
+}
+
+.tree-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.tree-item span {
+  user-select: none;
+}
+
+.tree-wp > .tree-item > span {
+  font-weight: 500;
+}
+
+.tree-deliverable > .tree-item > span {
+  font-weight: normal;
+}
+
+.tree-step > .tree-item {
+  color: #666;
+}
+
+/* Read-only checkbox indicator */
+.readonly-check {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  background: transparent; /* empty when unchecked */
+  pointer-events: none; /* non-interactive */
+}
+.readonly-check.checked {
+  background: #388e3c; /* subtle filled dot when checked */
+  box-shadow: 0 0 0 2px rgba(56,142,60,0.12);
+}
+
+.category-label {
+  color: #666;
+  font-size: .85rem;
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+.tree-warning {
+  color: #b55;
+  background: #fff6f6;
+  border: 1px solid #f3c6c6;
+  padding: 6px 8px;
+  margin-left: 8px;
+  margin-top: 6px;
+  border-radius: 4px;
+  font-size: .85rem;
+  animation: fadeIn .15s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

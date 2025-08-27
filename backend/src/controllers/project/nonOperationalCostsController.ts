@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import Pool from '../../db';
 
 const VALID_CONTEXT = ['it', 'subcontract', 'travel'];
-const VALID_ASSIGNATION = ['project', 'per use'];
 
 const normalizeRow = (r: any) => ({
   id: r.id,
@@ -12,7 +11,7 @@ const normalizeRow = (r: any) => ({
   concept: r.concept,
   quantity: Number(r.quantity),
   unit_cost: Number(r.unit_cost),
-  assignation: r.assignation,
+  // assignation removed from DB
   year: r.year,
   reinvoiced: r.reinvoiced,
   created_at: r.created_at,
@@ -76,13 +75,12 @@ export const getNonOperationalCostById = async (req: Request, res: Response) => 
     );
     if (!rows.length) return res.status(404).json({ error: 'Coste no encontrado' });
     const row = normalizeRow(rows[0]);
-    if (row.assignation === 'per use') {
+      // Always include any associated step_ids (if present) regardless of assignation
       const { rows: sRows } = await Pool.query(
         'SELECT step_id FROM step_non_operational_costs WHERE cost_id=$1 ORDER BY step_id ASC',
         [id]
       );
       (row as any).step_ids = sRows.map((r) => r.step_id);
-    }
     res.json(row);
   } catch (err) {
     console.error('Error obteniendo coste:', err);
@@ -99,7 +97,6 @@ export const createNonOperationalCost = async (req: Request, res: Response) => {
     concept,
     quantity = 1,
     unit_cost = 0,
-    assignation,
     year = null,
     reinvoiced = false,
     step_ids
@@ -107,9 +104,6 @@ export const createNonOperationalCost = async (req: Request, res: Response) => {
 
   if (!VALID_CONTEXT.includes(context)) {
     return res.status(400).json({ error: 'Context inválido' });
-  }
-  if (!VALID_ASSIGNATION.includes(assignation)) {
-    return res.status(400).json({ error: 'Assignation inválida' });
   }
   if (!type || !concept) {
     return res.status(400).json({ error: 'type y concept requeridos' });
@@ -122,8 +116,8 @@ export const createNonOperationalCost = async (req: Request, res: Response) => {
 
       const q = `
         INSERT INTO project_non_operational_costs
-        (project_id, context, type, concept, quantity, unit_cost, assignation, year, reinvoiced)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        (project_id, context, type, concept, quantity, unit_cost, year, reinvoiced)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         RETURNING *;
       `;
       const values = [
@@ -133,26 +127,31 @@ export const createNonOperationalCost = async (req: Request, res: Response) => {
         concept,
         quantity,
         unit_cost,
-        assignation,
         year,
         reinvoiced
       ];
       const result = await client.query(q, values);
       const created = normalizeRow(result.rows[0]);
 
+      // If client provided step_ids, always validate and insert associations
       const stepIds = parseStepIds(step_ids) || [];
-      if (created.assignation === 'per use' && stepIds.length) {
+      if (stepIds.length) {
+  console.debug('[nonOperationalCosts] creating associations for cost', created.id, 'stepIds=', stepIds);
         const ok = await validateStepsBelongToProject(client, stepIds, Number(projectId));
         if (!ok) {
           await client.query('ROLLBACK');
           return res.status(400).json({ error: 'Algunos steps no pertenecen al proyecto' });
         }
+        // Insert associations
         await client.query(
           `INSERT INTO step_non_operational_costs (step_id, cost_id)
            SELECT unnest($1::int[]), $2`,
           [stepIds, created.id]
         );
+  console.debug('[nonOperationalCosts] associations inserted for cost', created.id);
         (created as any).step_ids = stepIds;
+      } else {
+        (created as any).step_ids = [];
       }
 
       await client.query('COMMIT');
@@ -178,7 +177,6 @@ export const updateNonOperationalCost = async (req: Request, res: Response) => {
     concept,
     quantity,
     unit_cost,
-    assignation,
     year,
     reinvoiced,
     step_ids
@@ -217,10 +215,7 @@ export const updateNonOperationalCost = async (req: Request, res: Response) => {
       if (concept !== undefined) add('concept', concept);
       if (quantity !== undefined) add('quantity', quantity);
       if (unit_cost !== undefined) add('unit_cost', unit_cost);
-      if (assignation) {
-        if (!VALID_ASSIGNATION.includes(assignation)) return res.status(400).json({ error: 'Assignation inválida' });
-        add('assignation', assignation);
-      }
+      // assignation removed: nothing to add
       if (year !== undefined) add('year', year);
       if (reinvoiced !== undefined) add('reinvoiced', reinvoiced);
 
@@ -238,13 +233,13 @@ export const updateNonOperationalCost = async (req: Request, res: Response) => {
         updated = normalizeRow(result.rows[0]);
       }
 
-      // Determine target assignation for associations handling
-      const targetAssignation = assignation || current.assignation;
+      // Associations handling: if client provided step_ids payload, replace associations accordingly
       const hasStepIds = step_ids !== undefined;
       const stepIds = parseStepIds(step_ids) || [];
 
-      if (targetAssignation === 'per use' && hasStepIds) {
-        // Replace associations only when payload provides step_ids
+      if (hasStepIds) {
+        console.debug('[nonOperationalCosts] replacing associations for cost', id, 'stepIds=', stepIds);
+        // Replace associations with provided list (could be empty)
         await client.query('DELETE FROM step_non_operational_costs WHERE cost_id=$1', [id]);
         if (stepIds.length) {
           const ok = await validateStepsBelongToProject(client, stepIds, Number(projectId));
@@ -257,20 +252,17 @@ export const updateNonOperationalCost = async (req: Request, res: Response) => {
              SELECT unnest($1::int[]), $2`,
             [stepIds, id]
           );
+            console.debug('[nonOperationalCosts] associations replaced for cost', id);
+          }
         }
-      } else if (targetAssignation !== 'per use') {
-        // Ensure no leftover associations
-        await client.query('DELETE FROM step_non_operational_costs WHERE cost_id=$1', [id]);
-      }
+        // No assignation handling required; associations are managed only when step_ids are provided
 
-      // Always include current step_ids in response when per use
-      if (targetAssignation === 'per use') {
-        const { rows: sRows } = await client.query(
-          'SELECT step_id FROM step_non_operational_costs WHERE cost_id=$1 ORDER BY step_id ASC',
-          [id]
-        );
-        (updated as any).step_ids = sRows.map((r) => r.step_id);
-      }
+        // Always include current step_ids in response (may be empty array)
+      const { rows: sRows } = await client.query(
+        'SELECT step_id FROM step_non_operational_costs WHERE cost_id=$1 ORDER BY step_id ASC',
+        [id]
+      );
+      (updated as any).step_ids = sRows.map((r) => r.step_id);
 
       await client.query('COMMIT');
       res.json(updated);
@@ -290,12 +282,28 @@ export const updateNonOperationalCost = async (req: Request, res: Response) => {
 export const deleteNonOperationalCost = async (req: Request, res: Response) => {
   const { projectId, id } = req.params;
   try {
-    const result = await Pool.query(
-      'DELETE FROM project_non_operational_costs WHERE id=$1 AND project_id=$2 RETURNING id',
-      [id, projectId]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: 'Coste no encontrado' });
-    res.json({ success: true });
+    const client = await Pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Ensure cost belongs to project and delete associations first
+      const { rows: check } = await client.query(
+        'SELECT id FROM project_non_operational_costs WHERE id=$1 AND project_id=$2 FOR UPDATE',
+        [id, projectId]
+      );
+      if (!check.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Coste no encontrado' });
+      }
+      await client.query('DELETE FROM step_non_operational_costs WHERE cost_id=$1', [id]);
+      await client.query('DELETE FROM project_non_operational_costs WHERE id=$1 AND project_id=$2', [id, projectId]);
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      (client as any)?.release?.();
+    }
   } catch (err) {
     console.error('Error eliminando coste:', err);
     res.status(500).json({ error: 'Error eliminando coste' });

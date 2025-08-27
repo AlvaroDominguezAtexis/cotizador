@@ -1,4 +1,3 @@
-// src/components/costs/NonOperationalCosts.tsx
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { NonOperationalCost } from '../../types/nonOperationalCost';
 import { fetchNonOperationalCosts, createNonOperationalCost, updateNonOperationalCost, deleteNonOperationalCost } from '../../api/nonOperationalCosts';
@@ -6,6 +5,7 @@ import { Button } from '../ui/Button';
 import Card from '../ui/Card';
 import EmptyState from '../ui/EmptyState';
 import { Table, TableColumn } from '../ui/Table';
+import { TreeSelector } from '../ui/TreeSelector';
 import './Costs.css';
 import { WorkPackage, Deliverable, Step } from '../../types/workPackages';
 import { fetchWorkPackages } from '../../api/workPackagesApi';
@@ -94,7 +94,6 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       concept: '',
       quantity: 1,
       unit_cost: 0,
-      assignation: 'project',
       reinvoiced: false,
       year: undefined
     };
@@ -105,14 +104,9 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
   // Editar coste existente
   const handleEditCost = useCallback((cost: NonOperationalCost) => {
     setEditingCost({ ...cost });
-    if (cost.assignation === 'per use') {
-      setSelectedStepIds(Array.isArray(cost.step_ids) ? cost.step_ids : []);
-      setAccordionOpen(true);
-      if (wpTree.length === 0) void loadProjectTree();
-    } else {
-      setSelectedStepIds([]);
-      setAccordionOpen(false);
-    }
+    setSelectedStepIds(Array.isArray(cost.step_ids) ? cost.step_ids : []);
+    setAccordionOpen(true);
+    if (wpTree.length === 0) void loadProjectTree();
   }, [wpTree.length, loadProjectTree]);
   // Guardar coste (nuevo o editado)
   const handleSaveCost = useCallback(async () => {
@@ -127,23 +121,22 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
             concept: editingCost.concept || '',
           quantity: editingCost.quantity ?? 1,
           unit_cost: editingCost.unit_cost ?? 0,
-          assignation: (editingCost.assignation as any) || 'project',
+          // assignation removed; do not send assignation field
           year: editingCost.year ?? null,
       reinvoiced: !!editingCost.reinvoiced,
-      ...(editingCost.assignation === 'per use' ? { step_ids: selectedStepIds } : {})
+      ...(selectedStepIds && selectedStepIds.length ? { step_ids: selectedStepIds } : {})
         });
   // Reemplaza la fila temporal (sin id) por la creada
   setTableData(prev => [created, ...prev.filter(c => c.id)]);
       } else {
-        const updated = await updateNonOperationalCost(projectId, editingCost.id as number, {
+  const updated = await updateNonOperationalCost(projectId, editingCost.id as number, {
           type: editingCost.type,
           concept: editingCost.concept,
           quantity: editingCost.quantity,
           unit_cost: editingCost.unit_cost,
-          assignation: editingCost.assignation,
           year: editingCost.year,
       reinvoiced: editingCost.reinvoiced,
-      ...(editingCost.assignation === 'per use' ? { step_ids: selectedStepIds } : {})
+      ...(selectedStepIds && selectedStepIds.length ? { step_ids: selectedStepIds } : {})
         });
         setTableData(prev => prev.map(c => c.id === updated.id ? updated : c));
       }
@@ -247,33 +240,7 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
             })
           )
       },
-      {
-        key: 'assignation',
-        title: 'Assignation',
-  render: (value: 'project' | 'per use', record: NonOperationalCost) =>
-          editingCost?.id === record.id ? (
-            <select
-              value={editingCost?.assignation || 'project'}
-              onChange={async e => {
-                const value = e.target.value as 'project' | 'per use';
-                setEditingCost({ ...editingCost, assignation: value });
-                if (value === 'per use') {
-                  if (wpTree.length === 0) await loadProjectTree();
-                  setAccordionOpen(true);
-                } else {
-                  setAccordionOpen(false);
-                  setSelectedStepIds([]);
-                }
-              }}
-              className="cost-input"
-            >
-              <option value="project">Cost to project</option>
-              <option value="per use">Per use</option>
-            </select>
-          ) : (
-            value === 'project' ? 'Cost to project' : 'Per use'
-          )
-      },
+  // Assignation column removed — selection is handled via the tree and step_ids
       {
         key: 'year',
         title: 'Year',
@@ -374,7 +341,10 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       handleSaveCost, 
       handleCancelEdit, 
       handleEditCost, 
-      projectId
+      projectId,
+      wpTree,
+      loadProjectTree,
+      projectYears
     ]
   );
 
@@ -409,7 +379,7 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
   rowKey={(r: NonOperationalCost) => (r.id ?? `${r.concept}-${r.type}`)}
         rowClassName={(record) => (editingCost?.id === record.id ? 'new-cost-row' : '')}
         expandable={{
-          rowExpandable: (record: NonOperationalCost) => record.assignation === 'per use',
+          rowExpandable: (_record: NonOperationalCost) => true,
           expandedRowKeys: expandedRows,
           onExpand: async (expanded: boolean, record: NonOperationalCost) => {
             setExpandedRows(prev => {
@@ -435,63 +405,20 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
           },
           expandedRowRender: (record: NonOperationalCost) => (
             <div className="vertical-accordion" style={{ margin: 0 }}>
-              <div className="accordion-body" style={{ padding: '4px 0' }}>
+              <div className="accordion-body" style={{ padding: '16px' }}>
                 {wpTree.length === 0 ? (
                   <div style={{ fontSize: '.9rem', color: '#666' }}>Loading steps...</div>
                 ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #eee' }}>Workpackage</th>
-                          <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #eee' }}>Deliverable</th>
-                          <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #eee' }}>Step</th>
-                          <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid #eee' }}>Use</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {wpTree.flatMap(wp => (wp.deliverables || []).flatMap(d => (d.steps || []).map(s => ({
-                          wpId: wp.id,
-                          wpName: wp.name,
-                          dId: d.id,
-                          dName: d.name,
-                          step: s
-                        })))).map(row => {
-                          const isEditingRow = !!editingCost && editingCost.id === record.id;
-                          const checked = isEditingRow
-                            ? selectedStepIds.includes(row.step.id)
-                            : Array.isArray(record.step_ids) && record.step_ids.includes(row.step.id);
-                          return (
-                            <tr key={`${row.wpId}-${row.dId}-${row.step.id}`}>
-                              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5' }}>{row.wpName}</td>
-                              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5' }}>{row.dName}</td>
-                              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5' }}>
-                                <div>
-                                  <span>{row.step.name}</span>
-                                  <span style={{ marginLeft: 8, color: '#888', fontSize: '.85rem' }}>({row.step.profile}, {row.step.country})</span>
-                                </div>
-                              </td>
-                              <td style={{ padding: '6px 8px', textAlign: 'center', borderBottom: '1px solid #f5f5f5' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={!!checked}
-                                  disabled={!isEditingRow}
-                                  onChange={(e) => {
-                                    if (!isEditingRow) return;
-                                    const id = row.step.id;
-                                    setSelectedStepIds(prev => {
-                                      if (e.target.checked) return Array.from(new Set([...prev, id]));
-                                      return prev.filter(x => x !== id);
-                                    });
-                                  }}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TreeSelector
+                    workPackages={wpTree}
+                    selectedStepIds={editingCost?.id === record.id ? selectedStepIds : (record.step_ids || [])}
+                    editable={editingCost?.id === record.id}
+                    onChange={(stepIds: number[]) => {
+                      if (editingCost?.id === record.id) {
+                        setSelectedStepIds(stepIds);
+                      }
+                    }}
+                  />
                 )}
               </div>
             </div>

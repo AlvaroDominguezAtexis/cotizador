@@ -7,7 +7,7 @@ export interface NonOperationalCost {
   concept: string; // canonical name (replaces legacy subcontractorName)
   quantity: number;
   unit_cost: number; // canonical name (replaces legacy unitCost)
-  assignation: 'project' | 'per use';
+  // assignation column removed from DB; selection is represented by step_ids
   year?: number | null;
   reinvoiced: boolean;
   created_at?: string;
@@ -32,7 +32,7 @@ export function normalizeNonOperationalCost(raw: any): NonOperationalCost {
     concept: raw.concept ?? raw.subcontractorName ?? '',
     quantity: Number(raw.quantity ?? 1),
     unit_cost: Number(raw.unit_cost ?? raw.unitCost ?? 0),
-    assignation: raw.assignation === 'per use' ? 'per use' : 'project',
+    // assignation removed: clients should rely on step_ids to indicate per-step assignment
     year: raw.year ?? null,
     reinvoiced: !!raw.reinvoiced,
     created_at: raw.created_at,

@@ -290,6 +290,58 @@ export async function saveStepManagementCost(params: {
   );
 }
 
+export async function calculateStepFTE(params: {
+  stepId: number;
+  year: number;
+  processTime: number;
+  db: DBClient;
+}): Promise<number> {
+  const { stepId, db } = params;
+  
+  // Get project and country info for the step
+  const stepRes = await db.query(
+    `SELECT s.id, s.country_id, wp.project_id
+     FROM steps s
+     JOIN deliverables d ON d.id = s.deliverable_id
+     JOIN workpackages wp ON wp.id = d.workpackage_id
+     WHERE s.id = $1
+     LIMIT 1`,
+    [stepId]
+  );
+
+  if (stepRes.rows.length === 0) {
+    throw new Error('Step not found');
+  }
+
+  const step = stepRes.rows[0];
+  
+  // Calculate annual hours
+  const annualHours = await calcAnnualHours({
+    projectId: Number(step.project_id),
+    countryId: Number(step.country_id),
+    db
+  });
+
+  // Calculate FTE
+  const fte = params.processTime / annualHours;
+  return fte;
+}
+
+export async function saveStepFTE(params: {
+  stepId: number;
+  year: number;
+  fte: number;
+  db: DBClient;
+}): Promise<void> {
+  const { stepId, year, fte, db } = params;
+  await db.query(
+    `UPDATE step_yearly_data 
+     SET fte = $3
+     WHERE step_id = $1 AND year = $2`,
+    [stepId, year, fte]
+  );
+}
+
 export async function saveStepSalariesCost(params: {
   stepId: number;
   year: number;
@@ -336,6 +388,7 @@ export async function batchCalculateProjectCosts(params: {
     year: number;
     salariesCost: number;
     managementCost: number;
+    fte: number;
   }> = [];
 
   // 2) Calculate costs for each step
@@ -353,6 +406,27 @@ export async function batchCalculateProjectCosts(params: {
     // Calculate costs for each year
     for (const { year } of yearRes.rows) {
       try {
+        // Get process_time for FTE calculation
+        const processTimeRes = await db.query(
+          `SELECT process_time FROM step_yearly_data WHERE step_id = $1 AND year = $2`,
+          [stepId, year]
+        );
+        const processTime = Number(processTimeRes.rows[0]?.process_time || 0);
+
+        // Calculate and save FTE
+        const fte = await calculateStepFTE({
+          stepId,
+          year: Number(year),
+          processTime,
+          db
+        });
+        await saveStepFTE({
+          stepId,
+          year: Number(year),
+          fte,
+          db
+        });
+
         // Calculate and save salary costs
         const { salariesCost } = await calcStepSalariesCost({ 
           stepId, 
@@ -383,7 +457,8 @@ export async function batchCalculateProjectCosts(params: {
           stepId,
           year: Number(year),
           salariesCost,
-          managementCost
+          managementCost,
+          fte
         });
       } catch (error) {
         console.error(`Error calculating costs for step ${stepId} year ${year}:`, error);

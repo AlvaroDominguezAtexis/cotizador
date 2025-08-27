@@ -1,14 +1,6 @@
 // src/components/summary/SummaryDocument.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
+// Removed chart imports
 import "./Summary.css";
 
 /**
@@ -93,6 +85,20 @@ function aggregateFTE<T extends Allocation>(rows: T[], key: keyof Allocation) {
  *   Capa de datos (fetch opcional)
  * ============================
  */
+interface AllocationSummary {
+  totalFTE: number;
+  byWorkpackage: { name: string; fte: number }[];
+  byDeliverable: { name: string; fte: number }[];
+  byCountry: { name: string; fte: number }[];
+  byProfile: { name: string; fte: number }[];
+}
+
+async function fetchAllocationSummary(projectId: string | number): Promise<AllocationSummary> {
+  const res = await fetch(`/projects/${projectId}/allocations/summary`);
+  if (!res.ok) throw new Error(`No se pudo cargar el resumen de allocations (${res.status})`);
+  return await res.json();
+}
+
 async function fetchAllocations(projectId: string | number): Promise<Allocation[]> {
   // Usa el proxy del frontend hacia el backend: /projects/:id/allocations
   const res = await fetch(`/projects/${projectId}/allocations`);
@@ -131,23 +137,34 @@ const SummaryDocument: React.FC<Props> = ({
   const effectiveProjectId = projectId ?? project?.id ?? project?.projectId ?? undefined;
 
   const [rows, setRows] = useState<Allocation[] | null>(allocations ?? null);
+  const [summary, setSummary] = useState<AllocationSummary | null>(null);
   const [loading, setLoading] = useState(!allocations && !!effectiveProjectId);
   const [tab, setTab] = useState<
-    "country" | "year" | "profileType" | "step" | "deliverable" | "workPackage"
+    "country" | "profileType" | "deliverable" | "workPackage"
   >("country");
 
-  // Fetch allocations if not provided
+  // Fetch allocations and summary if not provided
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (rows || effectiveProjectId == null) return;
+      if (effectiveProjectId == null) return;
       try {
         setLoading(true);
-        const data = await fetchAllocations(effectiveProjectId);
-        if (!cancelled) setRows(data);
+        const [allocData, summaryData] = await Promise.all([
+          !rows ? fetchAllocations(effectiveProjectId) : Promise.resolve(null),
+          fetchAllocationSummary(effectiveProjectId)
+        ]);
+        
+        if (!cancelled) {
+          if (allocData) setRows(allocData);
+          setSummary(summaryData);
+        }
       } catch (e) {
         console.error(e);
-        if (!cancelled) setRows([]);
+        if (!cancelled) {
+          if (!rows) setRows([]);
+          setSummary(null);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -156,7 +173,7 @@ const SummaryDocument: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [effectiveProjectId, rows]);
+  }, [effectiveProjectId]);
 
   // Total horas y FTEs desde steps.process_time
   const totalHours = useMemo(() => {
@@ -164,7 +181,7 @@ const SummaryDocument: React.FC<Props> = ({
     return (rows ?? []).reduce((acc, r) => acc + (Number(r.hours) || 0), 0);
   }, [rows, totalHoursOverride]);
 
-  const totalFTEs = useMemo(() => computeFTE(totalHours), [totalHours]);
+  const totalFTEs = useMemo(() => summary?.totalFTE ?? 0, [summary]);
 
   // DM desde workPackages
   const dm = useMemo(() => {
@@ -210,25 +227,32 @@ const SummaryDocument: React.FC<Props> = ({
   }, [costs, hourlyPrice, hourlyCost, totalHours]);
 
   /** Datos para dashboards de FTEs */
-  const dataByCountry = useMemo(() => aggregateFTE(rows ?? [], "country"), [rows]);
-  const dataByYear = useMemo(() => aggregateFTE(rows ?? [], "year"), [rows]);
-  const dataByProfile = useMemo(() => aggregateFTE(rows ?? [], "profileType"), [rows]);
-  const dataByStep = useMemo(() => aggregateFTE(rows ?? [], "step"), [rows]);
-  const dataByDeliverable = useMemo(() => aggregateFTE(rows ?? [], "deliverable"), [rows]);
-  const dataByWP = useMemo(() => aggregateFTE(rows ?? [], "workPackage"), [rows]);
+  const currentSummaryData = useMemo(() => {
+    if (!summary) return [];
 
-  const currentData =
-    tab === "country"
-      ? dataByCountry
-      : tab === "year"
-      ? dataByYear
-      : tab === "profileType"
-      ? dataByProfile
-      : tab === "step"
-      ? dataByStep
-      : tab === "deliverable"
-      ? dataByDeliverable
-      : dataByWP;
+    const getDataForTab = (tab: string) => {
+      switch (tab) {
+        case "country":
+          return summary.byCountry;
+        case "profileType":
+          return summary.byProfile;
+        case "deliverable":
+          return summary.byDeliverable;
+        case "workPackage":
+          return summary.byWorkpackage;
+        default:
+          return [];
+      }
+    };
+
+    return getDataForTab(tab).map(item => ({
+      name: item.name,
+      hours: item.fte * 1600, // Convert back to hours for display
+      fte: item.fte
+    }));
+  }, [summary, tab]);
+
+  // The currentData is now managed by currentSummaryData
 
   return (
     <div className="summary-wrapper">
@@ -303,14 +327,8 @@ const SummaryDocument: React.FC<Props> = ({
             <button className={`tab ${tab === "country" ? "active" : ""}`} onClick={() => setTab("country")}>
               País
             </button>
-            <button className={`tab ${tab === "year" ? "active" : ""}`} onClick={() => setTab("year")}>
-              Año
-            </button>
             <button className={`tab ${tab === "profileType" ? "active" : ""}`} onClick={() => setTab("profileType")}>
               Tipo perfil
-            </button>
-            <button className={`tab ${tab === "step" ? "active" : ""}`} onClick={() => setTab("step")}>
-              Paso
             </button>
             <button className={`tab ${tab === "deliverable" ? "active" : ""}`} onClick={() => setTab("deliverable")}>
               Deliverable
@@ -321,38 +339,26 @@ const SummaryDocument: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="summary-card-content chart-wrapper">
-          {currentData.length === 0 ? (
-            <div className="summary-hint empty">Sin datos para esta dimensión.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={currentData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} height={48} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: any, n: any) => (n === "fte" ? `${v} FTE` : v)} />
-                <Bar dataKey="fte" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        <div className="table-mini">
-          <div className="table-mini-head">
-            <span>Grupo</span>
-            <span>Horas</span>
-            <span>FTE</span>
-          </div>
-          {currentData.slice(0, 8).map((r) => (
-            <div className="table-mini-row" key={r.name}>
-              <span title={r.name}>{r.name}</span>
-              <span>{r.hours.toLocaleString("es-ES")}</span>
-              <span>{r.fte.toLocaleString("es-ES", { maximumFractionDigits: 2 })}</span>
+        {currentSummaryData.length === 0 ? (
+          <div className="summary-hint empty">Sin datos para esta dimensión.</div>
+        ) : (
+          <div className="table-mini">
+            <div className="table-mini-head">
+              <span>Grupo</span>
+              <span>Horas</span>
+              <span>FTE</span>
             </div>
-          ))}
+            {currentSummaryData.map((r: { name: string; hours: number; fte: number }) => (
+              <div className="table-mini-row" key={r.name}>
+                <span title={r.name}>{r.name}</span>
+                <span>{r.hours.toLocaleString("es-ES")}</span>
+                <span>{r.fte.toLocaleString("es-ES", { maximumFractionDigits: 2 })}</span>
+              </div>
+            ))}
+          </div>
+        )}
         </div>
       </div>
-    </div>
   );
 };
 

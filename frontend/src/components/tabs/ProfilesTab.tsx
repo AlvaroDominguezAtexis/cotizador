@@ -4,6 +4,7 @@
 import React from 'react';
 import { Button } from '../ui/Button';
 import { ProfilesManagement } from '../profiles/Profiles';
+import { ProjectManagerSalaries } from '../profiles/ProjectManagerSalaries';
 import { useCountryNames } from '../../hooks/useCountryNames';
 import './Tabs.css';
 
@@ -79,6 +80,12 @@ export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, ad
           loadingCountries={loadingCountries}
           projectId={projectId}
         />
+        {!loadingCountries && countryList.length > 0 && (
+          <ProjectManagerSalaries
+            projectId={projectId}
+            countries={countryList}
+          />
+        )}
       </div>
     </div>
   );

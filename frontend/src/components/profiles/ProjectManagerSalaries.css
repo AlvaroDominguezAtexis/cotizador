@@ -1,0 +1,90 @@
+.project-manager-salaries {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.profile-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.profile-section-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pm-salaries-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.pm-salary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pm-salary-item label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #666;
+}
+
+.salary-input-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.salary-input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 100%;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.salary-input:focus {
+  border-color: #0066cc;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+.salary-display {
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  color: #333;
+  font-size: 0.95rem;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.salary-input::placeholder {
+  color: #999;
+}
+
+.salary-input[readonly] {
+  background-color: #f8f9fa;
+  color: #666;
+  cursor: default;
+}

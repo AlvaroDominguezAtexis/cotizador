@@ -14,9 +14,10 @@ import {
 	upsertProjectCountryWorkingDays,
 	getProjectCountriesHoursPerDay,
 	upsertProjectCountryHoursPerDay,
-	getProjectCountriesMng,
-	upsertProjectCountryMng,
-		getProjectCountriesMarkup,
+	addProjectCountry,
+	getProjectCountriesManagementSalary,
+	upsertProjectCountryManagementSalary,
+	getProjectCountriesMarkup,
 		upsertProjectCountryMarkup,
 		getProjectCountriesSocialContributionRate,
 		upsertProjectCountrySocialContributionRate,
@@ -51,9 +52,17 @@ export const projectCountriesHoursPerDayRouter = express.Router({ mergeParams: t
 projectCountriesHoursPerDayRouter.get('/', getProjectCountriesHoursPerDay);
 projectCountriesHoursPerDayRouter.put('/:countryId', upsertProjectCountryHoursPerDay);
 
-export const projectCountriesMngRouter = express.Router({ mergeParams: true });
-projectCountriesMngRouter.get('/', getProjectCountriesMng);
-projectCountriesMngRouter.put('/:countryId', upsertProjectCountryMng);
+export const projectCountriesManagementRouter = express.Router({ mergeParams: true });
+
+// Add a test route
+projectCountriesManagementRouter.get('/test', (req, res) => {
+  console.log('Test route hit');
+  console.log('Params:', req.params);
+  res.json({ message: 'Management salary router is working', params: req.params });
+});
+
+projectCountriesManagementRouter.get('/', getProjectCountriesManagementSalary);
+projectCountriesManagementRouter.put('/:countryId', upsertProjectCountryManagementSalary);
 
 export const projectCountriesMarkupRouter = express.Router({ mergeParams: true });
 projectCountriesMarkupRouter.get('/', getProjectCountriesMarkup);

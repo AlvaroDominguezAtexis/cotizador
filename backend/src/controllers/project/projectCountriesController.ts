@@ -130,24 +130,78 @@ export const addProjectCountry = async (req: Request, res: Response) => {
   }
 
   try {
-    // First get the default management salary for the country
+    // Get all default values for the country
     const defaultQuery = `
-      SELECT management_yearly_salary_by_default
+      SELECT 
+        management_yearly_salary_by_default,
+        cpi_by_default,
+        activity_rate_by_default,
+        npt_rate_by_default,
+        it_cost_by_default,
+        premises_cost_by_default,
+        working_days_by_default,
+        hours_per_day_by_default,
+        mng_by_default,
+        markup_by_default,
+        social_contribution_rate_by_default
       FROM countries
       WHERE id = $1
     `;
     const defaultResult = await db.query(defaultQuery, [countryId]);
-    const defaultSalary = defaultResult.rows[0]?.management_yearly_salary_by_default;
+    const defaults = defaultResult.rows[0];
 
-    // Insert the country with the default management salary
+    if (!defaults) {
+      return res.status(404).json({ error: 'País no encontrado' });
+    }
+
+    // Insert the country with all default values
     const q = `
-      INSERT INTO project_countries (project_id, country_id, management_yearly_salary)
-      VALUES ($1, $2, $3)
+      INSERT INTO project_countries (
+        project_id, 
+        country_id, 
+        management_yearly_salary,
+        cpi,
+        activity_rate,
+        npt_rate,
+        it_cost,
+        premises_cost,
+        working_days,
+        hours_per_day,
+        mng,
+        markup,
+        social_contribution_rate
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       ON CONFLICT (project_id, country_id)
-      DO UPDATE SET management_yearly_salary = EXCLUDED.management_yearly_salary
-      RETURNING project_id, country_id, management_yearly_salary
+      DO UPDATE SET 
+        management_yearly_salary = EXCLUDED.management_yearly_salary,
+        cpi = EXCLUDED.cpi,
+        activity_rate = EXCLUDED.activity_rate,
+        npt_rate = EXCLUDED.npt_rate,
+        it_cost = EXCLUDED.it_cost,
+        premises_cost = EXCLUDED.premises_cost,
+        working_days = EXCLUDED.working_days,
+        hours_per_day = EXCLUDED.hours_per_day,
+        mng = EXCLUDED.mng,
+        markup = EXCLUDED.markup,
+        social_contribution_rate = EXCLUDED.social_contribution_rate
+      RETURNING *
     `;
-    const { rows } = await db.query(q, [projectId, countryId, defaultSalary]);
+    const { rows } = await db.query(q, [
+      projectId,
+      countryId,
+      defaults.management_yearly_salary_by_default,
+      defaults.cpi_by_default,
+      defaults.activity_rate_by_default,
+      defaults.npt_rate_by_default,
+      defaults.it_cost_by_default,
+      defaults.premises_cost_by_default,
+      defaults.working_days_by_default,
+      defaults.hours_per_day_by_default,
+      defaults.mng_by_default,
+      defaults.markup_by_default,
+      defaults.social_contribution_rate_by_default
+    ]);
     res.json(rows[0]);
   } catch (e) {
     console.error('addProjectCountry error', e);

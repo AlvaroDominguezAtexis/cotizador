@@ -1,24 +1,23 @@
 .project-manager-salaries {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 100%;
 }
 
 .profile-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #eee;
+  margin-bottom: 0.75rem;
 }
 
 .profile-section-header h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: #333;
   font-weight: 600;
 }
@@ -29,22 +28,34 @@
 }
 
 .pm-salaries-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+  width: 100%;
 }
 
 .pm-salary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex: 0 0 auto;
+  width: calc(20% - 0.8rem);
+  min-width: 180px;
+  background-color: #ffffff;
+  border: 1px solid #eef2f7;
+  border-radius: 6px;
+  padding: 0.75rem;
 }
 
 .pm-salary-item label {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: #666;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.pm-salary-cell {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .salary-input-wrapper {
@@ -53,12 +64,14 @@
 }
 
 .salary-input {
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
   width: 100%;
-  font-size: 0.95rem;
+  padding: 6px 8px;
+  border: 1px solid #cfd8e3;
+  border-radius: 6px;
+  font-size: 0.9rem;
   transition: border-color 0.2s;
+  text-align: right;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .salary-input:focus {
@@ -68,15 +81,13 @@
 }
 
 .salary-display {
-  padding: 0.5rem;
-  background-color: #f8f9fa;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  color: #333;
-  font-size: 0.95rem;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f6f8fb;
+  color: #2a2f45;
+  text-align: right;
+  font-size: 0.9rem;
 }
 
 .salary-input::placeholder {

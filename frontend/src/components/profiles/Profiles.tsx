@@ -20,9 +20,16 @@ interface ProfilesManagementProps {
 function useOfficialProfileSalaries() {
   const [salaries, setSalaries] = useState<{ [profileId: string]: { [countryId: string]: number } }>({});
   useEffect(() => {
-    fetch('/officialprofile-salaries')
-      .then(res => res.json())
-      .then((data: Array<{ profile_id: string | number; country_id: string | number; salary: number }>) => {
+    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/officialprofile-salaries`);
+        if (!res.ok) {
+          const text = await res.text().catch(() => '<no body>');
+          console.error('[useOfficialProfileSalaries] non-ok response', res.status, text);
+          return;
+        }
+        const data = await res.json() as Array<{ profile_id: string | number; country_id: string | number; salary: number }>;
         const map: { [profileId: string]: { [countryId: string]: number } } = {};
         data.forEach(row => {
           const pid = String(row.profile_id);
@@ -31,7 +38,10 @@ function useOfficialProfileSalaries() {
           map[pid][cid] = row.salary;
         });
         setSalaries(map);
-      });
+      } catch (e) {
+        console.error('[useOfficialProfileSalaries] fetch error', e);
+      }
+    })();
   }, []);
   return salaries;
 }
@@ -126,6 +136,7 @@ const ProfileNameAutocomplete: React.FC<{
 };
 
 export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false, projectId }) => {
+  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:4000';
   const { profiles: officialProfiles, loading: loadingProfiles } = useOfficialProfiles();
   const officialSalaries = useOfficialProfileSalaries();
   const [nameInput, setNameInput] = useState('');
@@ -139,6 +150,8 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   const [profilesRefreshKey, setProfilesRefreshKey] = useState<number>(0);
   // Edits for per-year salaries: profileId -> ("countryId:year" -> newSalary)
   const [yearSalaryEdits, setYearSalaryEdits] = useState<Record<string, Record<string, number>>>({});
+  // Move editingManager state to the top level of the component
+  const [editingManager, setEditingManager] = useState<{ [countryId: string]: boolean }>({});
 
   // Determine if the project has more than one year
   useEffect(() => {
@@ -180,6 +193,11 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
 
   // Estado local de salarios por perfil
   const [projectProfileSalaries, setProjectProfileSalaries] = useState<{ [profileId: string]: { [countryId: string]: number } }>({});
+  // Management yearly salaries per project-country (project_countries.management_yearly_salary)
+  const [projectCountryMgmtSalaries, setProjectCountryMgmtSalaries] = useState<{ [countryId: string]: number | null }>({});
+  const [loadingProjectCountryMgmt, setLoadingProjectCountryMgmt] = useState(false);
+  // Local edits for the Project Manager row (countryId -> string input)
+  const [pmEdits, setPmEdits] = useState<{ [countryId: string]: string }>({});
 
   // Helper para recargar salarios desde el backend
   const reloadSalaries = useCallback(async () => {
@@ -227,6 +245,78 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   useEffect(() => {
     reloadSalaries();
   }, [reloadSalaries, tableData.length]);
+
+  // Load project_countries.management_yearly_salary for the project
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!projectId) return;
+      setLoadingProjectCountryMgmt(true);
+      try {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/countries-management-salary`);
+        if (!res.ok) throw new Error('Could not load project country management salaries');
+        const data: Array<{ country_id: number | string; country_name?: string; management_yearly_salary: number | null }> = await res.json();
+        if (!mounted) return;
+        const map: { [cid: string]: number | null } = {};
+        for (const row of data) map[String(row.country_id)] = row.management_yearly_salary == null ? null : Number(row.management_yearly_salary);
+        setProjectCountryMgmtSalaries(map);
+      } catch (e) {
+        console.error('Error loading project country management salaries', e);
+        if (mounted) setProjectCountryMgmtSalaries({});
+      } finally {
+        if (mounted) setLoadingProjectCountryMgmt(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [projectId]);
+
+  const saveProjectManagerSalary = useCallback(async (countryId: number | string, value: number | null) => {
+    if (!projectId) { alert('Save requires a saved project'); return; }
+    try {
+  const body = { management_yearly_salary: value == null ? null : Number(value) };
+  const res = await fetch(`${API_BASE}/projects/${projectId}/countries-management-salary/${countryId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updated = await res.json();
+      setProjectCountryMgmtSalaries(prev => ({ ...prev, [String(countryId)]: updated.management_yearly_salary == null ? null : Number(updated.management_yearly_salary) }));
+    } catch (e) {
+      console.error('Error saving project manager salary', e);
+      alert('No se pudo guardar el salario de manager');
+    }
+  }, [projectId]);
+
+  // Save all manager salaries at once for the project (used by single Save button)
+  const saveAllProjectManagerSalaries = useCallback(async () => {
+    if (!projectId) { alert('Save requires a saved project'); return; }
+    try {
+      const payload = (countries || []).map(c => {
+        const cid = String(c.id);
+        const local = pmEdits[cid];
+        const saved = projectCountryMgmtSalaries?.[cid];
+        const value = local !== undefined ? (local === '' ? null : Number(local)) : (saved == null ? null : Number(saved));
+        return { country_id: Number(c.id), management_yearly_salary: value };
+      });
+  const res = await fetch(`${API_BASE}/projects/${projectId}/countries-management-salary/bulk`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const results: Array<{ project_id: number; country_id: number; management_yearly_salary: number | null }> = await res.json();
+      const map = { ...(projectCountryMgmtSalaries || {}) };
+      for (const r of results) {
+        if (!r) continue;
+        map[String(r.country_id)] = r.management_yearly_salary == null ? null : Number(r.management_yearly_salary);
+      }
+      setProjectCountryMgmtSalaries(map);
+      setPmEdits({});
+    } catch (e) {
+      console.error('Error saving all project manager salaries', e);
+      alert('No se pudo guardar los salarios de manager');
+    }
+  }, [projectId, countries, pmEdits, projectCountryMgmtSalaries]);
+
+  // Manager salary section removed
 
   // helper para leer un Salary en el render
   const getSalary = (profileId: number, countryId: number | string) =>
@@ -740,46 +830,39 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
           return profile.name;
         },
       },
-      ...countries.map((country) => ({
+  ...countries.map((country, index) => ({
         key: `salary-${country.id}`,
         title: `Salary ${country.name}`,
         render: (_: any, profile: Profile) => {
-          if (editingProfile && editingProfile.id === profile.id) {
-            // Detect if this is a new row being created (no persisted name yet)
-            const isNew = !tableData.some(p => p.id === editingProfile.id && p.name);
-            // In multi-year projects, block main-row salary editing for existing profiles
-            if (hasMultipleYears && !isNew) {
-              const salary = getSalary(profile.id, country.id);
-              return (
-                <span title="Edita los salarios en la tabla por año de la fila expandida">
-                  {salary ? `${Number(salary).toLocaleString()}€` : '-'}
-                </span>
-              );
-            }
-            // Single-year projects or new profile creation: allow inline editing here
-            return (
-              <input
-                type="number"
-                value={editingProfile.salaries?.[country.id] || ''}
-                onChange={(e) => handleProfileChange(country.id, e.target.value)}
-                placeholder={`Salary ${country.name}`}
-                className="profile-input salary-input"
-              />
-            );
-          }
-          
-          // Usar getSalary en lugar de projectProfileSalaries directamente
+          const cid = String(country.id);
           const salary = getSalary(profile.id, country.id);
-          return salary ? `${Number(salary).toLocaleString()}€` : '-';
+          const value = salary ? `${Number(salary).toLocaleString()}€` : '';
+          const isEditing = editingProfile && editingProfile.id === profile.id;
+
+          return (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="text"
+                value={value}
+                onChange={isEditing ? (e) => setPmEdits(prev => ({ ...prev, [cid]: e.target.value })) : undefined}
+                className="profile-input salary-input"
+                readOnly={!isEditing}
+                style={{
+                  backgroundColor: isEditing ? '#fff' : '#f5f5f5',
+                  color: isEditing ? '#000' : '#888',
+                  border: '1px solid #ddd',
+                }}
+              />
+            </div>
+          );
         },
       })),
       {
         key: 'actions',
         title: 'Actions',
         render: (_: any, profile: Profile) => {
-          // Si estamos editando esta fila
+          // Restore the normal "Edit" button logic for profiles
           if (editingProfile && editingProfile.id === profile.id) {
-            // Nuevo perfil: id no existe en tableData (sin nombre) o el nombre está vacío
             const isNew = !tableData.some(p => p.id === editingProfile.id && p.name);
             const pendingCount = hasMultipleYears && !isNew
               ? Object.keys(yearSalaryEdits[String(editingProfile.id || '')] || {}).length
@@ -787,13 +870,12 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
             return (
               <div className="table-row-actions">
                 {isNew ? (
-                  <Button variant="success" size="sm" onClick={handleSaveProfile} style={{ backgroundColor: '#388e3c', borderColor: '#388e3c' }}>
+                  <Button variant="success" size="sm" onClick={handleSaveProfile}>
                     Crear
                   </Button>
                 ) : (
-                  <Button variant="warning" size="sm" onClick={handleEditProfileSave} style={{ backgroundColor: '#ff9800', borderColor: '#ff9800', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <span>Guardar</span>
-                    {pendingCount > 0 && <span className="pending-badge" title={`${pendingCount} cambios sin guardar`}>{pendingCount}</span>}
+                  <Button variant="warning" size="sm" onClick={handleEditProfileSave}>
+                    Guardar
                   </Button>
                 )}
                 <Button variant="secondary" size="sm" onClick={handleCancelEdit}>
@@ -803,82 +885,43 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
             );
           }
 
-          // Si no estamos editando
           return (
             <div className="table-row-actions">
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => {
-                  // Expand row and enter edit mode (only if multi-year)
-                  if (hasMultipleYears) {
-                    setExpandedRows(prev => Array.from(new Set([...(prev || []), profile.id])));
-                  }
-                  handleEditProfile(profile);
-                }}
+                onClick={() => handleEditProfile(profile)}
               >
                 Edit
               </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    // 1️⃣ Delete relación perfil-proyecto
-                    console.log('Intentando Delete relación perfil-proyecto:', { project_id: projectId, profile_id: profile.id });
-                    const delRes = await fetch('/project-profiles', {
-                      method: 'DELETE',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ project_id: projectId, profile_id: profile.id }),
-                    });
-                    if (!delRes.ok) {
-                      const msg = await delRes.text();
-                      let detail = '';
-                      let code = '';
-                      let stepsCount = 0;
-                      let stepNames: string[] = [];
-                      try { const j = JSON.parse(msg); detail = j?.error || msg; code = j?.code; stepsCount = j?.stepsCount || 0; stepNames = Array.isArray(j?.stepNames) ? j.stepNames : []; } catch { detail = msg; }
-                      if (code === 'PROFILE_IN_USE') {
-                        const preview = stepNames.slice(0, 5).join(', ');
-                        const more = stepsCount > stepNames.length ? ` and ${stepsCount - stepNames.length} more` : '';
-                        const suffix = preview ? `\nSteps: ${preview}${more}` : '';
-                        const confirmText = `There are associated steps to this profile. By deleting this profile, associated steps will be deleted. Are you sure you want to delete it?${suffix}`;
-                        const confirmed = window.confirm(confirmText);
-                        if (!confirmed) return;
-                        const forceRes = await fetch('/project-profiles', {
-                          method: 'DELETE',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ project_id: projectId, profile_id: profile.id, force: true })
-                        });
-                        if (!forceRes.ok) {
-                          const m2 = await forceRes.text();
-                          let d2 = '';
-                          try { const j2 = JSON.parse(m2); d2 = j2?.error || m2; } catch { d2 = m2; }
-                          alert(d2 || 'Cannot delete this profile right now.');
-                          return;
-                        }
-                      } else {
-                        alert(detail || 'Cannot delete this profile right now.');
+              {profile.name !== 'Project Manager' && profile.id !== -1 && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const delRes = await fetch('/project-profiles', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ project_id: projectId, profile_id: profile.id }),
+                      });
+                      if (!delRes.ok) {
+                        alert('Cannot delete this profile right now.');
                         return;
                       }
+                      const updated = tableData.filter((p) => p.id !== profile.id);
+                      setTableData(updated);
+                      onChange(updated);
+                      await reloadSalaries();
+                    } catch (e) {
+                      console.error('Error deleting profile:', e);
+                      alert('Error deleting profile from project');
                     }
-
-                    // 4️⃣ Actualizar tabla local
-                    const updated = tableData.filter((p) => p.id !== profile.id);
-                    console.log('Tabla actualizada:', updated);
-                    setTableData(updated);
-                    onChange(updated);
-                    
-                    // Recargar salarios después de Delete
-                    await reloadSalaries();
-                  } catch (e) {
-                    console.error('Error eliminando proyecto o perfil:', e);
-                    alert('Error deleting profile from project');
-                  }
-                }}
-              >
-                Delete
-              </Button>
+                  }}
+                >
+                  Delete
+                </Button>
+              )}
             </div>
           );
         },
@@ -912,20 +955,29 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
     [handleAddNewProfile]
   );
 
+    // Data shown in the table (profiles only)
+    const displayedData = React.useMemo(() => {
+      return [...tableData];
+    }, [tableData]);
+    console.log('[ProfilesManagement] displayedData (first 5):', displayedData.slice(0, 5));
+    console.log('[ProfilesManagement] countries:', countries);
+    console.log('[ProfilesManagement] projectCountryMgmtSalaries:', projectCountryMgmtSalaries);
+
   return (
-    <Table
-      data={tableData}
-      columns={columns}
-      rowKey="id"
-      title="Project Profiles"
-      description="Administrate the profiles participating in the project."
-      headerActions={headerActions}
-      bordered
-      hoverable
-      rowClassName={(profile) =>
-        editingProfile && editingProfile.id === profile.id ? 'new-profile-row' : ''
-      }
-  expandable={hasMultipleYears ? {
+    <div className="profiles-management-container">
+      <Table
+        data={displayedData}
+        columns={columns}
+        rowKey="id"
+        title="Project Profiles"
+        description="Administrate the profiles participating in the project."
+        headerActions={headerActions}
+        bordered
+        hoverable
+        rowClassName={(profile) =>
+          editingProfile && editingProfile.id === profile.id ? 'new-profile-row' : ''
+        }
+    expandable={hasMultipleYears ? {
         rowExpandable: () => true,
         expandedRowKeys: expandedRows,
         onExpand: (expanded: boolean, record: Profile) => {
@@ -963,7 +1015,8 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
           />
         )
   } : undefined}
-    />
+      />
+    </div>
   );
 };
 

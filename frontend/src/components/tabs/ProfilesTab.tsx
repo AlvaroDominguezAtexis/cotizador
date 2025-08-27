@@ -73,19 +73,23 @@ export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, ad
       </div>
 
       <div className="tab-content">
-        <ProfilesManagement
-          profiles={profiles}
-          onChange={onChange}
-          countries={countryList}
-          loadingCountries={loadingCountries}
-          projectId={projectId}
-        />
         {!loadingCountries && countryList.length > 0 && (
-          <ProjectManagerSalaries
-            projectId={projectId}
-            countries={countryList}
-          />
+          <div className="manager-salaries-section">
+            <ProjectManagerSalaries
+              projectId={projectId}
+              countries={countryList}
+            />
+          </div>
         )}
+        <div className="profiles-management-section">
+          <ProfilesManagement
+            profiles={profiles}
+            onChange={onChange}
+            countries={countryList}
+            loadingCountries={loadingCountries}
+            projectId={projectId}
+          />
+        </div>
       </div>
     </div>
   );

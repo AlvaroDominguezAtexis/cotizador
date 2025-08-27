@@ -145,7 +145,7 @@ export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ 
   return (
     <div className="project-manager-salaries">
       <div className="profile-section-header">
-        <h3>Project Manager Yearly Salaries</h3>
+        <h3>Project Manager Salaries</h3>
         {isEditing ? (
           <div className="button-group">
             <Button variant="warning" size="sm" onClick={handleSave}>
@@ -165,24 +165,22 @@ export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ 
         {countries.map(country => (
           <div key={country.id} className="pm-salary-item">
             <label>{country.name}</label>
-            <div className="salary-input-wrapper">
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editedSalaries[country.id] || ''}
-                  onChange={(e) => setEditedSalaries(prev => ({
-                    ...prev,
-                    [country.id]: e.target.value
-                  }))}
-                  className="profile-input salary-input"
-                  placeholder="Enter salary"
-                />
-              ) : (
-                <span className="salary-display">
-                  {salaries[country.id] ? `${Number(salaries[country.id]).toLocaleString()}€` : '-'}
-                </span>
-              )}
-            </div>
+            {isEditing ? (
+              <input
+                type="text"
+                value={editedSalaries[country.id] || ''}
+                onChange={(e) => setEditedSalaries(prev => ({
+                  ...prev,
+                  [country.id]: e.target.value
+                }))}
+                className="salary-input"
+                placeholder="Enter salary"
+              />
+            ) : (
+              <div className="salary-display">
+                {salaries[country.id] ? `${Number(salaries[country.id]).toLocaleString()}€` : '-'}
+              </div>
+            )}
           </div>
         ))}
       </div>

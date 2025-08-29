@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import Card from '../ui/Card';
 import SummaryDocument from '../summary/SummaryDocument';
 import { recalcProjectStepsCosts } from '../../api/stepsApi';
+import { recomputeItCosts } from '../../api/nonOperationalCosts';
 import './Tabs.css';
 
 interface SummaryTabProps {
@@ -24,7 +25,29 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
       
       try {
         setLoading(true);
-        await recalcProjectStepsCosts(project.id);
+        const res = await recalcProjectStepsCosts(project.id);
+        // After salaries/management are recalculated, recompute IT costs per project year
+        // derive years from project start/end if available, otherwise fallback to years present in res or current year
+        let years: number[] = [];
+        if (project?.startDate && project?.endDate) {
+          const sy = new Date(project.startDate).getFullYear();
+          const ey = new Date(project.endDate).getFullYear();
+          if (!isNaN(sy) && !isNaN(ey) && ey >= sy) {
+            for (let y = sy; y <= ey; y++) years.push(y);
+          }
+        }
+        if (years.length === 0 && Array.isArray(res?.costs) && res.costs.length) {
+          years = Array.from(new Set(res.costs.map((c: any) => Number(c.year)).filter((n: number) => !Number.isNaN(n))));
+        }
+        if (years.length === 0) years = [new Date().getFullYear()];
+
+        for (const y of years) {
+          try {
+            await recomputeItCosts(project.id, y);
+          } catch (e) {
+            console.error('Error recomputing IT costs for year', y, e);
+          }
+        }
       } catch (e) {
         console.error('Error recalculating project costs:', e);
       } finally {

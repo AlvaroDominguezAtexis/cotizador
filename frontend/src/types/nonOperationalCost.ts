@@ -28,7 +28,8 @@ export function normalizeNonOperationalCost(raw: any): NonOperationalCost {
     id: raw.id,
     project_id: raw.project_id,
     context: raw.context,
-    type: raw.type,
+  // Normalize legacy 'License' type to the new label 'License Non Recurrent'
+  type: raw.type === 'License' ? 'License Non Recurrent' : raw.type,
     concept: raw.concept ?? raw.subcontractorName ?? '',
     quantity: Number(raw.quantity ?? 1),
     unit_cost: Number(raw.unit_cost ?? raw.unitCost ?? 0),

@@ -77,7 +77,9 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
   // Obtener opciones de tipo según el contexto
   const getTypeOptions = () => {
     switch(context) {
-      case 'it': return ['License', 'Material'];
+      // License previously was the only license option; we rename it to 'License Non Recurrent'
+      // and add a new option 'License Per Use' for per-step license costs.
+  case 'it': return ['License Non Recurrent', 'License Per Use', 'Material'];
       case 'subcontract': return ['Fixed Price', 'Work Units'];
       case 'travel': return ['Plane', 'Train', 'Hotel', 'Allowances'];
       default: return [];
@@ -95,19 +97,21 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       quantity: 1,
       unit_cost: 0,
       reinvoiced: false,
-      year: undefined
+  year: (projectYears && projectYears.length === 1) ? projectYears[0] : undefined
     };
     setTableData(prev => [newCost, ...prev]);
     setEditingCost(newCost);
-  }, [context, projectId]);
+  }, [context, projectId, projectYears]);
 
   // Editar coste existente
   const handleEditCost = useCallback((cost: NonOperationalCost) => {
-    setEditingCost({ ...cost });
+  // If project has a single year and cost has no year, default it for editing so save will persist it
+  const defaulted = { ...cost, year: (cost.year ?? ((projectYears && projectYears.length === 1) ? projectYears[0] : undefined)) } as any;
+  setEditingCost(defaulted);
     setSelectedStepIds(Array.isArray(cost.step_ids) ? cost.step_ids : []);
     setAccordionOpen(true);
     if (wpTree.length === 0) void loadProjectTree();
-  }, [wpTree.length, loadProjectTree]);
+  }, [wpTree.length, loadProjectTree, projectYears]);
   // Guardar coste (nuevo o editado)
   const handleSaveCost = useCallback(async () => {
     if (!editingCost || !editingCost.concept?.trim()) { alert('El concepto es obligatorio'); return; }
@@ -122,7 +126,7 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
           quantity: editingCost.quantity ?? 1,
           unit_cost: editingCost.unit_cost ?? 0,
           // assignation removed; do not send assignation field
-          year: editingCost.year ?? null,
+          year: (editingCost.year ?? ((projectYears && projectYears.length === 1) ? projectYears[0] : null)),
       reinvoiced: !!editingCost.reinvoiced,
       ...(selectedStepIds && selectedStepIds.length ? { step_ids: selectedStepIds } : {})
         });
@@ -164,7 +168,16 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
           editingCost?.id === record.id ? (
             <select
               value={editingCost?.type || ''}
-              onChange={e => setEditingCost({ ...editingCost, type: e.target.value })}
+              onChange={e => {
+                const t = e.target.value;
+                // If License Per Use is selected, force quantity to 1 (read-only)
+                setEditingCost(prev => {
+                  if (!prev) return prev;
+                  const next: any = { ...prev, type: t };
+                  if (t === 'License Per Use') next.quantity = 1;
+                  return next;
+                });
+              }}
               className="cost-input"
             >
               <option value="">Seleccione...</option>
@@ -199,42 +212,68 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
         title: 'Quantity',
   render: (value: number, record: NonOperationalCost) =>
           editingCost?.id === record.id ? (
-            <input
-              type="number"
-              value={editingCost?.quantity ?? 1}
-              min={1}
-              onChange={e =>
-                setEditingCost({
-                  ...editingCost,
-                  quantity: Number(e.target.value)
-                })
-              }
-              className="cost-input"
-            />
+            (() => {
+              const isLicensePerUse = editingCost?.type === 'License Per Use';
+              const qtyValue = isLicensePerUse ? 1 : (editingCost?.quantity ?? 1);
+              return (
+                <input
+                  type="number"
+                  value={qtyValue}
+                  min={1}
+                  readOnly={isLicensePerUse}
+                  title={isLicensePerUse ? 'Quantity is fixed to 1 for License Per Use' : undefined}
+                  aria-readonly={isLicensePerUse}
+                  onChange={!isLicensePerUse ? (e) =>
+                    setEditingCost({
+                      ...editingCost,
+                      quantity: Number(e.target.value)
+                    }) : undefined}
+                  className="cost-input"
+                  style={isLicensePerUse ? {
+                    backgroundColor: '#f5f5f7',
+                    color: '#666',
+                    cursor: 'not-allowed',
+                    border: '1px solid transparent',
+                    boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.06)',
+                    borderRadius: 6,
+                    padding: '6px 8px',
+                    width: 80
+                  } : { width: 80 }}
+                />
+              );
+            })()
           ) : (
             value
           )
       },
       {
-    key: 'unit_cost',
+        key: 'unit_cost',
         title: 'Unit Cost (€)',
-  render: (value: number, record: NonOperationalCost) =>
+        render: (value: number, record: NonOperationalCost) =>
           editingCost?.id === record.id ? (
-            <input
-              type="number"
-              value={editingCost?.unit_cost ?? 0}
-              min={0}
-              step={0.01}
-              onChange={e =>
-                setEditingCost({
-                  ...editingCost,
-          unit_cost: Number(e.target.value)
-                })
-              }
-              className="cost-input"
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input
+                type="number"
+                value={editingCost?.unit_cost ?? 0}
+                min={0}
+                step={0.01}
+                onChange={e =>
+                  setEditingCost({
+                    ...editingCost,
+                    unit_cost: Number(e.target.value)
+                  })
+                }
+                className="cost-input"
+                style={{ width: 140 }}
+              />
+              {editingCost?.type === 'License Per Use' && (
+                <div style={{ color: '#7a4b00', background: '#fff7e6', padding: '6px 8px', borderRadius: 6, fontSize: '0.85rem' }}>
+                  Unit Cost should be the anual license price per user
+                </div>
+              )}
+            </div>
           ) : (
-      (value || 0).toLocaleString('es-ES', {
+            (value || 0).toLocaleString('es-ES', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2
             })

@@ -3,6 +3,7 @@ import Pool from '../../db';
 
 // 🔹 Normaliza fechas a YYYY-MM-DD (sin zona horaria)
 const normalizeProjectDates = (project: any) => {
+  if (!project) return project;
   const toDateOnly = (d: any) => {
     if (!d) return null;
     // Convertimos cualquier formato a string y cortamos antes de la T si existe
@@ -166,87 +167,7 @@ export const createProject = async (req: Request, res: Response) => {
       await client.query(insertCountriesQuery, [newProject.id, countryIds]);
     }
 
-    // Auto-add Project Manager profile (id=69) to the project and preload salaries per country/year
-    try {
-      // 1) Ensure relation exists
-      const pmProfileId = 69;
-      const relRes = await client.query(
-        `INSERT INTO project_profiles (project_id, profile_id)
-         VALUES ($1, $2)
-         ON CONFLICT DO NOTHING
-         RETURNING id`,
-        [newProject.id, pmProfileId]
-      );
-      // Retrieve the project_profile_id (either from RETURNING or existing row)
-      let projectProfileId: number | null = relRes.rows[0]?.id ?? null;
-      if (!projectProfileId) {
-        const sel = await client.query(
-          `SELECT id FROM project_profiles WHERE project_id = $1 AND profile_id = $2 LIMIT 1`,
-          [newProject.id, pmProfileId]
-        );
-        projectProfileId = sel.rows[0]?.id ?? null;
-      }
-
-      if (projectProfileId) {
-        // 2) Compute project years
-        const start = newProject.start_date ? new Date(newProject.start_date) : new Date();
-        const end = newProject.end_date ? new Date(newProject.end_date) : start;
-        const startYear = start.getFullYear();
-        const endYear = end.getFullYear();
-        const years: number[] = [];
-        for (let y = startYear; y <= endYear; y++) years.push(y);
-        if (years.length === 0) years.push(startYear);
-
-        // 3) Countries chosen for this project
-        const projCountriesRes = await client.query<{ country_id: number }>(
-          `SELECT country_id FROM project_countries WHERE project_id = $1`,
-          [newProject.id]
-        );
-        const projCountryIds = projCountriesRes.rows.map(r => Number(r.country_id));
-
-        if (projCountryIds.length > 0) {
-          // 4) CPI per project country (fallback to countries default)
-          const cpiRes = await client.query(
-            `SELECT c.id AS country_id, COALESCE(pc.cpi, c.cpi_by_default, 0) AS cpi
-               FROM countries c
-               LEFT JOIN project_countries pc ON pc.country_id = c.id AND pc.project_id = $1
-              WHERE c.id = ANY($2::int[])`,
-            [newProject.id, projCountryIds]
-          );
-          const cpiMap = new Map<number, number>();
-          for (const r of cpiRes.rows) cpiMap.set(Number(r.country_id), Number(r.cpi) || 0);
-
-          // 5) Official base salaries for Project Manager per country
-          const salRes = await client.query(
-            `SELECT country_id, salary FROM officialprofile_salaries WHERE profile_id = $1 AND country_id = ANY($2::int[])`,
-            [pmProfileId, projCountryIds]
-          );
-
-          // 6) Insert per year applying CPI compound
-          for (const row of salRes.rows) {
-            const countryId = Number(row.country_id);
-            const baseSalary = Number(row.salary);
-            if (!baseSalary || isNaN(baseSalary)) continue;
-            const cpi = cpiMap.get(countryId) ?? 0;
-            let current = baseSalary;
-            for (let i = 0; i < years.length; i++) {
-              const y = years[i];
-              if (i > 0) current = current * (1 + (cpi / 100));
-              await client.query(
-                `INSERT INTO project_profile_salaries (project_profile_id, country_id, salary, year)
-                 VALUES ($1,$2,$3,$4)
-                 ON CONFLICT (project_profile_id, country_id, year)
-                 DO UPDATE SET salary = EXCLUDED.salary`,
-                [projectProfileId, countryId, current, y]
-              );
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Non-fatal: log and continue project creation
-      console.warn('Auto-add Project Manager profile failed:', e);
-    }
+  // Auto-add Project Manager profile removed: project manager profile will not be auto-inserted
 
     await client.query('COMMIT');
 
@@ -262,7 +183,9 @@ export const createProject = async (req: Request, res: Response) => {
        WHERE p.id=$1`, [newProject.id]
     );
 
-    res.status(201).json(normalizeProjectDates(fullProject.rows[0]));
+  const returnedRow = fullProject.rows[0] ?? newProject;
+  if (!fullProject.rows[0]) console.warn('[createProject] final project SELECT returned no rows; falling back to inserted project object');
+  res.status(201).json(normalizeProjectDates(returnedRow));
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);

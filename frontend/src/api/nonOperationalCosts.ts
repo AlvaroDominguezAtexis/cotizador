@@ -42,3 +42,10 @@ export async function fetchNonOperationalCostById(projectId: number, id: number)
   if (!res.ok) throw new Error('Error fetching non operational cost');
   return normalizeNonOperationalCost(await res.json());
 }
+
+export async function recomputeItCosts(projectId: number, year: number): Promise<void> {
+  const res = await fetch(`/projects/${projectId}/it-costs/recompute`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year })
+  });
+  if (!res.ok) throw new Error('Error recomputing IT costs');
+}

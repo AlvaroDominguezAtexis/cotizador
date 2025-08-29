@@ -287,37 +287,6 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
     }
   }, [projectId]);
 
-  // Save all manager salaries at once for the project (used by single Save button)
-  const saveAllProjectManagerSalaries = useCallback(async () => {
-    if (!projectId) { alert('Save requires a saved project'); return; }
-    try {
-      const payload = (countries || []).map(c => {
-        const cid = String(c.id);
-        const local = pmEdits[cid];
-        const saved = projectCountryMgmtSalaries?.[cid];
-        const value = local !== undefined ? (local === '' ? null : Number(local)) : (saved == null ? null : Number(saved));
-        return { country_id: Number(c.id), management_yearly_salary: value };
-      });
-  const res = await fetch(`${API_BASE}/projects/${projectId}/countries-management-salary/bulk`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const results: Array<{ project_id: number; country_id: number; management_yearly_salary: number | null }> = await res.json();
-      const map = { ...(projectCountryMgmtSalaries || {}) };
-      for (const r of results) {
-        if (!r) continue;
-        map[String(r.country_id)] = r.management_yearly_salary == null ? null : Number(r.management_yearly_salary);
-      }
-      setProjectCountryMgmtSalaries(map);
-      setPmEdits({});
-    } catch (e) {
-      console.error('Error saving all project manager salaries', e);
-      alert('No se pudo guardar los salarios de manager');
-    }
-  }, [projectId, countries, pmEdits, projectCountryMgmtSalaries]);
-
-  // Manager salary section removed
-
   // helper para leer un Salary en el render
   const getSalary = (profileId: number, countryId: number | string) =>
     projectProfileSalaries?.[String(profileId)]?.[String(countryId)] ?? '';
@@ -659,33 +628,50 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         setShowSuggestions(true);
         const officialProfile = officialProfiles.find((p: { id: string; name: string }) => p.name === value);
         if (officialProfile) {
-          // Fetch salarios oficiales dinámicamente
-          fetch(`/project-profiles/${officialProfile.id}/salaries`)
-          .then(res => res.json())
-          .then((data: Array<{ country_id: string | number; salary: number }>) => {
-            setEditingProfile((current: Partial<Profile> | null): Partial<Profile> | null => {
-            if (!current) return null;
-            // Mapear salarios por país
-            interface SalaryMap {
-              [countryId: string]: number;
+          // Try to use preloaded official salaries from the hook to prefill editing values
+          try {
+            const hookData = officialSalaries?.[String(officialProfile.id)];
+            if (hookData && Object.keys(hookData).length > 0) {
+              const salariesMap: { [cid: string]: number } = {};
+              const pmMap: { [cid: string]: string } = {};
+              for (const [cid, sal] of Object.entries(hookData)) {
+                const num = Number(sal);
+                if (!isNaN(num)) {
+                  salariesMap[cid] = num;
+                  pmMap[cid] = String(num);
+                }
+              }
+              setPmEdits(prev => ({ ...prev, ...pmMap }));
+              setEditingProfile(current => {
+                if (!current) return current;
+                return { ...current, name: value, is_official: true, salaries: { ...(current.salaries || {}), ...salariesMap } } as Partial<Profile>;
+              });
+              return { ...prev, name: value, is_official: true };
             }
-            const salaries: SalaryMap = {};
-            data.forEach((row: { country_id: string | number; salary: number }) => {
-              salaries[String(row.country_id)] = row.salary;
-            });
-            return {
-              ...current,
-              name: value,
-              is_official: true,
-              salaries
-            };
-            });
-          });
-          return {
-          ...prev,
-          name: value,
-          is_official: true
-          };
+          } catch (e) {
+            console.warn('[Profiles] officialSalaries hook read failed', e);
+          }
+
+          // Fallback: fetch per-profile official salaries if hook had no data
+          fetch(`/project-profiles/${officialProfile.id}/salaries`)
+            .then(res => res.json())
+            .then((data: Array<{ country_id: string | number; salary: number }>) => {
+              setEditingProfile((current: Partial<Profile> | null): Partial<Profile> | null => {
+                if (!current) return null;
+                const salaries: { [countryId: string]: number } = {};
+                data.forEach((row: { country_id: string | number; salary: number }) => {
+                  salaries[String(row.country_id)] = row.salary;
+                });
+                return {
+                  ...current,
+                  name: value,
+                  is_official: true,
+                  salaries
+                };
+              });
+            }).catch(e => console.warn('[Profiles] fetch official salaries failed', e));
+
+          return { ...prev, name: value, is_official: true };
         }
         return {
           ...prev,
@@ -835,22 +821,46 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         title: `Salary ${country.name}`,
         render: (_: any, profile: Profile) => {
           const cid = String(country.id);
-          const salary = getSalary(profile.id, country.id);
-          const value = salary ? `${Number(salary).toLocaleString()}€` : '';
+          const serverSalary = getSalary(profile.id, country.id);
           const isEditing = editingProfile && editingProfile.id === profile.id;
+
+          // When editing prefer local edits (pmEdits), then editingProfile.salaries (which we prefill from official hook), then serverSalary
+          let displayRaw: string | number = '';
+          if (isEditing) {
+            if (pmEdits && pmEdits[cid] != null && String(pmEdits[cid]).trim() !== '') displayRaw = pmEdits[cid];
+            else if (editingProfile && editingProfile.salaries && editingProfile.salaries[cid] != null) displayRaw = editingProfile.salaries[cid];
+            else if (serverSalary) displayRaw = serverSalary;
+          } else {
+            displayRaw = serverSalary;
+          }
+
+          const displayValue = displayRaw === '' || displayRaw == null ? '' : `${Number(displayRaw).toLocaleString()}€`;
 
           return (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="text"
-                value={value}
-                onChange={isEditing ? (e) => setPmEdits(prev => ({ ...prev, [cid]: e.target.value })) : undefined}
+                value={displayValue}
+                onChange={isEditing ? (e) => {
+                  const raw = e.target.value.replace(/[^0-9.,-]/g, '').replace(',', '.');
+                  setPmEdits(prev => ({ ...prev, [cid]: raw }));
+                  // also update editingProfile.salaries so placeholders/readbacks reflect immediately
+                  setEditingProfile(prev => {
+                    if (!prev) return prev;
+                    const prevSals = (prev.salaries || {}) as { [k: string]: number };
+                    const n = Number(raw);
+                    return { ...prev, salaries: { ...prevSals, [cid]: isNaN(n) ? 0 : n } } as Partial<Profile>;
+                  });
+                } : undefined}
                 className="profile-input salary-input"
                 readOnly={!isEditing}
                 style={{
                   backgroundColor: isEditing ? '#fff' : '#f5f5f5',
-                  color: isEditing ? '#000' : '#888',
-                  border: '1px solid #ddd',
+                  color: isEditing ? '#000' : '#666',
+                  border: isEditing ? '1px solid #ddd' : '1px solid transparent',
+                  boxShadow: isEditing ? undefined : 'inset 0 2px 6px rgba(0,0,0,0.06)',
+                  borderRadius: 6,
+                  padding: '6px 8px',
                 }}
               />
             </div>

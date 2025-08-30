@@ -358,6 +358,138 @@ export async function saveStepSalariesCost(params: {
   );
 }
 
+export async function calcStepPremisesCost(params: {
+  stepId: number;
+  db: DBClient;
+  year?: number;
+}): Promise<{ premisesCost: number; year: number }> {
+  const { stepId, db, year } = params;
+
+  console.log('[calcStepPremisesCost] called for stepId=', stepId, 'year=', year ?? 'latest');
+
+  // 1) Load step with project and city/country info
+  const stepRes = await db.query(
+    `SELECT s.id, s.country_id, s.city_id, s.unit AS process_time_unit, wp.project_id
+     FROM steps s
+     JOIN deliverables d ON d.id = s.deliverable_id
+     JOIN workpackages wp ON wp.id = d.workpackage_id
+    WHERE s.id = $1
+    LIMIT 1`,
+    [stepId]
+  );
+  if (stepRes.rows.length === 0) {
+    const err: any = new Error('Step no encontrado');
+    err.status = 404;
+    throw err;
+  }
+  const step = stepRes.rows[0];
+
+  console.log('[calcStepPremisesCost] step loaded', { id: step.id, country_id: step.country_id, city_id: step.city_id, process_time_unit: step.process_time_unit, project_id: step.project_id });
+
+  // 2) determine target year (use yearly row if exists, else earliest)
+  let targetYear: number | null = null;
+  if (typeof year === 'number') {
+    const pr = await db.query(
+      `SELECT year FROM step_yearly_data WHERE step_id=$1 AND year=$2 LIMIT 1`,
+      [stepId, year]
+    );
+    if (pr.rows.length === 0) {
+      const err: any = new Error('No existe registro anual para el step en el año indicado');
+      err.status = 404;
+      err.code = 'STEP_YEAR_NOT_FOUND';
+      throw err;
+    }
+    targetYear = Number(pr.rows[0].year);
+  } else {
+    const pr = await db.query(
+      `SELECT year FROM step_yearly_data WHERE step_id = $1 ORDER BY year ASC NULLS LAST LIMIT 1`,
+      [stepId]
+    );
+    if (pr.rows.length === 0) {
+      const err: any = new Error('No existen registros anuales para el step');
+      err.status = 404;
+      err.code = 'STEP_YEARS_EMPTY';
+      throw err;
+    }
+    targetYear = Number(pr.rows[0].year);
+  }
+
+  // 3) Get process_time and mng for the target year, and country-level npt_rate / hours_per_day / mng default
+  const prRes = await db.query(
+    `SELECT process_time, mng FROM step_yearly_data WHERE step_id=$1 AND year=$2 LIMIT 1`,
+    [stepId, targetYear]
+  );
+  const process_time = Number(prRes.rows[0]?.process_time || 0);
+  const yearlyMng = prRes.rows[0] && prRes.rows[0].mng != null ? Number(prRes.rows[0].mng) : null;
+
+  console.log('[calcStepPremisesCost] targetYear/process_time/mng(from yearly)', { targetYear, process_time, yearlyMng });
+
+  const pcRes = await db.query(
+    `SELECT hours_per_day, npt_rate, mng
+       FROM project_countries
+      WHERE project_id=$1 AND country_id=$2
+      LIMIT 1`,
+    [step.project_id, step.country_id]
+  );
+  if (pcRes.rows.length === 0) {
+    // If no country-level config, premises cost is 0
+    console.log('[calcStepPremisesCost] no project_countries config for project/country', { project_id: step.project_id, country_id: step.country_id });
+    return { premisesCost: 0, year: targetYear! };
+  }
+  const hours_per_day = Number(pcRes.rows[0].hours_per_day || 0);
+  const npt_rate = Number(pcRes.rows[0].npt_rate || 0);
+  const pcMng = Number(pcRes.rows[0].mng || 0);
+
+  console.log('[calcStepPremisesCost] project_countries', { hours_per_day, npt_rate, pcMng });
+
+  // 4) Get premises_costs_by_default from cities table
+  let premisesRate = 0;
+  if (step.city_id != null) {
+    const cRes = await db.query(`SELECT premises_cost_by_default FROM cities WHERE id=$1 LIMIT 1`, [step.city_id]);
+    if (cRes.rows.length > 0) premisesRate = Number(cRes.rows[0].premises_cost_by_default || 0);
+  } else {
+    console.log('[calcStepPremisesCost] step has no city_id, premisesRate defaults to 0', { stepId: step.id });
+  }
+
+  console.log('[calcStepPremisesCost] premisesRate from city', premisesRate);
+
+  const unit = String(step.process_time_unit || '').toLowerCase();
+  const processHours = unit === 'days' ? process_time * hours_per_day : process_time;
+
+  // Use yearly mng if present, otherwise fallback to project country default mng
+  const mngPercentage = yearlyMng != null ? yearlyMng : pcMng;
+
+  const denom = 1 - (npt_rate / 100);
+  if (!(denom > 0)) {
+    // invalid NPT rate (>=100%), avoid division by zero
+    console.log('[calcStepPremisesCost] invalid denom for npt_rate, returning 0', { npt_rate, denom });
+    return { premisesCost: 0, year: targetYear! };
+  }
+
+  // New formula: process_time * (1 + mng/100) / (1 - npt_rate/100) * premises_cost_by_default
+  const premisesCost = processHours * (1 + mngPercentage / 100) / denom * premisesRate;
+
+  console.log('[calcStepPremisesCost] computed', { stepId, year: targetYear, unit, processHours, mngPercentage, npt_rate, premisesRate, premisesCost });
+
+  return { premisesCost, year: targetYear! };
+}
+
+export async function saveStepPremisesCost(params: {
+  stepId: number;
+  year: number;
+  premisesCost: number;
+  db: DBClient;
+}): Promise<void> {
+  const { stepId, year, premisesCost, db } = params;
+  await db.query(
+    `INSERT INTO step_yearly_data (step_id, year, premises_costs)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (step_id, year)
+     DO UPDATE SET premises_costs = EXCLUDED.premises_costs`,
+    [stepId, year, premisesCost]
+  );
+}
+
 export async function batchCalculateProjectCosts(params: {
   projectId: number;
   db: DBClient;
@@ -389,6 +521,7 @@ export async function batchCalculateProjectCosts(params: {
     salariesCost: number;
     managementCost: number;
     fte: number;
+  premisesCost?: number;
   }> = [];
 
   // 2) Calculate costs for each step
@@ -453,13 +586,29 @@ export async function batchCalculateProjectCosts(params: {
           db 
         });
 
-        result.push({
-          stepId,
-          year: Number(year),
-          salariesCost,
-          managementCost,
-          fte
-        });
+        // Calculate and save premises costs
+        try {
+          const { premisesCost } = await calcStepPremisesCost({ stepId, year: Number(year), db });
+          await saveStepPremisesCost({ stepId, year: Number(year), premisesCost, db });
+          result.push({
+            stepId,
+            year: Number(year),
+            salariesCost,
+            managementCost,
+            fte,
+            premisesCost
+          });
+        } catch (err) {
+          console.warn('Failed to calc/save premises cost for', stepId, year, err);
+          result.push({
+            stepId,
+            year: Number(year),
+            salariesCost,
+            managementCost,
+            fte,
+            premisesCost: 0
+          });
+        }
       } catch (error) {
         console.error(`Error calculating costs for step ${stepId} year ${year}:`, error);
         // Continue with next year/step even if one fails

@@ -23,7 +23,7 @@ const computeProjectYears = (startDate?: string, endDate?: string): number[] => 
 };
 
 export const CostsTab: React.FC<CostsTabProps> = ({ projectId, projectStartDate, projectEndDate, costs, onChange }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'travel' | 'subcontract' | 'it'>('travel');
+  const [activeSubTab, setActiveSubTab] = useState<'travel' | 'subcontract' | 'it' | 'purchases'>('travel');
   const years = computeProjectYears(projectStartDate, projectEndDate);
 
   const handleExport = () => {
@@ -60,7 +60,7 @@ export const CostsTab: React.FC<CostsTabProps> = ({ projectId, projectStartDate,
                 importedCosts.every(cost => 
                   cost.id && 
                   cost.type && 
-                  ['it', 'subcontract', 'travel'].includes(cost.context)
+                  ['it', 'subcontract', 'travel', 'purchases'].includes(cost.context)
                 )) {
               // Usar método de onChange para importar
               onChange(importedCosts);
@@ -121,6 +121,12 @@ export const CostsTab: React.FC<CostsTabProps> = ({ projectId, projectStartDate,
             onClick={() => setActiveSubTab('it')}
           >
             IT
+          </Button>
+          <Button
+            variant={activeSubTab === 'purchases' ? 'primary' : 'secondary'}
+            onClick={() => setActiveSubTab('purchases')}
+          >
+            Purchases
           </Button>
         </div>
 

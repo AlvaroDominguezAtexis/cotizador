@@ -24,6 +24,8 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
   const [accordionOpen, setAccordionOpen] = useState<boolean>(false);
   const [expandedRows, setExpandedRows] = useState<Array<string | number>>([]);
 
+  const getRowKey = (r: NonOperationalCost | Partial<NonOperationalCost>) => (r.id ?? (r as any)._tempKey ?? `${r.concept ?? ''}-${r.type ?? ''}`);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -82,6 +84,7 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
   case 'it': return ['License Non Recurrent', 'License Per Use', 'Material'];
       case 'subcontract': return ['Fixed Price', 'Work Units'];
       case 'travel': return ['Plane', 'Train', 'Hotel', 'Allowances'];
+  case 'purchases': return ['Goods', 'Materials', 'Services'];
       default: return [];
     }
   };
@@ -99,8 +102,14 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       reinvoiced: false,
   year: (projectYears && projectYears.length === 1) ? projectYears[0] : undefined
     };
-    setTableData(prev => [newCost, ...prev]);
-    setEditingCost(newCost);
+  // assign a temporary key so UI can expand this new row reliably
+  (newCost as any)._tempKey = `temp-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+  setTableData(prev => [newCost, ...prev]);
+  setEditingCost(newCost);
+  // auto-expand new row and pre-load project tree
+  const key = getRowKey(newCost);
+  setExpandedRows(prev => Array.from(new Set([key, ...prev])));
+  void loadProjectTree();
   }, [context, projectId, projectYears]);
 
   // Editar coste existente
@@ -109,8 +118,10 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
   const defaulted = { ...cost, year: (cost.year ?? ((projectYears && projectYears.length === 1) ? projectYears[0] : undefined)) } as any;
   setEditingCost(defaulted);
     setSelectedStepIds(Array.isArray(cost.step_ids) ? cost.step_ids : []);
-    setAccordionOpen(true);
-    if (wpTree.length === 0) void loadProjectTree();
+  // auto-expand the row when entering edit mode and preload tree
+  const key = getRowKey(cost);
+  setExpandedRows(prev => Array.from(new Set([key, ...prev])));
+  if (wpTree.length === 0) void loadProjectTree();
   }, [wpTree.length, loadProjectTree, projectYears]);
   // Guardar coste (nuevo o editado)
   const handleSaveCost = useCallback(async () => {
@@ -130,8 +141,14 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       reinvoiced: !!editingCost.reinvoiced,
       ...(selectedStepIds && selectedStepIds.length ? { step_ids: selectedStepIds } : {})
         });
-  // Reemplaza la fila temporal (sin id) por la creada
-  setTableData(prev => [created, ...prev.filter(c => c.id)]);
+        // Reemplaza la fila temporal (sin id) por la creada
+        setTableData(prev => {
+          // remove any temp rows and prepend created
+          const filtered = prev.filter(c => !((c as any)._tempKey));
+          return [created, ...filtered];
+        });
+        // ensure new row is expanded
+        setExpandedRows(prev => Array.from(new Set([getRowKey(created), ...prev])));
       } else {
   const updated = await updateNonOperationalCost(projectId, editingCost.id as number, {
           type: editingCost.type,
@@ -142,7 +159,8 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       reinvoiced: editingCost.reinvoiced,
       ...(selectedStepIds && selectedStepIds.length ? { step_ids: selectedStepIds } : {})
         });
-        setTableData(prev => prev.map(c => c.id === updated.id ? updated : c));
+  setTableData(prev => prev.map(c => c.id === updated.id ? updated : c));
+  setExpandedRows(prev => Array.from(new Set([getRowKey(updated), ...prev])));
       }
     setEditingCost(null);
     setAccordionOpen(false);
@@ -415,14 +433,14 @@ export const NonOperationalCosts: React.FC<NonOperationalCostsProps> = ({ projec
       <Table
         data={tableData}
         columns={columns}
-  rowKey={(r: NonOperationalCost) => (r.id ?? `${r.concept}-${r.type}`)}
+        rowKey={(r: any) => getRowKey(r)}
         rowClassName={(record) => (editingCost?.id === record.id ? 'new-cost-row' : '')}
         expandable={{
           rowExpandable: (_record: NonOperationalCost) => true,
           expandedRowKeys: expandedRows,
           onExpand: async (expanded: boolean, record: NonOperationalCost) => {
             setExpandedRows(prev => {
-              const key = record.id ?? `row-${tableData.indexOf(record)}`;
+              const key = getRowKey(record as any);
               const set = new Set(prev);
               if (expanded) set.add(key); else set.delete(key);
               return Array.from(set);

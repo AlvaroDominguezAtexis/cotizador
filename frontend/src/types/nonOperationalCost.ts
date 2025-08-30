@@ -2,7 +2,7 @@
 export interface NonOperationalCost {
   id?: number;
   project_id?: number; // optional for legacy in-memory rows
-  context: 'it' | 'subcontract' | 'travel';
+  context: 'it' | 'subcontract' | 'travel' | 'purchases';
   type: string;
   concept: string; // canonical name (replaces legacy subcontractorName)
   quantity: number;

@@ -338,28 +338,7 @@ export const upsertProjectCountryHoursPerDay = async (req: Request, res: Respons
 };
 
 // PUT /projects/:projectId/countries-mng/:countryId
-export const upsertProjectCountryMng = async (req: Request, res: Response) => {
-  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
-  const { mng } = req.body as { mng?: number | string | null };
-  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
-  if (mng == null || isNaN(Number(mng))) return res.status(400).json({ error: 'mng numérico requerido' });
-  const mngNum = Number(mng);
-  if (mngNum < 0) return res.status(400).json({ error: 'mng debe ser >= 0' });
-  try {
-    const q = `
-      INSERT INTO project_countries (project_id, country_id, mng)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (project_id, country_id)
-      DO UPDATE SET mng = EXCLUDED.mng
-      RETURNING project_id, country_id, mng
-    `;
-    const { rows } = await db.query(q, [projectId, countryId, mngNum]);
-    res.json(rows[0]);
-  } catch (e) {
-    console.error('upsertProjectCountryMng error', e);
-    res.status(500).json({ error: 'Error al guardar Mng' });
-  }
-};
+// %Mng editing removed from Advance Settings; mng is still stored and used internally for calculations.
 
 // GET /projects/:projectId/countries-social-contribution-rate
 export const getProjectCountriesSocialContributionRate = async (req: Request, res: Response) => {

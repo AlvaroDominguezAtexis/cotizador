@@ -13,7 +13,6 @@ type SettingsRow = {
   it_cost: number | null;
   working_days: number | null;
   hours_per_day: number | null;
-  mng: number | null;
   markup: number | null;
   social_contribution_rate: number | null;
   non_productive_cost_of_productive_staff: number | null;
@@ -23,7 +22,7 @@ type SettingsRow = {
   lean_management_costs: number | null;
 };
 
-type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'working_days' | 'hours_per_day' | 'mng' | 'markup' | 'social_contribution_rate' | 'non_productive_cost_of_productive_staff' | 'it_production_support' | 'operational_quality_costs' | 'operations_management_costs' | 'lean_management_costs';
+type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'working_days' | 'hours_per_day' | 'markup' | 'social_contribution_rate' | 'non_productive_cost_of_productive_staff' | 'it_production_support' | 'operational_quality_costs' | 'operations_management_costs' | 'lean_management_costs';
 
 
 interface Props {
@@ -47,14 +46,13 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
     const load = async () => {
       try {
         setLoading(true);
-  const [cpiRes, arRes, nptRes, itRes, wdRes, hpdRes, mngRes, mkRes, scrRes, npcRes, itpsRes, oqcRes, omcRes, lmcRes] = await Promise.all([
+  const [cpiRes, arRes, nptRes, itRes, wdRes, hpdRes, mkRes, scrRes, npcRes, itpsRes, oqcRes, omcRes, lmcRes] = await Promise.all([
           fetch(`/projects/${projectId}/countries-cpi`),
           fetch(`/projects/${projectId}/countries-activity-rate`),
           fetch(`/projects/${projectId}/countries-npt-rate`),
           fetch(`/projects/${projectId}/countries-it-cost`),
           fetch(`/projects/${projectId}/countries-working-days`),
           fetch(`/projects/${projectId}/countries-hours-per-day`),
-          fetch(`/projects/${projectId}/countries-management`),
           fetch(`/projects/${projectId}/countries-markup`),
           fetch(`/projects/${projectId}/countries-social-contribution-rate`),
           fetch(`/projects/${projectId}/countries-non-productive-cost`),
@@ -68,14 +66,13 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         if (!nptRes.ok) throw new Error('Error cargando NPT Rate del proyecto');
   if (!itRes.ok) throw new Error('Error cargando IT Cost del proyecto');
   if (!wdRes.ok) throw new Error('Error cargando Working Days del proyecto');
-  const [cpiJson, arJson, nptJson, itJson, wdJson, hpdJson, mngJson, mkJson, scrJson, npcJson, itpsJson, oqcJson, omcJson, lmcJson] = await Promise.all([
+  const [cpiJson, arJson, nptJson, itJson, wdJson, hpdJson, mkJson, scrJson, npcJson, itpsJson, oqcJson, omcJson, lmcJson] = await Promise.all([
           cpiRes.json(),
           arRes.json(),
           nptRes.json(),
           itRes.json(),
           wdRes.json(),
           hpdRes.json(),
-          mngRes.json(),
           mkRes.json(),
           scrRes.json(),
           npcRes.json(),
@@ -93,7 +90,6 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         const itMap = new Map<number, number | null>((itJson || []).map((r: any) => [r.country_id, r.it_cost]));
   const wdMap = new Map<number, number | null>((wdJson || []).map((r: any) => [r.country_id, r.working_days]));
   const hpdMap = new Map<number, number | null>((hpdJson || []).map((r: any) => [r.country_id, r.hours_per_day]));
-  const mngMap = new Map<number, number | null>((mngJson || []).map((r: any) => [r.country_id, r.management_salary]));
   const mkMap = new Map<number, number | null>((mkJson || []).map((r: any) => [r.country_id, r.markup]));
   const scrMap = new Map<number, number | null>((scrJson || []).map((r: any) => [r.country_id, r.social_contribution_rate]));
   const npcMap = new Map<number, number | null>((npcJson || []).map((r: any) => [r.country_id, r.non_productive_cost_of_productive_staff]));
@@ -112,7 +108,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
             it_cost: itMap.get(c.id) ?? null,
             working_days: wdMap.get(c.id) ?? null,
             hours_per_day: hpdMap.get(c.id) ?? null,
-            mng: mngMap.get(c.id) ?? null,
+            // mng removed from Advance Settings
             non_productive_cost_of_productive_staff: npcMap.get(c.id) ?? null,
             it_production_support: itpsMap.get(c.id) ?? null,
             operational_quality_costs: oqcMap.get(c.id) ?? null,
@@ -150,7 +146,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         it_cost: row.it_cost ?? 0,
   working_days: row.working_days ?? 0,
   hours_per_day: row.hours_per_day ?? 0,
-        mng: row.mng ?? 0,
+  // mng removed from Advance Settings
   non_productive_cost_of_productive_staff: row.non_productive_cost_of_productive_staff ?? 0,
   it_production_support: row.it_production_support ?? 0,
   operational_quality_costs: row.operational_quality_costs ?? 0,
@@ -189,7 +185,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
 
   // Determine which fields changed vs current row
   const changes: Partial<Record<ParamKey, number>> = {};
-  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'working_days', 'hours_per_day', 'mng', 'non_productive_cost_of_productive_staff', 'it_production_support', 'operational_quality_costs', 'operations_management_costs', 'lean_management_costs', 'markup', 'social_contribution_rate'] as ParamKey[]).forEach((k) => {
+  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'working_days', 'hours_per_day', 'non_productive_cost_of_productive_staff', 'it_production_support', 'operational_quality_costs', 'operations_management_costs', 'lean_management_costs', 'markup', 'social_contribution_rate'] as ParamKey[]).forEach((k) => {
       const newVal = draft[k];
       if (typeof newVal === 'number' && newVal !== (row[k] ?? null)) {
         changes[k] = newVal;
@@ -262,11 +258,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hours_per_day: changes.hours_per_day }),
         }));
       }
-      if (changes.mng !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-management/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ management_salary: changes.mng }),
-        }));
-      }
+  // mng editing removed from Advance Settings
       if (changes.markup !== undefined) {
         calls.push(fetch(`/projects/${projectId}/countries-markup/${countryId}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ markup: changes.markup }),
@@ -320,7 +312,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                   { key: 'it_cost', label: 'IT Cost', type: 'decimal' },
                   { key: 'working_days', label: 'Working Days', type: 'int' },
                   { key: 'hours_per_day', label: 'Hours per Day', type: 'decimal' },
-                  { key: 'mng', label: '%Mng', type: 'decimal' },
+                  // %Mng removed from Advance Settings
                   { key: 'non_productive_cost_of_productive_staff', label: 'Non Productive Part of Productive Staff', type: 'decimal' },
                   { key: 'it_production_support', label: 'IT Production Support', type: 'decimal' },
                   { key: 'operational_quality_costs', label: 'Operational Quality Costs', type: 'decimal' },
@@ -341,7 +333,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                         const val = row[param.key as ParamKey];
                         if (val == null) return '-';
                         if (param.type === 'int') return Number(val).toFixed(0);
-                        if (param.key === 'mng' || param.key === 'markup' || param.key === 'social_contribution_rate') return `${Number(val).toFixed(2)}%`;
+                        if (param.key === 'markup' || param.key === 'social_contribution_rate') return `${Number(val).toFixed(2)}%`;
                         return Number(val).toFixed(param.type === 'decimal' ? 2 : 0);
                       };
                       return (

@@ -138,12 +138,16 @@ export const addProjectCountry = async (req: Request, res: Response) => {
         activity_rate_by_default,
         npt_rate_by_default,
         it_cost_by_default,
-        premises_cost_by_default,
         working_days_by_default,
         hours_per_day_by_default,
         mng_by_default,
         markup_by_default,
-        social_contribution_rate_by_default
+        social_contribution_rate_by_default,
+    non_productive_cost_of_productive_staff_by_default,
+    it_production_support_by_default,
+  operational_quality_costs_by_default,
+  operations_management_costs_by_default
+  ,lean_management_costs_by_default
       FROM countries
       WHERE id = $1
     `;
@@ -164,12 +168,15 @@ export const addProjectCountry = async (req: Request, res: Response) => {
         activity_rate,
         npt_rate,
         it_cost,
-        premises_cost,
         working_days,
         hours_per_day,
         mng,
         markup,
-        social_contribution_rate
+        social_contribution_rate,
+        non_productive_cost_of_productive_staff,
+        it_production_support,
+  operational_quality_costs,
+  operations_management_costs
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       ON CONFLICT (project_id, country_id)
@@ -179,12 +186,16 @@ export const addProjectCountry = async (req: Request, res: Response) => {
         activity_rate = EXCLUDED.activity_rate,
         npt_rate = EXCLUDED.npt_rate,
         it_cost = EXCLUDED.it_cost,
-        premises_cost = EXCLUDED.premises_cost,
         working_days = EXCLUDED.working_days,
         hours_per_day = EXCLUDED.hours_per_day,
         mng = EXCLUDED.mng,
         markup = EXCLUDED.markup,
-        social_contribution_rate = EXCLUDED.social_contribution_rate
+        social_contribution_rate = EXCLUDED.social_contribution_rate,
+        non_productive_cost_of_productive_staff = EXCLUDED.non_productive_cost_of_productive_staff,
+        it_production_support = EXCLUDED.it_production_support,
+  operational_quality_costs = EXCLUDED.operational_quality_costs,
+  operations_management_costs = EXCLUDED.operations_management_costs
+  ,lean_management_costs = EXCLUDED.lean_management_costs
       RETURNING *
     `;
     const { rows } = await db.query(q, [
@@ -195,17 +206,64 @@ export const addProjectCountry = async (req: Request, res: Response) => {
       defaults.activity_rate_by_default,
       defaults.npt_rate_by_default,
       defaults.it_cost_by_default,
-      defaults.premises_cost_by_default,
       defaults.working_days_by_default,
       defaults.hours_per_day_by_default,
       defaults.mng_by_default,
       defaults.markup_by_default,
-      defaults.social_contribution_rate_by_default
+      defaults.social_contribution_rate_by_default,
+      defaults.non_productive_cost_of_productive_staff_by_default,
+      defaults.it_production_support_by_default,
+      defaults.operational_quality_costs_by_default
+  ,defaults.operations_management_costs_by_default
+  ,defaults.lean_management_costs_by_default
     ]);
     res.json(rows[0]);
   } catch (e) {
     console.error('addProjectCountry error', e);
     res.status(500).json({ error: 'Error al agregar país al proyecto' });
+  }
+};
+
+// GET /projects/:projectId/countries-lean-management-costs
+export const getProjectCountriesLeanManagementCosts = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.lean_management_costs
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesLeanManagementCosts error', e);
+    res.status(500).json({ error: 'Error al obtener lean management costs por país' });
+  }
+};
+
+// PUT /projects/:projectId/countries-lean-management-costs/:countryId
+export const upsertProjectCountryLeanManagementCosts = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { lean_management_costs } = req.body as { lean_management_costs?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (lean_management_costs == null || isNaN(Number(lean_management_costs))) return res.status(400).json({ error: 'lean_management_costs numérico requerido' });
+  const val = Number(lean_management_costs);
+  if (val < 0) return res.status(400).json({ error: 'lean_management_costs debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, lean_management_costs)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id) DO UPDATE SET lean_management_costs = EXCLUDED.lean_management_costs
+      RETURNING project_id, country_id, lean_management_costs
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, val]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryLeanManagementCosts error', e);
+    res.status(500).json({ error: 'Error al guardar lean_management_costs' });
   }
 };
 
@@ -412,6 +470,178 @@ export const getProjectCountriesNptRate = async (req: Request, res: Response) =>
   } catch (e) {
     console.error('getProjectCountriesNptRate error', e);
     res.status(500).json({ error: 'Error al obtener NPT Rate por país' });
+  }
+};
+
+// GET /projects/:projectId/countries-non-productive-cost
+export const getProjectCountriesNonProductiveCost = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.non_productive_cost_of_productive_staff
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesNonProductiveCost error', e);
+    res.status(500).json({ error: 'Error al obtener Non Productive Cost por país' });
+  }
+};
+
+// PUT /projects/:projectId/countries-non-productive-cost/:countryId
+export const upsertProjectCountryNonProductiveCost = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { non_productive_cost_of_productive_staff } = req.body as { non_productive_cost_of_productive_staff?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (non_productive_cost_of_productive_staff == null || isNaN(Number(non_productive_cost_of_productive_staff))) return res.status(400).json({ error: 'non_productive_cost_of_productive_staff numérico requerido' });
+  const val = Number(non_productive_cost_of_productive_staff);
+  if (val < 0) return res.status(400).json({ error: 'non_productive_cost_of_productive_staff debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, non_productive_cost_of_productive_staff)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id)
+      DO UPDATE SET non_productive_cost_of_productive_staff = EXCLUDED.non_productive_cost_of_productive_staff
+      RETURNING project_id, country_id, non_productive_cost_of_productive_staff
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, val]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryNonProductiveCost error', e);
+    res.status(500).json({ error: 'Error al guardar Non Productive Cost' });
+  }
+};
+
+// GET /projects/:projectId/countries-it-production-support
+export const getProjectCountriesItProductionSupport = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.it_production_support
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesItProductionSupport error', e);
+    res.status(500).json({ error: 'Error al obtener IT Production Support por país' });
+  }
+};
+
+// PUT /projects/:projectId/countries-it-production-support/:countryId
+export const upsertProjectCountryItProductionSupport = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { it_production_support } = req.body as { it_production_support?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (it_production_support == null || isNaN(Number(it_production_support))) return res.status(400).json({ error: 'it_production_support numérico requerido' });
+  const val = Number(it_production_support);
+  if (val < 0) return res.status(400).json({ error: 'it_production_support debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, it_production_support)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id)
+      DO UPDATE SET it_production_support = EXCLUDED.it_production_support
+      RETURNING project_id, country_id, it_production_support
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, val]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryItProductionSupport error', e);
+    res.status(500).json({ error: 'Error al guardar IT Production Support' });
+  }
+};
+
+// GET /projects/:projectId/countries-operational-quality-costs
+export const getProjectCountriesOperationalQualityCosts = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.operational_quality_costs
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesOperationalQualityCosts error', e);
+    res.status(500).json({ error: 'Error al obtener Operational Quality Costs por país' });
+  }
+};
+
+// PUT /projects/:projectId/countries-operational-quality-costs/:countryId
+export const upsertProjectCountryOperationalQualityCosts = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { operational_quality_costs } = req.body as { operational_quality_costs?: number | string | null };
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (operational_quality_costs == null || isNaN(Number(operational_quality_costs))) return res.status(400).json({ error: 'operational_quality_costs numérico requerido' });
+  const val = Number(operational_quality_costs);
+  if (val < 0) return res.status(400).json({ error: 'operational_quality_costs debe ser >= 0' });
+  try {
+    const q = `
+      INSERT INTO project_countries (project_id, country_id, operational_quality_costs)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (project_id, country_id)
+      DO UPDATE SET operational_quality_costs = EXCLUDED.operational_quality_costs
+      RETURNING project_id, country_id, operational_quality_costs
+    `;
+    const { rows } = await db.query(q, [projectId, countryId, val]);
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryOperationalQualityCosts error', e);
+    res.status(500).json({ error: 'Error al guardar Operational Quality Costs' });
+  }
+};
+
+// GET /projects/:projectId/countries-operations-management-costs
+export const getProjectCountriesOperationsManagementCosts = async (req: Request, res: Response) => {
+  const { projectId } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT pc.country_id, c.name AS country_name, pc.operations_management_costs
+       FROM project_countries pc
+       JOIN countries c ON c.id = pc.country_id
+       WHERE pc.project_id = $1
+       ORDER BY c.name`, [projectId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener operations management costs por país' });
+  }
+};
+
+// PUT /projects/:projectId/countries-operations-management-costs/:countryId
+export const upsertProjectCountryOperationsManagementCosts = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params;
+  const { operations_management_costs } = req.body as { operations_management_costs?: number | string | null };
+  if (operations_management_costs == null || isNaN(Number(operations_management_costs))) return res.status(400).json({ error: 'operations_management_costs numérico requerido' });
+  const val = Number(operations_management_costs);
+  if (val < 0) return res.status(400).json({ error: 'operations_management_costs debe ser >= 0' });
+  try {
+    const result = await db.query(
+      `INSERT INTO project_countries (project_id, country_id, operations_management_costs)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (project_id, country_id) DO UPDATE SET operations_management_costs = EXCLUDED.operations_management_costs
+       RETURNING project_id, country_id, operations_management_costs`,
+      [projectId, countryId, val]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al guardar operations_management_costs' });
   }
 };
 

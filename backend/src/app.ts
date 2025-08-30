@@ -20,6 +20,11 @@ import projectCountriesRoutes, {
 	projectCountriesManagementRouter,
 	projectCountriesMarkupRouter,
 	projectCountriesSocialContributionRateRouter,
+ 	projectCountriesNonProductiveCostRouter,
+	projectCountriesItProductionSupportRouter,
+	projectCountriesOperationalQualityCostsRouter,
+	projectCountriesOperationsManagementCostsRouter,
+	projectCountriesLeanManagementCostsRouter,
 } from './routes/Project/projectCountriesRoutes';
 import projectCitiesRoutes from './routes/Project/projectCitiesRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
@@ -62,6 +67,11 @@ app.use('/projects/:projectId/countries-npt-rate', projectCountriesNptRouter);
 app.use('/projects/:projectId/countries-it-cost', projectCountriesItRouter);
 app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRouter);
 app.use('/projects/:projectId/countries-hours-per-day', projectCountriesHoursPerDayRouter);
+app.use('/projects/:projectId/countries-non-productive-cost', projectCountriesNonProductiveCostRouter);
+app.use('/projects/:projectId/countries-it-production-support', projectCountriesItProductionSupportRouter);
+app.use('/projects/:projectId/countries-operational-quality-costs', projectCountriesOperationalQualityCostsRouter);
+	app.use('/projects/:projectId/countries-operations-management-costs', projectCountriesOperationsManagementCostsRouter);
+	app.use('/projects/:projectId/countries-lean-management-costs', projectCountriesLeanManagementCostsRouter);
 // Debug route registration
 console.log('Registering management salary routes at /projects/:projectId/countries-management');
 app.use('/projects/:projectId/countries-management', projectCountriesManagementRouter);

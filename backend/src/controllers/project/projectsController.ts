@@ -147,7 +147,7 @@ export const createProject = async (req: Request, res: Response) => {
       const countryIds: number[] = countries.map((c: any) => Number(c)).filter((n: any) => !Number.isNaN(n));
       // Inserta mediante SELECT para tomar el cpi_by_default de cada país
     const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, working_days, hours_per_day, mng, markup, social_contribution_rate, management_yearly_salary)
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, working_days, hours_per_day, mng, markup, social_contribution_rate, management_yearly_salary, non_productive_cost_of_productive_staff, it_production_support, operational_quality_costs, operations_management_costs, lean_management_costs)
   SELECT $1 AS project_id, c.id AS country_id,
      c.cpi_by_default AS cpi,
      c.activity_rate_by_default AS activity_rate,
@@ -159,6 +159,11 @@ export const createProject = async (req: Request, res: Response) => {
      c.markup_by_default AS markup,
      c.social_contribution_rate_by_default AS social_contribution_rate,
      c.management_yearly_salary_by_default AS management_yearly_salary
+    ,c.non_productive_cost_of_productive_staff_by_default AS non_productive_cost_of_productive_staff
+    ,c.it_production_support_by_default AS it_production_support
+  ,c.operational_quality_costs_by_default AS operational_quality_costs
+  ,c.operations_management_costs_by_default AS operations_management_costs
+  ,c.lean_management_costs_by_default AS lean_management_costs
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;
@@ -283,7 +288,7 @@ export const updateProject = async (req: Request, res: Response) => {
     const toInsert: number[] = newCountries.filter((cid) => !oldSet.has(cid));
     if (toInsert.length > 0) {
     const insertCountriesQuery = `
-  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, working_days, hours_per_day, mng, markup, social_contribution_rate, management_yearly_salary)
+  INSERT INTO project_countries (project_id, country_id, cpi, activity_rate, npt_rate, it_cost, working_days, hours_per_day, mng, markup, social_contribution_rate, management_yearly_salary, non_productive_cost_of_productive_staff, it_production_support, operational_quality_costs, operations_management_costs, lean_management_costs)
   SELECT $1 AS project_id, c.id AS country_id,
          c.cpi_by_default AS cpi,
          c.activity_rate_by_default AS activity_rate,
@@ -295,6 +300,11 @@ export const updateProject = async (req: Request, res: Response) => {
          c.markup_by_default AS markup,
          c.social_contribution_rate_by_default AS social_contribution_rate,
          c.management_yearly_salary_by_default AS management_yearly_salary
+    ,c.non_productive_cost_of_productive_staff_by_default AS non_productive_cost_of_productive_staff
+    ,c.it_production_support_by_default AS it_production_support
+  ,c.operational_quality_costs_by_default AS operational_quality_costs
+  ,c.operations_management_costs_by_default AS operations_management_costs
+  ,c.lean_management_costs_by_default AS lean_management_costs
         FROM countries c
         WHERE c.id = ANY($2::int[])
         ON CONFLICT (project_id, country_id) DO NOTHING;

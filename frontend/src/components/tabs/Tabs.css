@@ -157,6 +157,18 @@
   border-collapse: separate;
   border-spacing: 0 8px;
 }
+/* Make header sticky for wide tables so column labels remain visible during horizontal scroll */
+.settings-table thead th {
+  position: sticky;
+  top: 0;
+  background: inherit;
+  z-index: 5;
+}
+
+/* Ensure sticky header has solid background to avoid text bleed-through on scroll */
+.settings-table thead th {
+  background: #f8f9fa;
+}
 .settings-table thead th {
   text-align: left;
   padding: 10px 12px;
@@ -192,6 +204,36 @@
   padding: 4px 8px;
   background: #f1f3f5;
   border-radius: 6px;
+}
+.settings-table td, .settings-table th { vertical-align: middle; }
+
+/* Responsive: on small screens, reduce input width and allow table to stack visually */
+@media (max-width: 768px) {
+  .settings-input {
+    width: 100%;
+    font-size: 0.9rem;
+    padding: 6px 8px;
+  }
+  .settings-value { min-width: 56px; padding: 3px 6px; }
+  /* Allow horizontal scrolling but make the table more compact */
+  .tab-content > div[style] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Make table cells stack visually on very narrow screens */
+  .settings-table, .settings-table thead, .settings-table tbody, .settings-table th, .settings-table td, .settings-table tr {
+    display: block;
+  }
+  .settings-table thead tr { position: absolute; top: -9999px; left: -9999px; }
+  .settings-table tr { margin: 0 0 10px 0; }
+  .settings-table td { border: none; position: relative; padding-left: 50%; }
+  .settings-table td:before { position: absolute; top: 12px; left: 12px; width: 45%; padding-right: 10px; white-space: nowrap; font-weight: 600; }
+}
+
+/* If there are many country columns, allow the table to be scrollable while keeping actions visible */
+@media (min-width: 769px) {
+  .settings-table { table-layout: auto; }
 }
 .settings-actions { display: flex; gap: 8px; }
 .btn {

@@ -17,6 +17,7 @@ interface SummaryTabProps {
 
 export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workPackages, costs }) => {
   const [loading, setLoading] = React.useState(false);
+  const [recalcId, setRecalcId] = React.useState<number>(0);
 
   // Recalculate costs when loading summary
   React.useEffect(() => {
@@ -51,7 +52,9 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
       } catch (e) {
         console.error('Error recalculating project costs:', e);
       } finally {
-        setLoading(false);
+  setLoading(false);
+  // mark that a recalc has completed so SummaryDocument remounts and fetches fresh data
+  setRecalcId(Date.now());
       }
     };
 
@@ -103,7 +106,10 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
       <div >
         <div className="summary-main-content" style={{ width: '100%' }}>
           <Card>
-            <SummaryDocument project={project} workPackages={workPackages} profiles={profiles} costs={costs} />
+            {/* Render SummaryDocument after a recalc has run so the backend calculations are fresh */}
+            {recalcId !== 0 && (
+              <SummaryDocument key={recalcId} project={project} workPackages={workPackages} profiles={profiles} costs={costs} />
+            )}
           </Card>
         </div>
       </div>

@@ -6,6 +6,16 @@ import {
 	upsertProjectCountryActivityRate,
 	getProjectCountriesNptRate,
 	upsertProjectCountryNptRate,
+	getProjectCountriesNonProductiveCost,
+	upsertProjectCountryNonProductiveCost,
+	getProjectCountriesItProductionSupport,
+	upsertProjectCountryItProductionSupport,
+	getProjectCountriesOperationalQualityCosts,
+	upsertProjectCountryOperationalQualityCosts,
+	getProjectCountriesOperationsManagementCosts,
+	upsertProjectCountryOperationsManagementCosts,
+	getProjectCountriesLeanManagementCosts,
+	upsertProjectCountryLeanManagementCosts,
 	getProjectCountriesItCost,
 	upsertProjectCountryItCost,
 	getProjectCountriesWorkingDays,
@@ -33,6 +43,26 @@ projectCountriesActivityRouter.put('/:countryId', upsertProjectCountryActivityRa
 export const projectCountriesNptRouter = express.Router({ mergeParams: true });
 projectCountriesNptRouter.get('/', getProjectCountriesNptRate);
 projectCountriesNptRouter.put('/:countryId', upsertProjectCountryNptRate);
+
+export const projectCountriesNonProductiveCostRouter = express.Router({ mergeParams: true });
+projectCountriesNonProductiveCostRouter.get('/', getProjectCountriesNonProductiveCost);
+projectCountriesNonProductiveCostRouter.put('/:countryId', upsertProjectCountryNonProductiveCost);
+
+export const projectCountriesItProductionSupportRouter = express.Router({ mergeParams: true });
+projectCountriesItProductionSupportRouter.get('/', getProjectCountriesItProductionSupport);
+projectCountriesItProductionSupportRouter.put('/:countryId', upsertProjectCountryItProductionSupport);
+
+export const projectCountriesOperationalQualityCostsRouter = express.Router({ mergeParams: true });
+projectCountriesOperationalQualityCostsRouter.get('/', getProjectCountriesOperationalQualityCosts);
+projectCountriesOperationalQualityCostsRouter.put('/:countryId', upsertProjectCountryOperationalQualityCosts);
+
+export const projectCountriesOperationsManagementCostsRouter = express.Router({ mergeParams: true });
+projectCountriesOperationsManagementCostsRouter.get('/', getProjectCountriesOperationsManagementCosts);
+projectCountriesOperationsManagementCostsRouter.put('/:countryId', upsertProjectCountryOperationsManagementCosts);
+
+export const projectCountriesLeanManagementCostsRouter = express.Router({ mergeParams: true });
+projectCountriesLeanManagementCostsRouter.get('/', getProjectCountriesLeanManagementCosts);
+projectCountriesLeanManagementCostsRouter.put('/:countryId', upsertProjectCountryLeanManagementCosts);
 
 export const projectCountriesItRouter = express.Router({ mergeParams: true });
 projectCountriesItRouter.get('/', getProjectCountriesItCost);

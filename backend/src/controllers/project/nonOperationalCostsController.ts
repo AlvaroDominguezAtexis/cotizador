@@ -22,9 +22,9 @@ const normalizeRow = (r: any) => ({
 const parseStepIds = (val: unknown): number[] | undefined => {
   if (val === undefined || val === null) return undefined;
   if (Array.isArray(val)) {
-  const nums = val.map(Number).filter((n) => Number.isInteger(n));
-  const uniq = Array.from(new Set(nums));
-  return uniq;
+    const nums = val.map(Number).filter((n) => Number.isInteger(n));
+    const uniq = Array.from(new Set(nums));
+    return uniq;
   }
   return undefined;
 };
@@ -58,34 +58,28 @@ export const getNonOperationalCosts = async (req: Request, res: Response) => {
       params.push(String(context));
     }
     query += ' ORDER BY id DESC';
-    const result = await Pool.query(query, params);
-    res.json(result.rows.map(normalizeRow));
+
+    const { rows } = await Pool.query(query, params);
+    res.json(rows.map(normalizeRow));
   } catch (err) {
-    console.error('Error listando non operational costs:', err);
-    res.status(500).json({ error: 'Error obteniendo costes' });
+    console.error('Error fetching non operational costs:', err);
+    res.status(500).json({ error: 'Error fetching costs' });
   }
 };
 
 // GET /projects/:projectId/non-operational-costs/:id
 export const getNonOperationalCostById = async (req: Request, res: Response) => {
-  const { projectId, id } = req.params as any;
+  const { projectId, id } = req.params;
   try {
     const { rows } = await Pool.query(
       'SELECT * FROM project_non_operational_costs WHERE id=$1 AND project_id=$2',
       [id, projectId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Coste no encontrado' });
-    const row = normalizeRow(rows[0]);
-      // Always include any associated step_ids (if present) regardless of assignation
-      const { rows: sRows } = await Pool.query(
-        'SELECT step_id FROM step_non_operational_costs WHERE cost_id=$1 ORDER BY step_id ASC',
-        [id]
-      );
-      (row as any).step_ids = sRows.map((r) => r.step_id);
-    res.json(row);
+    res.json(normalizeRow(rows[0]));
   } catch (err) {
-    console.error('Error obteniendo coste:', err);
-    res.status(500).json({ error: 'Error obteniendo coste' });
+    console.error('Error fetching non operational cost by id:', err);
+    res.status(500).json({ error: 'Error fetching cost' });
   }
 };
 
@@ -101,7 +95,7 @@ export const createNonOperationalCost = async (req: Request, res: Response) => {
     year = null,
     reinvoiced = false,
     step_ids
-  } = req.body;
+  } = req.body as any;
 
   if (!VALID_CONTEXT.includes(context)) {
     return res.status(400).json({ error: 'Context inválido' });
@@ -137,7 +131,7 @@ export const createNonOperationalCost = async (req: Request, res: Response) => {
       // If client provided step_ids, always validate and insert associations
       const stepIds = parseStepIds(step_ids) || [];
       if (stepIds.length) {
-  console.debug('[nonOperationalCosts] creating associations for cost', created.id, 'stepIds=', stepIds);
+        console.debug('[nonOperationalCosts] creating associations for cost', created.id, 'stepIds=', stepIds);
         const ok = await validateStepsBelongToProject(client, stepIds, Number(projectId));
         if (!ok) {
           await client.query('ROLLBACK');
@@ -149,7 +143,7 @@ export const createNonOperationalCost = async (req: Request, res: Response) => {
            SELECT unnest($1::int[]), $2`,
           [stepIds, created.id]
         );
-  console.debug('[nonOperationalCosts] associations inserted for cost', created.id);
+        console.debug('[nonOperationalCosts] associations inserted for cost', created.id);
         (created as any).step_ids = stepIds;
       } else {
         (created as any).step_ids = [];
@@ -181,11 +175,11 @@ export const updateNonOperationalCost = async (req: Request, res: Response) => {
     year,
     reinvoiced,
     step_ids
-  } = req.body;
+  } = req.body as any;
 
   try {
     const client = await Pool.connect();
-  try {
+    try {
       await client.query('BEGIN');
 
       // Lock current row
@@ -253,17 +247,16 @@ export const updateNonOperationalCost = async (req: Request, res: Response) => {
              SELECT unnest($1::int[]), $2`,
             [stepIds, id]
           );
-            console.debug('[nonOperationalCosts] associations replaced for cost', id);
-          }
+          console.debug('[nonOperationalCosts] associations replaced for cost', id);
         }
-        // No assignation handling required; associations are managed only when step_ids are provided
+      }
 
-        // Always include current step_ids in response (may be empty array)
+      // Always include current step_ids in response (may be empty array)
       const { rows: sRows } = await client.query(
         'SELECT step_id FROM step_non_operational_costs WHERE cost_id=$1 ORDER BY step_id ASC',
         [id]
       );
-      (updated as any).step_ids = sRows.map((r) => r.step_id);
+      (updated as any).step_ids = sRows.map((r: any) => r.step_id);
 
       await client.query('COMMIT');
       res.json(updated);
@@ -320,8 +313,8 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
   try {
     const client = await Pool.connect();
     try {
-  console.info('[recomputeItCosts] start', { projectId, year });
-  await client.query('BEGIN');
+      console.info('[recomputeItCosts] start', { projectId, year });
+      await client.query('BEGIN');
 
       // 1) Reset IT costs for project & year
       await client.query(
@@ -354,11 +347,47 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
         console.warn('[recomputeItCosts] could not reset it_recurrent_costs (maybe column missing):', String(err));
       }
 
+      // Try to reset travel_costs as well (non-fatal if missing)
+      try {
+        await client.query(
+          `UPDATE step_yearly_data syd
+           SET travel_costs = 0
+           FROM steps s
+           JOIN deliverables d ON d.id = s.deliverable_id
+           JOIN workpackages wp ON wp.id = d.workpackage_id
+           WHERE syd.step_id = s.id
+             AND wp.project_id = $1
+             AND syd.year = $2`,
+          [projectId, year]
+        );
+        console.debug('[recomputeItCosts] reset travel_costs to 0 for project/year', { projectId, year });
+      } catch (err) {
+        console.warn('[recomputeItCosts] could not reset travel_costs (maybe column missing):', String(err));
+      }
+
+      // Try to reset subco_costs as well (non-fatal if missing)
+      try {
+        await client.query(
+          `UPDATE step_yearly_data syd
+           SET subco_costs = 0
+           FROM steps s
+           JOIN deliverables d ON d.id = s.deliverable_id
+           JOIN workpackages wp ON wp.id = d.workpackage_id
+           WHERE syd.step_id = s.id
+             AND wp.project_id = $1
+             AND syd.year = $2`,
+          [projectId, year]
+        );
+        console.debug('[recomputeItCosts] reset subco_costs to 0 for project/year', { projectId, year });
+      } catch (err) {
+        console.warn('[recomputeItCosts] could not reset subco_costs (maybe column missing):', String(err));
+      }
+
       // 2) Fetch IT costs (not reinvoiced) for project & year
       // Include costs with year=NULL (apply to all years) or matching the requested year
       const { rows: itCosts } = await client.query(
-  `SELECT id, quantity, unit_cost, type, year, reinvoiced, context FROM project_non_operational_costs
-   WHERE project_id=$1 AND context='it' AND (reinvoiced IS NULL OR reinvoiced = false) AND (year IS NULL OR year=$2)`,
+        `SELECT id, quantity, unit_cost, type, year, reinvoiced, context FROM project_non_operational_costs
+         WHERE project_id=$1 AND context='it' AND (reinvoiced IS NULL OR reinvoiced = false) AND (year IS NULL OR year=$2)`,
         [projectId, year]
       );
 
@@ -453,9 +482,9 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
                 continue;
               }
               const process_time = Number(r.process_time || 0);
-                  const shareRaw = (amount / annualHours) * (process_time / denom);
-                  // Round to 2 decimals to avoid DB integer truncation or very small values
-                  const share = Math.round(shareRaw * 100) / 100;
+              const shareRaw = (amount / annualHours) * (process_time / denom);
+              // Round to 2 decimals to avoid DB integer truncation or very small values
+              const share = Math.round(shareRaw * 100) / 100;
               try {
                 await client.query(
                   `UPDATE step_yearly_data SET it_recurrent_costs = COALESCE(it_recurrent_costs,0) + $1 WHERE id = $2`,
@@ -491,7 +520,14 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
             };
           });
 
-          const sumW = weights.reduce((acc, x) => acc + x.w, 0);
+          let sumW = weights.reduce((acc, x) => acc + x.w, 0);
+
+          // If sumW is zero (all weights zero) normalize to equal weights to avoid NaN shares
+          if (!(sumW > 0)) {
+            console.warn('[recomputeItCosts] sumW is zero or invalid for it_costs allocation, falling back to equal weights', { costId: cost.id, weights });
+            weights = weights.map((w) => ({ ...w, w: 1 }));
+            sumW = weights.length;
+          }
 
           console.debug('[recomputeItCosts] computed weights', { costId: cost.id, sumW, weights: weights.map(w => ({ syd_id: w.syd_id, step_id: w.step_id, w: w.w, salMgmt: w.salMgmt, pt: w.pt })) });
 
@@ -556,6 +592,184 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
           } catch (err2) {
             console.error('[recomputeItCosts] fallback write for IT premium also failed for syd', r.syd_id, String(err2));
           }
+        }
+      }
+
+      // --- Travel costs: allocate non-reinvoiced travel costs to travel_costs by weights ---
+      const { rows: travelCosts } = await client.query(
+        `SELECT id, quantity, unit_cost, type, year, reinvoiced FROM project_non_operational_costs
+         WHERE project_id=$1 AND context='travel' AND (reinvoiced IS NULL OR reinvoiced = false) AND (year IS NULL OR year=$2)`,
+        [projectId, year]
+      );
+      console.debug('[recomputeItCosts] travelCosts count', travelCosts.length);
+      console.debug('[recomputeItCosts] travelCosts rows', travelCosts.map((c: any) => ({ id: c.id, type: c.type, year: c.year, quantity: c.quantity, unit_cost: c.unit_cost, reinvoiced: c.reinvoiced })));
+
+      for (const cost of travelCosts) {
+        const amount = Number(cost.quantity || 0) * Number(cost.unit_cost || 0);
+        console.debug('[recomputeItCosts] processing travel cost', { costId: cost.id, quantity: cost.quantity, unit_cost: cost.unit_cost, amount });
+        if (!amount) {
+          console.debug('[recomputeItCosts] skipping zero amount travel cost', { costId: cost.id, quantity: cost.quantity, unit_cost: cost.unit_cost, year: cost.year });
+          continue;
+        }
+
+        // associated steps
+        const { rows: assocT } = await client.query(
+          'SELECT step_id FROM step_non_operational_costs WHERE cost_id=$1',
+          [cost.id]
+        );
+        let stepIdsT = assocT.map((r: any) => r.step_id);
+
+        // fallback: all project steps with syd for the year
+        if (!stepIdsT.length) {
+          const { rows: allRows } = await client.query(
+            `SELECT syd.step_id
+               FROM step_yearly_data syd
+               JOIN steps s ON s.id = syd.step_id
+               JOIN deliverables d ON d.id = s.deliverable_id
+               JOIN workpackages wp ON wp.id = d.workpackage_id
+               WHERE wp.project_id = $1
+                 AND syd.year = $2`,
+            [projectId, year]
+          );
+          stepIdsT = allRows.map((r: any) => r.step_id);
+          console.debug('[recomputeItCosts] fallback to all project steps for travel cost', { costId: cost.id, chosenSteps: stepIdsT.length });
+          if (!stepIdsT.length) {
+            console.warn('[recomputeItCosts] no candidate steps for travel cost', cost.id, 'project', projectId, 'year', year);
+            continue;
+          }
+        }
+
+        const { rows: sydRowsT } = await client.query(
+          `SELECT syd.id AS syd_id, syd.step_id, syd.process_time, syd.salaries_cost, syd.management_costs
+           FROM step_yearly_data syd
+           JOIN steps s ON s.id = syd.step_id
+           WHERE syd.step_id = ANY($1::int[]) AND syd.year = $2`,
+          [stepIdsT, year]
+        );
+
+        if (!sydRowsT.length) {
+          console.warn('[recomputeItCosts] no step_yearly_data for provided steps/year for travel cost', cost.id);
+          continue;
+        }
+
+        // Compute weights exactly like it_costs allocation
+        let weightsT = sydRowsT.map((r: any) => {
+          const pt = Number(r.process_time || 0);
+          const salMgmt = Number(r.salaries_cost || 0) + Number(r.management_costs || 0);
+          const w = salMgmt > 0 ? salMgmt : (pt > 0 ? pt : 1);
+          return {
+            syd_id: r.syd_id,
+            step_id: r.step_id,
+            pt,
+            salMgmt,
+            w
+          };
+        });
+
+        let sumWT = weightsT.reduce((acc, x) => acc + x.w, 0);
+        if (!(sumWT > 0)) {
+          console.warn('[recomputeItCosts] sumWT is zero or invalid for travel allocation, using equal weights', { costId: cost.id });
+          weightsT = weightsT.map(w => ({ ...w, w: 1 }));
+          sumWT = weightsT.length;
+        }
+        console.debug('[recomputeItCosts] computed travel weights', { costId: cost.id, sumW: sumWT, weights: weightsT.map(w => ({ syd_id: w.syd_id, step_id: w.step_id, w: w.w, salMgmt: w.salMgmt, pt: w.pt })) });
+
+        for (const w of weightsT) {
+          const share = amount * (w.w / sumWT);
+          await client.query(
+            `UPDATE step_yearly_data SET travel_costs = COALESCE(travel_costs,0) + $1 WHERE id = $2`,
+            [share, w.syd_id]
+          );
+          console.debug('[recomputeItCosts] applied travel share', { costId: cost.id, syd_id: w.syd_id, share });
+        }
+      }
+
+      // --- Subcontract costs: allocate all non-reinvoiced subcontract costs to subco_costs by weights ---
+      const { rows: subcoCosts } = await client.query(
+        `SELECT id, quantity, unit_cost, type, year, reinvoiced FROM project_non_operational_costs
+         WHERE project_id=$1 AND context='subcontract' AND (reinvoiced IS NULL OR reinvoiced = false) AND (year IS NULL OR year=$2)`,
+        [projectId, year]
+      );
+      console.debug('[recomputeItCosts] subcoCosts count', subcoCosts.length);
+      console.debug('[recomputeItCosts] subcoCosts rows', subcoCosts.map((c: any) => ({ id: c.id, type: c.type, year: c.year, quantity: c.quantity, unit_cost: c.unit_cost, reinvoiced: c.reinvoiced })));
+
+      for (const cost of subcoCosts) {
+        const amount = Number(cost.quantity || 0) * Number(cost.unit_cost || 0);
+        console.debug('[recomputeItCosts] processing subcontract cost', { costId: cost.id, quantity: cost.quantity, unit_cost: cost.unit_cost, amount });
+        if (!amount) {
+          console.debug('[recomputeItCosts] skipping zero amount subcontract cost', { costId: cost.id, quantity: cost.quantity, unit_cost: cost.unit_cost, year: cost.year });
+          continue;
+        }
+
+        // associated steps
+        const { rows: assocS } = await client.query(
+          'SELECT step_id FROM step_non_operational_costs WHERE cost_id=$1',
+          [cost.id]
+        );
+        let stepIdsS = assocS.map((r: any) => r.step_id);
+
+        // fallback: all project steps with syd for the year
+        if (!stepIdsS.length) {
+          const { rows: allRows } = await client.query(
+            `SELECT syd.step_id
+               FROM step_yearly_data syd
+               JOIN steps s ON s.id = syd.step_id
+               JOIN deliverables d ON d.id = s.deliverable_id
+               JOIN workpackages wp ON wp.id = d.workpackage_id
+               WHERE wp.project_id = $1
+                 AND syd.year = $2`,
+            [projectId, year]
+          );
+          stepIdsS = allRows.map((r: any) => r.step_id);
+          console.debug('[recomputeItCosts] fallback to all project steps for subcontract cost', { costId: cost.id, chosenSteps: stepIdsS.length });
+          if (!stepIdsS.length) {
+            console.warn('[recomputeItCosts] no candidate steps for subcontract cost', cost.id, 'project', projectId, 'year', year);
+            continue;
+          }
+        }
+
+        const { rows: sydRowsS } = await client.query(
+          `SELECT syd.id AS syd_id, syd.step_id, syd.process_time, syd.salaries_cost, syd.management_costs
+           FROM step_yearly_data syd
+           JOIN steps s ON s.id = syd.step_id
+           WHERE syd.step_id = ANY($1::int[]) AND syd.year = $2`,
+          [stepIdsS, year]
+        );
+
+        if (!sydRowsS.length) {
+          console.warn('[recomputeItCosts] no step_yearly_data for provided steps/year for subcontract cost', cost.id);
+          continue;
+        }
+
+        // Compute weights exactly like it_costs allocation
+        let weightsS = sydRowsS.map((r: any) => {
+          const pt = Number(r.process_time || 0);
+          const salMgmt = Number(r.salaries_cost || 0) + Number(r.management_costs || 0);
+          const w = salMgmt > 0 ? salMgmt : (pt > 0 ? pt : 1);
+          return {
+            syd_id: r.syd_id,
+            step_id: r.step_id,
+            pt,
+            salMgmt,
+            w
+          };
+        });
+
+        let sumWS = weightsS.reduce((acc, x) => acc + x.w, 0);
+        if (!(sumWS > 0)) {
+          console.warn('[recomputeItCosts] sumWS is zero or invalid for subcontract allocation, using equal weights', { costId: cost.id });
+          weightsS = weightsS.map(w => ({ ...w, w: 1 }));
+          sumWS = weightsS.length;
+        }
+        console.debug('[recomputeItCosts] computed subcontract weights', { costId: cost.id, sumW: sumWS, weights: weightsS.map(w => ({ syd_id: w.syd_id, step_id: w.step_id, w: w.w, salMgmt: w.salMgmt, pt: w.pt })) });
+
+        for (const w of weightsS) {
+          const share = amount * (w.w / sumWS);
+          await client.query(
+            `UPDATE step_yearly_data SET subco_costs = COALESCE(subco_costs,0) + $1 WHERE id = $2`,
+            [share, w.syd_id]
+          );
+          console.debug('[recomputeItCosts] applied subcontract share', { costId: cost.id, syd_id: w.syd_id, share });
         }
       }
 

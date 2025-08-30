@@ -483,49 +483,7 @@ export const upsertProjectCountryItCost = async (req: Request, res: Response) =>
   }
 };
 
-// GET /projects/:projectId/countries-premises-cost
-export const getProjectCountriesPremisesCost = async (req: Request, res: Response) => {
-  const { projectId } = req.params as { projectId: string };
-  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
-  try {
-    const q = `
-      SELECT pc.country_id, c.name AS country_name, pc.premises_cost
-      FROM project_countries pc
-      JOIN countries c ON c.id = pc.country_id
-      WHERE pc.project_id = $1
-      ORDER BY c.name ASC
-    `;
-    const { rows } = await db.query(q, [projectId]);
-    res.json(rows);
-  } catch (e) {
-    console.error('getProjectCountriesPremisesCost error', e);
-    res.status(500).json({ error: 'Error al obtener Premises Cost por país' });
-  }
-};
-
-// PUT /projects/:projectId/countries-premises-cost/:countryId
-export const upsertProjectCountryPremisesCost = async (req: Request, res: Response) => {
-  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
-  const { premises_cost } = req.body as { premises_cost?: number | string | null };
-  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
-  if (premises_cost == null || isNaN(Number(premises_cost))) return res.status(400).json({ error: 'premises_cost numérico requerido' });
-  const pc = Number(premises_cost);
-  if (pc < 0) return res.status(400).json({ error: 'premises_cost debe ser >= 0' });
-  try {
-    const q = `
-      INSERT INTO project_countries (project_id, country_id, premises_cost)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (project_id, country_id)
-      DO UPDATE SET premises_cost = EXCLUDED.premises_cost
-      RETURNING project_id, country_id, premises_cost
-    `;
-    const { rows } = await db.query(q, [projectId, countryId, pc]);
-    res.json(rows[0]);
-  } catch (e) {
-    console.error('upsertProjectCountryPremisesCost error', e);
-    res.status(500).json({ error: 'Error al guardar Premises Cost' });
-  }
-};
+// Premises cost is now managed at city level. Country-level premises endpoints removed.
 // GET /projects/:projectId/countries-activity-rate
 export const getProjectCountriesActivityRate = async (req: Request, res: Response) => {
   const { projectId } = req.params as { projectId: string };

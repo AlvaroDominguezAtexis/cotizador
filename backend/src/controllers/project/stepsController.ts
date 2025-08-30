@@ -14,6 +14,8 @@ const mapStep = (row: any) => ({
   deliverable_id: row.deliverable_id,
   profile_id: row.profile_id,
   country_id: row.country_id,
+  city_id: row.city_id != null ? Number(row.city_id) : null,
+  city: row.city != null ? row.city : null,
   nombre: row.nombre,
   unit: row.unit,
   // Compat fields (no yearly join now)
@@ -52,7 +54,7 @@ export const getSteps = async (req: Request, res: Response) => {
 
 export const createStep = async (req: Request, res: Response) => {
   const { projectId, workPackageId, deliverableId } = req.params as any;
-  const { profile_id, country_id, nombre, process_time, unit, office, hardware } = req.body as any;
+  const { profile_id, country_id, city_id, city, nombre, process_time, unit, office, hardware } = req.body as any;
   try {
     // Required fields validation
     const missing: string[] = [];
@@ -87,10 +89,20 @@ export const createStep = async (req: Request, res: Response) => {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      // Insert base step (no yearly fields here)
-      const insertStep = `INSERT INTO steps (deliverable_id, profile_id, country_id, nombre, unit)
-                          VALUES ($1,$2,$3,$4,$5) RETURNING *`;
-      const stepRes = await client.query(insertStep, [deliverableId, profile_id, country_id, nombre, unit]);
+      // Insert base step (no yearly fields here). Include city/city_id if provided.
+      let insertSql: string;
+      let insertParams: any[];
+      if (city_id != null) {
+        insertSql = `INSERT INTO steps (deliverable_id, profile_id, country_id, city_id, nombre, unit) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`;
+        insertParams = [deliverableId, profile_id, country_id, city_id, nombre, unit];
+      } else if (city != null) {
+        insertSql = `INSERT INTO steps (deliverable_id, profile_id, country_id, city, nombre, unit) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`;
+        insertParams = [deliverableId, profile_id, country_id, city, nombre, unit];
+      } else {
+        insertSql = `INSERT INTO steps (deliverable_id, profile_id, country_id, nombre, unit) VALUES ($1,$2,$3,$4,$5) RETURNING *`;
+        insertParams = [deliverableId, profile_id, country_id, nombre, unit];
+      }
+      const stepRes = await client.query(insertSql, insertParams);
       const step = stepRes.rows[0];
       console.log('[stepsController#createStep] inserted base step', { stepId: step.id });
 
@@ -191,17 +203,25 @@ export const createStep = async (req: Request, res: Response) => {
 
 export const updateStep = async (req: Request, res: Response) => {
   const { stepId, deliverableId } = req.params;
-  const { profile_id, country_id, nombre, unit } = req.body;
+  const { profile_id, country_id, city_id, city, nombre, unit } = req.body;
   try {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const update = `UPDATE steps
-                      SET profile_id=$1, country_id=$2, nombre=$3, unit=$4, updated_at=NOW()
-                      WHERE id=$5 AND deliverable_id=$6
-                      RETURNING *`;
-      const values = [profile_id, country_id, nombre, unit, stepId, deliverableId];
-      const result = await client.query(update, values);
+      // Build update SQL conditionally to include city/city_id when provided
+      let updateSql: string;
+      let values: any[];
+      if (city_id != null) {
+        updateSql = `UPDATE steps SET profile_id=$1, country_id=$2, city_id=$3, nombre=$4, unit=$5, updated_at=NOW() WHERE id=$6 AND deliverable_id=$7 RETURNING *`;
+        values = [profile_id, country_id, city_id, nombre, unit, stepId, deliverableId];
+      } else if (city != null) {
+        updateSql = `UPDATE steps SET profile_id=$1, country_id=$2, city=$3, nombre=$4, unit=$5, updated_at=NOW() WHERE id=$6 AND deliverable_id=$7 RETURNING *`;
+        values = [profile_id, country_id, city, nombre, unit, stepId, deliverableId];
+      } else {
+        updateSql = `UPDATE steps SET profile_id=$1, country_id=$2, nombre=$3, unit=$4, updated_at=NOW() WHERE id=$5 AND deliverable_id=$6 RETURNING *`;
+        values = [profile_id, country_id, nombre, unit, stepId, deliverableId];
+      }
+      const result = await client.query(updateSql, values);
       if (result.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Step no encontrado' });

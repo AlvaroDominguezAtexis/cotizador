@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import StepsTable from './StepsTable';
 import './WorkPackages.css';
 import { createDeliverableApi, updateDeliverableApi, deleteDeliverableApi, fetchDeliverables } from '../../api/deliverablesApi';
-import { fetchSteps, createStepApi, updateStepApi, deleteStepApi } from '../../api/stepsApi';
+import { fetchSteps, createStepApi, updateStepApi, deleteStepApi, API_BASE } from '../../api/stepsApi';
 
 interface Props {
   deliverables: Deliverable[]; // initial fallback list (will be overridden by backend fetch)
@@ -52,6 +52,8 @@ const DeliverablesTable: React.FC<Props> = ({
       name: r.nombre,
       profile: profileName,
       country: countryName,
+  city: r.city || null,
+  city_id: r.city_id ?? null,
       processTime: r.process_time,
       units: r.unit,
       office: (r.office ? 'Yes' : 'No') as Step['office'],
@@ -66,7 +68,27 @@ const DeliverablesTable: React.FC<Props> = ({
     if (!projectId || !workPackageId) return;
     try {
       const remote = await fetchSteps(projectId, workPackageId, deliverableId);
-      const mapped: Step[] = (remote || []).map(mapRemoteStep);
+      const mappedBase: any[] = (remote || []).map(mapRemoteStep);
+      // Resolve missing city names by fetching cities per country when city_id present
+      const cityCache: Record<string, Array<{id:any;name:string}>> = {};
+      for (const s of mappedBase) {
+        if ((!s.city || s.city === null) && s.city_id != null) {
+          // try to find country id from countryOptions
+          const countryObj = countryOptions.find(c => String(c.name) === String(s.country) || String(c.id) === String(s.country));
+          const countryId = countryObj ? countryObj.id : null;
+          if (countryId == null) continue;
+          const cacheKey = String(countryId);
+          if (!cityCache[cacheKey]) {
+            try {
+              const res = await fetch(`${API_BASE}/countries/${countryId}/cities`);
+              if (res.ok) cityCache[cacheKey] = await res.json(); else cityCache[cacheKey] = [];
+            } catch { cityCache[cacheKey] = []; }
+          }
+          const found = cityCache[cacheKey].find((c:any) => String(c.id) === String(s.city_id));
+          if (found) s.city = found.name;
+        }
+      }
+      const mapped: Step[] = mappedBase;
       setItems(prev => prev.map(di => di.id === deliverableId ? { ...di, steps: mapped } : di));
       const current = items.find(x => x.id === deliverableId);
       if (current) onUpdate({ ...current, steps: mapped });
@@ -87,14 +109,41 @@ const DeliverablesTable: React.FC<Props> = ({
         const withSteps = await Promise.all(data.map(async d => {
           try {
             const remote = await fetchSteps(projectId, workPackageId, d.id);
-            const steps = (remote || []).map((r: any) => {
-              const profileName = profileOptions.find(p => p.id === r.profile_id)?.name || String(r.profile_id);
-              const countryName = countryOptions.find(c => String(c.id) === String(r.country_id))?.name || String(r.country_id);
+            const raw = (remote || []).map((r: any) => ({
+              ...r,
+              profileName: profileOptions.find(p => p.id === r.profile_id)?.name || String(r.profile_id),
+              countryName: countryOptions.find(c => String(c.id) === String(r.country_id))?.name || String(r.country_id),
+            }));
+            // Fetch cities for countries that need resolution
+            const countryIdsToFetch = new Set<string>();
+            for (const r of raw) {
+              if ((!r.city || r.city == null) && r.city_id != null) {
+                const countryObj = countryOptions.find(c => String(c.id) === String(r.country_id));
+                if (countryObj) countryIdsToFetch.add(String(countryObj.id));
+              }
+            }
+            const cityCache: Record<string, Array<{id:any;name:string}>> = {};
+            for (const cid of Array.from(countryIdsToFetch)) {
+              try {
+                const res = await fetch(`${API_BASE}/countries/${cid}/cities`);
+                cityCache[cid] = res.ok ? await res.json() : [];
+              } catch { cityCache[cid] = []; }
+            }
+            const steps = raw.map((r:any) => {
+              let cityName = r.city || null;
+              if ((!cityName || cityName == null) && r.city_id != null) {
+                const cid = String(r.country_id);
+                const list = cityCache[cid] || [];
+                const found = list.find((c:any) => String(c.id) === String(r.city_id));
+                if (found) cityName = found.name;
+              }
               return {
                 id: r.id,
                 name: r.nombre,
-                profile: profileName,
-                country: countryName,
+                profile: r.profileName,
+                country: r.countryName,
+                city: cityName,
+                city_id: r.city_id ?? null,
                 processTime: r.process_time,
                 units: r.unit,
                 office: (r.office ? 'Yes' : 'No') as Step['office'],
@@ -318,15 +367,18 @@ const DeliverablesTable: React.FC<Props> = ({
                         workPackageId={workPackageId!}
                         deliverableId={d.id}
                         steps={d.steps}
+                        countryOptionsRaw={countryOptions}
                         onAdd={async (s: Step) => {
                           if (!projectId || !workPackageId) return;
                           try {
                             const profileId = profileOptions.find(p => p.name === s.profile)?.id;
                             const countryId = countryOptions.find(c => c.name === s.country)?.id;
+                            const cityId = (s as any).city_id ?? null;
                             if (!profileId || !countryId) throw new Error('INVALID_SELECTION');
                             const created = await createStepApi(projectId, workPackageId, d.id, {
                               profile_id: Number(profileId),
                               country_id: Number(countryId),
+                              city_id: cityId ? Number(cityId) : undefined,
                               nombre: s.name,
                               process_time: s.processTime,
                               unit: s.units,
@@ -339,6 +391,8 @@ const DeliverablesTable: React.FC<Props> = ({
                               name: created.nombre,
                               profile: profileName,
                               country: countryName,
+                              city: created.city || null,
+                              city_id: created.city_id ?? null,
                               processTime: created.process_time,
                               units: created.unit,
                               office: created.office ? 'Yes' : 'No',
@@ -364,6 +418,7 @@ const DeliverablesTable: React.FC<Props> = ({
                             const updatedRemote = await updateStepApi(projectId, workPackageId, d.id, s.id, {
                               profile_id: Number(profileId),
                               country_id: Number(countryId),
+                              city_id: (s as any).city_id ?? undefined,
                               nombre: s.name,
                               process_time: s.processTime,
                               unit: s.units,
@@ -378,6 +433,8 @@ const DeliverablesTable: React.FC<Props> = ({
                               name: updatedRemote.nombre,
                               profile: profileName,
                               country: countryName,
+                              city: updatedRemote.city || null,
+                              city_id: updatedRemote.city_id ?? null,
                               processTime: updatedRemote.process_time,
                               units: updatedRemote.unit,
                               office: (updatedRemote.office ? 'Yes' : 'No') as Step['office'],

@@ -14,6 +14,8 @@ export interface Step {
   name: string;
   profile: string;      // 🔹 Nombre del perfil seleccionado
   country: string;      // 🔹 País
+  city?: string;
+  city_id?: number | null;
   processTime: number;  // 🔹 Tiempo de proceso
   units: 'Hours' | 'Days' | 'Months';
   office: 'Yes' | 'No';

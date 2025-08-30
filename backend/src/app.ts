@@ -15,13 +15,13 @@ import projectCountriesRoutes, {
 	projectCountriesActivityRouter,
 	projectCountriesNptRouter,
 	projectCountriesItRouter,
-	projectCountriesPremisesRouter,
 	projectCountriesWorkingDaysRouter,
 	projectCountriesHoursPerDayRouter,
 	projectCountriesManagementRouter,
 	projectCountriesMarkupRouter,
 	projectCountriesSocialContributionRateRouter,
 } from './routes/Project/projectCountriesRoutes';
+import projectCitiesRoutes from './routes/Project/projectCitiesRoutes';
 import nonOperationalCostsRoutes from './routes/nonOperationalCostsRoutes';
 import projectStepsRoutes from './routes/Project/projectStepsRoutes';
 import workPackagesRoutes from './routes/Project/workPackagesRoutes';
@@ -60,7 +60,6 @@ app.use('/projects/:projectId/countries-cpi', projectCountriesRoutes);
 app.use('/projects/:projectId/countries-activity-rate', projectCountriesActivityRouter);
 app.use('/projects/:projectId/countries-npt-rate', projectCountriesNptRouter);
 app.use('/projects/:projectId/countries-it-cost', projectCountriesItRouter);
-app.use('/projects/:projectId/countries-premises-cost', projectCountriesPremisesRouter);
 app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRouter);
 app.use('/projects/:projectId/countries-hours-per-day', projectCountriesHoursPerDayRouter);
 // Debug route registration
@@ -68,5 +67,8 @@ console.log('Registering management salary routes at /projects/:projectId/countr
 app.use('/projects/:projectId/countries-management', projectCountriesManagementRouter);
 app.use('/projects/:projectId/countries-markup', projectCountriesMarkupRouter);
 app.use('/projects/:projectId/countries-social-contribution-rate', projectCountriesSocialContributionRateRouter);
+
+// Cities endpoint (used by frontend to list cities per country)
+app.use('', projectCitiesRoutes);
 
 export default app;

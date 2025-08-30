@@ -1,8 +1,9 @@
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+export const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
 export interface StepPayload {
   profile_id: number;
   country_id: number;
+  city_id?: number;
   nombre: string;
   process_time: number;
   unit: string;

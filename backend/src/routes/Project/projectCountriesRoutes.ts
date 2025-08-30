@@ -8,8 +8,6 @@ import {
 	upsertProjectCountryNptRate,
 	getProjectCountriesItCost,
 	upsertProjectCountryItCost,
-	getProjectCountriesPremisesCost,
-	upsertProjectCountryPremisesCost,
 	getProjectCountriesWorkingDays,
 	upsertProjectCountryWorkingDays,
 	getProjectCountriesHoursPerDay,
@@ -40,9 +38,7 @@ export const projectCountriesItRouter = express.Router({ mergeParams: true });
 projectCountriesItRouter.get('/', getProjectCountriesItCost);
 projectCountriesItRouter.put('/:countryId', upsertProjectCountryItCost);
 
-export const projectCountriesPremisesRouter = express.Router({ mergeParams: true });
-projectCountriesPremisesRouter.get('/', getProjectCountriesPremisesCost);
-projectCountriesPremisesRouter.put('/:countryId', upsertProjectCountryPremisesCost);
+// Premises routes removed: premises is now managed at city level
 
 export const projectCountriesWorkingDaysRouter = express.Router({ mergeParams: true });
 projectCountriesWorkingDaysRouter.get('/', getProjectCountriesWorkingDays);

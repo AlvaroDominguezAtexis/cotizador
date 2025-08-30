@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../../api/stepsApi';
 import { Step } from '../../types/workPackages';
 import { Button } from '../ui/Button';
 import './WorkPackages.css';
@@ -14,6 +15,7 @@ interface Props {
   onDelete: (id: number) => void;
   profiles: string[];        // nombres visibles
   countries: string[];       // nombres visibles
+  countryOptionsRaw?: Array<{ id: number | string; name: string }>;
   createNew?: boolean;
   onCancelCreate?: () => void;
   projectYears?: number[];
@@ -29,6 +31,7 @@ const StepsTable: React.FC<Props> = ({
   onDelete,
   profiles,
   countries,
+  countryOptionsRaw,
   createNew = false,
   onCancelCreate,
   projectYears
@@ -41,6 +44,7 @@ const StepsTable: React.FC<Props> = ({
   const [yearOfficeEdits, setYearOfficeEdits] = useState<Record<number, Step['office']>>({});
   const [yearHardwareEdits, setYearHardwareEdits] = useState<Record<number, 'Yes' | 'No'>>({});
   const [annualByStep, setAnnualByStep] = useState<Record<number, AnnualData[]>>({});
+  const [citiesForCountry, setCitiesForCountry] = useState<Array<{id:number | string;name:string}>>([]);
 
   // Helper to group steps by invariant fields across years
   const makeKey = (s: Step) => [s.name, s.profile, s.country].join('|');
@@ -70,6 +74,30 @@ const StepsTable: React.FC<Props> = ({
       });
     }
   }, [createNew]);
+
+  // Fetch cities when editingStep.country changes (if we have country id mapping)
+  useEffect(() => {
+    const countryName = editingStep?.country;
+    if (!countryName) return;
+    const mapping = countryOptionsRaw as Array<{id:number;name:string}> | undefined;
+    const matched = mapping?.find(c => c.name === countryName);
+    if (!matched) {
+      setCitiesForCountry([]);
+      return;
+    }
+    const countryId = matched.id;
+    // Fetch cities
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/countries/${countryId}/cities`);
+        if (!res.ok) throw new Error('Error');
+        const data = await res.json();
+        setCitiesForCountry(data || []);
+      } catch (e) {
+        setCitiesForCountry([]);
+      }
+    })();
+  }, [editingStep?.country]);
 
   const handleSave = async () => {
     if (!editingStep || !editingStep.name?.trim()) return;
@@ -135,7 +163,8 @@ const StepsTable: React.FC<Props> = ({
         <col style={{ width: '3%' }} />  {/* Expand */}
         <col style={{ width: '24%' }} /> {/* Name */}
         <col style={{ width: '20%' }} /> {/* Profile */}
-        <col style={{ width: '17%' }} /> {/* Country */}
+  <col style={{ width: '12%' }} /> {/* Country */}
+  <col style={{ width: '12%' }} /> {/* City */}
         <col style={{ width: '10%' }} /> {/* Process Time (first year) */}
         <col style={{ width: '11%' }} /> {/* Units */}
         <col style={{ width: '15%' }} /> {/* Actions */}
@@ -146,6 +175,7 @@ const StepsTable: React.FC<Props> = ({
           <th>Name</th>
           <th>Profile</th>
           <th>Country</th>
+          <th>City</th>
           <th>{(projectYears && projectYears.length > 1) ? 'Process Time (1 year)' : 'Process Time'}</th>
           <th>Units</th>
           <th>Actions</th>
@@ -238,6 +268,22 @@ const StepsTable: React.FC<Props> = ({
                 </select>
               ) : (
                 base.country && countries.includes(base.country) ? base.country : base.country
+              )}
+            </td>
+            <td className="tight-cell">
+              {editingStep?.id === base.id ? (
+                <select
+                  value={(editingStep as any).city_id != null ? String((editingStep as any).city_id) : ''}
+                  onChange={(e) => setEditingStep({ ...(editingStep as any), city_id: e.target.value ? Number(e.target.value) : undefined })}
+                  className="wp-input"
+                >
+                  <option value="">Select City</option>
+                  {citiesForCountry.map((ct) => (
+                    <option key={ct.id} value={String(ct.id)}>{ct.name}</option>
+                  ))}
+                </select>
+              ) : (
+                (base as any).city || ''
               )}
             </td>
             {/* Process Time from first project year */}
@@ -478,6 +524,18 @@ const StepsTable: React.FC<Props> = ({
                 <option value="">Select Country</option>
                 {countries.map((c) => (
                   <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </td>
+            <td className="tight-cell">
+              <select
+                value={(editingStep as any).city_id != null ? String((editingStep as any).city_id) : ''}
+                onChange={(e) => setEditingStep({ ...(editingStep as any), city_id: e.target.value ? Number(e.target.value) : undefined })}
+                className="wp-input"
+              >
+                <option value="">Select City</option>
+                {citiesForCountry.map((ct) => (
+                  <option key={ct.id} value={String(ct.id)}>{ct.name}</option>
                 ))}
               </select>
             </td>

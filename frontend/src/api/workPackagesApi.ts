@@ -5,7 +5,6 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 export interface WorkPackagePayload {
   codigo: string;
   nombre: string;
-  dm: number | string; // backend guarda NUMERIC, aquí podría ser string/number
 }
 
 export const fetchWorkPackages = async (projectId: number): Promise<WorkPackage[]> => {
@@ -17,7 +16,8 @@ export const fetchWorkPackages = async (projectId: number): Promise<WorkPackage[
     id: wp.id,
     code: wp.codigo,
     name: wp.nombre,
-    DM: wp.dm?.toString?.() ?? '',
+  // workpackage-level numeric dm was removed from backend; keep DM (name) if provided
+  DM: wp.DM?.toString?.() ?? wp.dm?.toString?.() ?? '',
     deliverables: [],
   }));
 };
@@ -30,7 +30,7 @@ export const createWorkPackageApi = async (projectId: number, payload: WorkPacka
   });
   if (!res.ok) throw new Error('Error creando workpackage');
   const wp = await res.json();
-  return { id: wp.id, code: wp.codigo, name: wp.nombre, DM: wp.dm?.toString?.() ?? '', deliverables: [] };
+  return { id: wp.id, code: wp.codigo, name: wp.nombre, DM: wp.DM?.toString?.() ?? wp.dm?.toString?.() ?? '', deliverables: [] };
 };
 
 export const updateWorkPackageApi = async (projectId: number, id: number, payload: Partial<WorkPackagePayload>): Promise<WorkPackage> => {
@@ -41,7 +41,7 @@ export const updateWorkPackageApi = async (projectId: number, id: number, payloa
   });
   if (!res.ok) throw new Error('Error actualizando workpackage');
   const wp = await res.json();
-  return { id: wp.id, code: wp.codigo, name: wp.nombre, DM: wp.dm?.toString?.() ?? '', deliverables: [] };
+  return { id: wp.id, code: wp.codigo, name: wp.nombre, DM: wp.DM?.toString?.() ?? wp.dm?.toString?.() ?? '', deliverables: [] };
 };
 
 export const deleteWorkPackageApi = async (projectId: number, id: number): Promise<void> => {

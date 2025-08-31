@@ -166,7 +166,28 @@ const DeliverablesTable: React.FC<Props> = ({
   }, [projectId, workPackageId, projectYears.length, reloadToken, profileOptions, countryOptions]);
 
   useEffect(() => {
-    if (createNew) setEditingDeliverable({ yearlyQuantities: new Array(projectYears.length).fill(0) });
+    if (createNew) {
+      (async () => {
+        const base = { yearlyQuantities: new Array(projectYears.length).fill(0) } as any;
+        try {
+          if (projectId) {
+            const res = await fetch(`${API_BASE}/projects/${projectId}`);
+            if (res.ok) {
+              const pj = await res.json();
+              // project stores margin_goal in snake_case
+              base.dm = (pj.margin_goal !== undefined && pj.margin_goal !== null) ? Number(pj.margin_goal) : 0;
+            } else {
+              base.dm = 0;
+            }
+          } else {
+            base.dm = 0;
+          }
+        } catch {
+          base.dm = 0;
+        }
+        setEditingDeliverable(base);
+      })();
+    }
   }, [createNew, projectYears.length]);
 
   const yearCount = projectYears.length; // >0
@@ -176,17 +197,17 @@ const DeliverablesTable: React.FC<Props> = ({
     if (!editingDeliverable) return;
     const code = editingDeliverable.code?.trim();
     const name = editingDeliverable.name?.trim();
-  const dmVal = editingDeliverable.dm ?? 0;
+  const marginGoalVal = editingDeliverable.dm ?? 0;
     if (!code) { setFormError('Código obligatorio'); return; }
     if (!name) { setFormError('Nombre obligatorio'); return; }
-    if (isNaN(Number(dmVal))) { setFormError('DM numérico obligatorio'); return; }
+    if (isNaN(Number(marginGoalVal))) { setFormError('Margin Goal numérico obligatorio'); return; }
     setFormError(null);
     if (!projectId || !workPackageId) return;
     if (!editingDeliverable.id) {
       const created = await createDeliverableApi(projectId, workPackageId, {
         codigo: editingDeliverable.code || '',
         nombre: editingDeliverable.name || '',
-  dm: Number(editingDeliverable.dm || 0),
+  margin_goal: Number(editingDeliverable.dm || 0),
         yearlyQuantities: editingDeliverable.yearlyQuantities || new Array(projectYears.length).fill(0)
       }).catch(e => { if (e.message === 'DUPLICATE_CODE') { setFormError('Código duplicado'); return null; } throw e; });
       if (created) {
@@ -196,12 +217,12 @@ const DeliverablesTable: React.FC<Props> = ({
         onAdd(created);
       } else { return; }
     } else {
-      const updated = await updateDeliverableApi(projectId, workPackageId, editingDeliverable.id as number, {
-        codigo: editingDeliverable.code,
-        nombre: editingDeliverable.name,
-  dm: Number(editingDeliverable.dm || 0),
-        yearlyQuantities: editingDeliverable.yearlyQuantities
-      }).catch(e => { if (e.message === 'DUPLICATE_CODE') { setFormError('Código duplicado'); return null; } throw e; });
+  const updated = await updateDeliverableApi(projectId, workPackageId, editingDeliverable.id as number, {
+    codigo: editingDeliverable.code,
+    nombre: editingDeliverable.name,
+  margin_goal: Number(editingDeliverable.dm || 0),
+    yearlyQuantities: editingDeliverable.yearlyQuantities
+  }).catch(e => { if (e.message === 'DUPLICATE_CODE') { setFormError('Código duplicado'); return null; } throw e; });
       if (updated) { setItems(prev => prev.map(i => i.id === updated.id ? updated : i)); onUpdate(updated); } else { return; }
     }
     setEditingDeliverable(null);
@@ -231,7 +252,7 @@ const DeliverablesTable: React.FC<Props> = ({
           <tr>
             <th>Código</th>
             <th>Nombre</th>
-            <th>DM</th>
+            <th>Margin Goal</th>
             <th>Cantidades anuales</th>
             <th>Acciones</th>
           </tr>

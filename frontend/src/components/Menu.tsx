@@ -4,8 +4,8 @@ import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import './Menu.css';
 
-// Traemos el mapper desde App para unificar la lógica
-import { mapProjectFromBackend } from '../App'; 
+// Traemos el mapper desde utils para unificar la lógica y evitar dependencias circulares
+import { mapProjectFromBackend } from '../utils/projectMapper';
 
 export interface Quote {
   id: string;

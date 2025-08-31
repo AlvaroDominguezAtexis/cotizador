@@ -14,58 +14,9 @@ import { TabNavigation } from './components/layout/TabNavigation';
 import { NonOperationalCost } from './types/nonOperationalCost';
 import './App.css';
 import { useCountryNames } from './hooks/useCountryNames';
+import { mapProjectFromBackend } from './utils/projectMapper';
 
-// 🔹 Función para mapear proyectos desde el backend
-export const mapProjectFromBackend = (data: any): ProjectData => {
-  const safeData = data || {};
-
-  const safeFormatDate = (date: any): string => {
-    if (!date) return '';
-    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
-    if (typeof date === 'string' && date.includes('T')) return date.split('T')[0];
-    return '';
-  };
-
-  const mappedProject: any = {
-    id: safeData.id,
-    title: safeData.title ?? '',
-    crmCode: safeData.crm_code ?? safeData.crmCode ?? '',
-    client: safeData.client ?? '',
-    activity: safeData.activity ?? '',
-    startDate: safeFormatDate(safeData.start_date ?? safeData.startDate),
-    endDate: safeFormatDate(safeData.end_date ?? safeData.endDate),
-    businessManager: safeData.business_manager ?? safeData.businessManager ?? '',
-    businessUnit: safeData.business_unit ?? safeData.businessUnit ?? '',
-  buLine: safeData.bu_line ?? safeData.buLine ?? '',
-    opsDomain: safeData.ops_domain ?? safeData.opsDomain ?? '',
-  country: safeData.country ?? '',
-  marginType: safeData.margin_type ?? safeData.marginType ?? '',
-  marginGoal: typeof safeData.margin_goal === 'number' ? safeData.margin_goal : '',
-    countries: Array.isArray(safeData.countries)
-      ? safeData.countries.map((c: any) => String(c))
-      : [],
-    iqp: safeData.iqp ?? '',
-    segmentation: safeData.segmentation ?? '',
-    description: safeData.description ?? '',
-  };
-
-  Object.keys(safeData).forEach(key => {
-    const mappedKeys = [
-      'title', 'crm_code', 'client', 'activity', 'start_date', 'end_date',
-  'business_manager', 'business_unit', 'bu_line', 'ops_domain', 'country',
-  'margin_type', 'margin_goal',
-  'additional_countries', 'iqp', 'segmentation', 'description',
-  'crmCode', 'startDate', 'endDate', 'businessManager', 'businessUnit', 'buLine', 'marginType', 'marginGoal',
-  'opsDomain', 'countries'
-    ];
-    if (!mappedKeys.includes(key)) {
-      console.warn(`Unmapped backend key: ${key}`);
-      mappedProject[key] = safeData[key];
-    }
-  });
-
-  return mappedProject;
-};
+// mapper moved to ./utils/projectMapper
 
 interface ExtendedProjectData extends ProjectData {
   [key: string]: any;
@@ -154,27 +105,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Guardar y salir al menú
-  const handleBackToMenu = async () => {
-    // If it's a new project and required fields are missing, confirm leaving
-    const isNew = !projectFormData?.id;
-    const missingRequired = isNew && (
-      !projectFormData?.title?.trim() ||
-      !projectFormData?.startDate ||
-      !projectFormData?.endDate ||
-      !(projectFormData?.countries && projectFormData.countries.length > 0)
-    );
-    if (missingRequired) {
-      const leave = window.confirm('There is an unfinished project creation. Do you want to discard it and exit, or stay to complete the information?\n\nOK = Discard and exit\nCancel = Stay');
-      if (!leave) return;
-      // Discard without saving
-      setShowMainApp(false);
-      return;
-    }
-  const res = await saveProjectData();
-  if (res.ok) setShowMainApp(false);
-  };
-
   // Cambia de tab, guardando si se sale de 'project-data'
   const handleTabChange = async (tabName: TabName) => {
     // Guard: if creating a new project and required fields not filled, block tab switch
@@ -214,6 +144,49 @@ const App: React.FC = () => {
   const { countries: projectCountryObjs } = useCountryNames(projectCountryIds as string[]);
   const projectCountryOptions = React.useMemo(() => projectCountryObjs.map(c => ({ id: c.id, name: c.name })), [projectCountryObjs]);
 
+  const handleBackToMenu = async () => {
+    // If there's no project data, simply close
+    if (!projectFormData) {
+      setShowMainApp(false);
+      setSelectedProject(null);
+      setProjectFormData(null);
+      setActiveTab('project-data');
+      return;
+    }
+
+    const isNew = !projectFormData?.id;
+    const missingRequired = isNew && (
+      !projectFormData?.title?.trim() ||
+      !projectFormData?.startDate ||
+      !projectFormData?.endDate ||
+      !(projectFormData?.countries && projectFormData.countries.length > 0)
+    );
+
+    if (missingRequired) {
+      const leave = window.confirm('There is an unfinished project creation. Do you want to discard it and exit, or stay to complete the information?\n\nOK = Discard and exit\nCancel = Stay');
+      if (!leave) return;
+      setShowMainApp(false);
+      setSelectedProject(null);
+      setProjectFormData(null);
+      setActiveTab('project-data');
+      return;
+    }
+
+    // Try to save; if save succeeds close the app view
+    try {
+      const res = await saveProjectData();
+      if (res.ok) {
+        setShowMainApp(false);
+        // keep selected project cleared to avoid stale state
+        setSelectedProject(null);
+        setProjectFormData(null);
+        setActiveTab('project-data');
+      }
+    } catch (e) {
+      console.error('Error saving project before leaving:', e);
+    }
+  };
+
   const handleLoginSubmit = async (credentials: { username: string; password: string }): Promise<boolean> => {
     const success = await login(credentials.username, credentials.password);
     return success;
@@ -243,7 +216,10 @@ const App: React.FC = () => {
   countries: data.countries && data.countries.length > 0 ? data.countries : [],
       iqp: data.iqp ? data.iqp.toString().trim() || '' : '',
   margin_type: data.marginType || '',
-  margin_goal: data.marginGoal === '' || data.marginGoal == null ? null : Number(data.marginGoal),
+  // If marginGoal is empty but marginType is chosen, persist placeholder as 0.00
+  margin_goal: data.marginGoal === '' || data.marginGoal == null
+    ? (data.marginType ? 0 : null)
+    : Number(data.marginGoal),
       segmentation: data.segmentation?.trim() || '',
       description: data.description?.trim() || '',
     };

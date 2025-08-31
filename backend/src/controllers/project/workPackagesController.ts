@@ -25,13 +25,13 @@ export const getWorkPackages = async (req: Request, res: Response) => {
 export const createWorkPackage = async (req: Request, res: Response) => {
   const { projectId } = req.params;
   try {
-    const { codigo, nombre, dm } = req.body;
-    if (!codigo || !nombre || dm === undefined) {
-      return res.status(400).json({ error: 'codigo, nombre y dm son obligatorios' });
+    const { codigo, nombre } = req.body;
+    if (!codigo || !nombre) {
+      return res.status(400).json({ error: 'codigo y nombre son obligatorios' });
     }
     const result = await Pool.query(
-      `INSERT INTO workpackages (project_id, codigo, nombre, dm) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [projectId, codigo, nombre, dm]
+      `INSERT INTO workpackages (project_id, codigo, nombre) VALUES ($1,$2,$3) RETURNING *`,
+      [projectId, codigo, nombre]
     );
     res.status(201).json(normalize(result.rows[0]));
   } catch (err) {
@@ -44,10 +44,10 @@ export const createWorkPackage = async (req: Request, res: Response) => {
 export const updateWorkPackage = async (req: Request, res: Response) => {
   const { projectId, id } = req.params;
   try {
-    const { codigo, nombre, dm } = req.body;
+    const { codigo, nombre } = req.body;
     const result = await Pool.query(
-      `UPDATE workpackages SET codigo = COALESCE($1, codigo), nombre = COALESCE($2, nombre), dm = COALESCE($3, dm), updated_at = NOW() WHERE id = $4 AND project_id = $5 RETURNING *`,
-      [codigo, nombre, dm, id, projectId]
+      `UPDATE workpackages SET codigo = COALESCE($1, codigo), nombre = COALESCE($2, nombre), updated_at = NOW() WHERE id = $3 AND project_id = $4 RETURNING *`,
+      [codigo, nombre, id, projectId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Workpackage no encontrado' });
     res.json(normalize(result.rows[0]));

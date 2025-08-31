@@ -32,13 +32,13 @@ const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPac
 
   const handleAdd = async (wp: any) => {
     if (!effectiveProjectId) return;
-    await createWP({ codigo: wp.code || wp.codigo || '', nombre: wp.name || wp.nombre || '', dm: Number(wp.DM || wp.dm || 0) });
+    await createWP({ codigo: wp.code || wp.codigo || '', nombre: wp.name || wp.nombre || '' });
     setCreatingNew(false);
   };
 
   const handleUpdate = async (wp: any) => {
     if (!effectiveProjectId) return;
-    await updateWP(wp.id, { codigo: wp.code || wp.codigo, nombre: wp.name || wp.nombre, dm: Number(wp.DM || wp.dm || 0) });
+    await updateWP(wp.id, { codigo: wp.code || wp.codigo, nombre: wp.name || wp.nombre });
   };
 
   const handleDelete = async (id: number) => {

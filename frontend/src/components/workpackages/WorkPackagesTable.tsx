@@ -83,9 +83,12 @@ const WorkPackagesTable: React.FC<Props> = ({
     setWpError(null);
 
     if (!editingWP.id) {
+      // Ensure newly created WP does NOT carry a DM value (remove display-only DM)
+      const { DM, ...rest } = editingWP as any;
       const newWP: WorkPackage = {
-        ...editingWP,
+        ...rest,
         id: Date.now(),
+        // explicitly start with empty deliverables
         deliverables: [],
       } as WorkPackage;
       onAdd(newWP);
@@ -129,25 +132,7 @@ const WorkPackagesTable: React.FC<Props> = ({
                 className="wp-input"
               />
             </div>
-            <div className="wp-field dm">
-              <label>DM</label>
-              <div className="dm-inline">
-                <input
-                  value={editingWP.DM || ''}
-                  onChange={(e) => setEditingWP({ ...editingWP, DM: e.target.value })}
-                  placeholder="DM"
-                  className="wp-input"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  title="Cascadear DM (no hay deliverables aún)"
-                  disabled
-                >
-                  ⇨
-                </Button>
-              </div>
-            </div>
+            {/* Removed numeric workpackage-level dm field per spec */}
       <div className="wp-field actions-field">
               <label>Actions</label>
               <div className="wp-actions-buttons">
@@ -191,44 +176,7 @@ const WorkPackagesTable: React.FC<Props> = ({
                   <div className="wp-static-value">{wp.name}</div>
                 )}
               </div>
-              <div className="wp-field dm">
-                <label>DM</label>
-                <div className="dm-inline">
-                  {isEditing ? (
-                    <input
-                      value={editingWP?.DM || ''}
-                      onChange={e => setEditingWP({ ...editingWP!, DM: e.target.value })}
-                      placeholder="DM"
-                      className="wp-input"
-                    />
-                  ) : (
-                    <div className="wp-static-value">{wp.DM || '-'}</div>
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    title="Cascadear DM a todos los deliverables"
-                    onClick={async () => {
-                      const dmValue = (isEditing ? editingWP?.DM : wp.DM) || '';
-                      if (!dmValue) { alert('Primero introduce un DM para el Work Package.'); return; }
-                      // Local update of WP & deliverables DM field
-                      const updatedDeliverablesLocal: Deliverable[] = wp.deliverables.map(d => ({ ...d, DM: dmValue }));
-                      const updatedWP: WorkPackage = { ...wp, DM: dmValue, deliverables: updatedDeliverablesLocal } as WorkPackage;
-                      if (isEditing) setEditingWP({ ...editingWP!, DM: dmValue });
-                      onUpdate(updatedWP);
-                      // Backend cascading (best-effort)
-                      if (projectId) {
-                        try {
-                          await Promise.all(updatedDeliverablesLocal.map(d => updateDeliverableApi(projectId, wp.id, d.id, { dm: Number(dmValue) })));
-                          setReloadCounters(prev => ({ ...prev, [wp.id]: (prev[wp.id] || 0) + 1 }));
-                        } catch (e) {
-                          console.warn('Error en cascada DM backend', e);
-                        }
-                      }
-                    }}
-                  >⇨</Button>
-                </div>
-              </div>
+              {/* DM removed from workpackage card per new schema: only code, name and actions */}
               <div className="wp-field actions-field">
                 <label>Actions</label>
                 <div className="wp-actions-buttons">

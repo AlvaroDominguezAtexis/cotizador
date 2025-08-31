@@ -5,7 +5,8 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 export interface DeliverablePayload {
   codigo: string;
   nombre: string;
-  dm: number | string;
+  // backend now stores numeric margin_goal for deliverables
+  margin_goal: number | string;
   yearlyQuantities?: number[]; // index 0 => year 1
 }
 
@@ -14,8 +15,9 @@ const mapFromBackend = (d: any): Deliverable => ({
   code: d.codigo,
   name: d.nombre,
   // dm numérico persistido en backend
-  dm: typeof d.dm === 'number' ? d.dm : (d.dm ? Number(d.dm) : undefined),
+  dm: typeof d.margin_goal === 'number' ? d.margin_goal : (d.margin_goal ? Number(d.margin_goal) : undefined),
   // DM (nombre) solo frontend si en algún momento se expone
+  // keep any DM display name if provided by backend
   DM: d.DM || '',
   yearlyQuantities: d.yearlyQuantities || [],
   steps: [],

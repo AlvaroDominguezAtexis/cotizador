@@ -97,8 +97,8 @@
 
 .wp-header-grid {
   display: grid;
-  /* Código | Nombre (flex) | DM ampliado | Acciones ampliadas */
-  grid-template-columns: 120px 1fr 220px 340px;
+  /* Código | Nombre (flex) | Acciones */
+  grid-template-columns: 120px 1fr 300px;
   gap: 1rem 1.2rem;
   align-items: stretch; /* estira para igual altura */
   min-height: 64px; /* altura base consistente */
@@ -125,22 +125,18 @@
 
 /* Centrado específico para code, name y dm */
 .wp-field.code,
-.wp-field.name,
-.wp-field.dm {
+.wp-field.name {
   align-items: center;
   text-align: center;
 }
 
 .wp-field.code label,
-.wp-field.name label,
-.wp-field.dm label { width:100%; text-align:center; }
+.wp-field.name label { width:100%; text-align:center; }
 
 .wp-field.code .wp-input,
 .wp-field.name .wp-input,
-.wp-field.dm .wp-input,
 .wp-field.code .wp-static-value,
-.wp-field.name .wp-static-value,
-.wp-field.dm .wp-static-value { text-align:center; }
+.wp-field.name .wp-static-value { text-align:center; }
 
 .wp-field .wp-static-value {
   padding: 0; /* sin caja */
@@ -171,14 +167,7 @@
   box-shadow: 0 0 0 2px rgba(76,139,245,0.15);
 }
 
-.dm-inline {
-  display: flex;
-  gap: 1rem; /* mayor separación valor vs botón */
-  align-items: center; /* centrado vertical */
-}
-
-/* Afinar separación específica del botón si se requiere ajuste fino */
-.dm-inline > .btn { margin-left: 0.25rem; }
+.dm-inline { display: inline-flex; }
 
 .wp-actions {
   display: flex;

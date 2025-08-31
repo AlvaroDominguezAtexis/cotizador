@@ -97,10 +97,17 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
   React.useEffect(() => {
     if (initialValues) {
+      const incomingMargin = (initialValues as any).marginGoal;
+      const incomingMarginType = (initialValues as any).marginType;
+      const normalized = typeof incomingMargin === 'number'
+        ? incomingMargin
+        : (incomingMargin === '' || incomingMargin == null) && incomingMarginType
+          ? 0
+          : (incomingMargin || '');
       setFormData(prev => ({
         ...prev,
         ...initialValues,
-        marginGoal: typeof (initialValues as any).marginGoal === 'number' ? (initialValues as any).marginGoal : (initialValues as any).marginGoal || '',
+        marginGoal: normalized,
       }));
     }
   }, [initialValues]);

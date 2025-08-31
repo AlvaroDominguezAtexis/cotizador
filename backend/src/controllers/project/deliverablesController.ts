@@ -6,7 +6,7 @@ interface DeliverableRow {
   workpackage_id: number;
   codigo: string;
   nombre: string;
-  dm: string;
+  margin_goal: string; // previously dm
   created_at: Date;
   updated_at: Date;
 }
@@ -30,7 +30,7 @@ const attachYearly = (rows: DeliverableRow[], yearRows: YearQuantityRow[], yearC
       workpackage_id: r.workpackage_id,
       codigo: r.codigo,
       nombre: r.nombre,
-      dm: r.dm,
+      margin_goal: r.margin_goal,
       yearlyQuantities,
       created_at: normalizeDate(r.created_at),
       updated_at: normalizeDate(r.updated_at)
@@ -59,10 +59,10 @@ export const getDeliverables = async (req: Request, res: Response) => {
 export const createDeliverable = async (req: Request, res: Response) => {
   const { workPackageId } = req.params;
   try {
-    const { codigo, nombre, dm, yearlyQuantities } = req.body;
-    if (!codigo || !nombre || dm === undefined) return res.status(400).json({ error: 'codigo, nombre y dm son obligatorios' });
+    const { codigo, nombre, margin_goal, yearlyQuantities } = req.body;
+    if (!codigo || !nombre || margin_goal === undefined) return res.status(400).json({ error: 'codigo, nombre y margin_goal son obligatorios' });
     await Pool.query('BEGIN');
-    const dRes = await Pool.query<DeliverableRow>(`INSERT INTO deliverables (workpackage_id, codigo, nombre, dm) VALUES ($1,$2,$3,$4) RETURNING *`, [workPackageId, codigo, nombre, dm]);
+    const dRes = await Pool.query<DeliverableRow>(`INSERT INTO deliverables (workpackage_id, codigo, nombre, margin_goal) VALUES ($1,$2,$3,$4) RETURNING *`, [workPackageId, codigo, nombre, margin_goal]);
     const deliverable = dRes.rows[0];
     if (Array.isArray(yearlyQuantities)) {
       for (let i=0;i<yearlyQuantities.length;i++) {
@@ -73,7 +73,7 @@ export const createDeliverable = async (req: Request, res: Response) => {
       }
     }
     await Pool.query('COMMIT');
-    res.status(201).json({ ...deliverable, yearlyQuantities: yearlyQuantities || [] });
+  res.status(201).json({ ...deliverable, yearlyQuantities: yearlyQuantities || [] });
   } catch (err:any) {
     await Pool.query('ROLLBACK');
     if (err?.code === '23505') {
@@ -88,9 +88,9 @@ export const createDeliverable = async (req: Request, res: Response) => {
 export const updateDeliverable = async (req: Request, res: Response) => {
   const { workPackageId, id } = req.params;
   try {
-    const { codigo, nombre, dm, yearlyQuantities } = req.body;
+    const { codigo, nombre, margin_goal, yearlyQuantities } = req.body;
     await Pool.query('BEGIN');
-    const dRes = await Pool.query<DeliverableRow>(`UPDATE deliverables SET codigo = COALESCE($1,codigo), nombre = COALESCE($2,nombre), dm = COALESCE($3,dm), updated_at=NOW() WHERE id=$4 AND workpackage_id=$5 RETURNING *`, [codigo, nombre, dm, id, workPackageId]);
+    const dRes = await Pool.query<DeliverableRow>(`UPDATE deliverables SET codigo = COALESCE($1,codigo), nombre = COALESCE($2,nombre), margin_goal = COALESCE($3,margin_goal), updated_at=NOW() WHERE id=$4 AND workpackage_id=$5 RETURNING *`, [codigo, nombre, margin_goal, id, workPackageId]);
     if (dRes.rows.length === 0) {
       await Pool.query('ROLLBACK');
       return res.status(404).json({ error: 'Deliverable no encontrado' });

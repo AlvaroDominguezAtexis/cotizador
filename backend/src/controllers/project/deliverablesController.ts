@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Pool from '../../db';
+import { recalcDeliverablesYearlyForProject } from '../../services/deliverables/marginsYearly';
 
 interface DeliverableRow {
   id: number;
@@ -126,5 +127,30 @@ export const deleteDeliverable = async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar deliverable' });
+  }
+};
+
+// POST /projects/:projectId/recalc-margins-yearly
+export const recalcProjectDeliverablesMarginsYearly = async (req: Request, res: Response) => {
+  const projectId = (req.params as any).projectId || (req.params as any).id;
+  try {
+    console.log('[recalcProjectDeliverablesMarginsYearly] called for project:', projectId);
+    const rows = await recalcDeliverablesYearlyForProject(Number(projectId), Pool as any);
+    await Pool.query('BEGIN');
+    let count = 0;
+    for (const r of rows) {
+      // update existing row
+      const upd = await Pool.query(`UPDATE deliverable_yearly_quantities SET operational_to = $3, dm_real = $4, gmbs_real = $5 WHERE deliverable_id = $1 AND year_number = $2 RETURNING deliverable_id`, [r.deliverableId, r.year, r.operationalTo, r.dmRealPct, r.gmbsRealPct]);
+      if (!upd || upd.rows.length === 0) {
+        await Pool.query(`INSERT INTO deliverable_yearly_quantities (deliverable_id, year_number, quantity, operational_to, dm_real, gmbs_real) VALUES ($1,$2,$3,$4,$5,$6)`, [r.deliverableId, r.year, r.quantity || 0, r.operationalTo, r.dmRealPct, r.gmbsRealPct]);
+      }
+      count++;
+    }
+    await Pool.query('COMMIT');
+    res.json({ projectId: Number(projectId), count, rows });
+  } catch (err:any) {
+    await Pool.query('ROLLBACK');
+    console.error('[recalcProjectDeliverablesMarginsYearly] error for project:', projectId, err?.message || err);
+    res.status(500).json({ error: err?.message || 'Error recalculando márgenes yearly' });
   }
 };

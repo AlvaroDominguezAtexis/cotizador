@@ -6,6 +6,7 @@ import Card from '../ui/Card';
 import SummaryDocument from '../summary/SummaryDocument';
 import { recalcProjectStepsCosts } from '../../api/stepsApi';
 import { recomputeItCosts } from '../../api/nonOperationalCosts';
+import { recalcProjectMarginsYearlyApi } from '../../api/deliverablesApi';
 import './Tabs.css';
 
 interface SummaryTabProps {
@@ -54,6 +55,12 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
       } finally {
   setLoading(false);
   // mark that a recalc has completed so SummaryDocument remounts and fetches fresh data
+  // trigger yearly margins recalc (persist operational_to, dm_real, gmbs_real) and then remount SummaryDocument
+  try {
+    await recalcProjectMarginsYearlyApi(project.id);
+  } catch (e) {
+    console.error('Error recalculating yearly deliverable margins', e);
+  }
   setRecalcId(Date.now());
       }
     };

@@ -58,3 +58,12 @@ export const deleteDeliverableApi = async (projectId: number, workPackageId: num
   const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Error eliminando deliverable');
 };
+
+export const recalcProjectMarginsYearlyApi = async (projectId: number) => {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/recalc-margins-yearly`, { method: 'POST' });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Error recalculando deliverables yearly: ${res.status} ${txt}`);
+  }
+  return res.json();
+};

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Pool from '../../db';
-import { recalcDeliverablesYearlyForProject } from '../../services/deliverables/marginsYearly';
+import { recalcDeliverablesYearlyForProject, calcProjectTotalWorkingTime, calcDeliverablesCosts, calcOperationalDMForDeliverables, calcGMBSForDeliverables } from '../../services/deliverables/marginsYearly';
 
 // GET /projects/:projectId/operational-revenue
 export const getProjectOperationalRevenue = async (req: Request, res: Response) => {
@@ -166,5 +166,91 @@ export const recalcProjectDeliverablesMarginsYearly = async (req: Request, res: 
     await Pool.query('ROLLBACK');
     console.error('[recalcProjectDeliverablesMarginsYearly] error for project:', projectId, err?.message || err);
     res.status(500).json({ error: err?.message || 'Error recalculando márgenes yearly' });
+  }
+};
+
+// GET /projects/:projectId/hourly-price
+export const getProjectHourlyPrice = async (req: Request, res: Response) => {
+  const projectId = (req.params as any).projectId || (req.params as any).id;
+  try {
+    // operational revenue (sum operational_to)
+    const opQ = `SELECT COALESCE(SUM(dyq.operational_to),0)::numeric AS operational_revenue FROM deliverable_yearly_quantities dyq JOIN deliverables d ON d.id = dyq.deliverable_id JOIN workpackages wp ON wp.id = d.workpackage_id WHERE wp.project_id = $1`;
+    const opR = await Pool.query<{ operational_revenue: string }>(opQ, [projectId]);
+    const operationalTotal = Number(opR.rows[0]?.operational_revenue || 0);
+
+    // Fetch project start_date to map ordinal years to calendar years
+    const pRes = await Pool.query<{ start_date?: string }>(`SELECT start_date FROM projects WHERE id=$1`, [projectId]);
+    const projectStartDate = pRes.rows[0]?.start_date;
+
+    // Fetch all deliverables for this project and their yearly quantities
+    const dRes = await Pool.query<DeliverableRow>(`SELECT d.* FROM deliverables d JOIN workpackages wp ON d.workpackage_id = wp.id WHERE wp.project_id = $1 ORDER BY d.created_at DESC`, [projectId]);
+    const deliverables: { id: number; yearlyQuantities?: number[] }[] = [];
+    if (dRes.rows.length > 0) {
+      const ids = dRes.rows.map(r => r.id);
+      const yRes = await Pool.query<YearQuantityRow>(`SELECT deliverable_id, year_number, quantity FROM deliverable_yearly_quantities WHERE deliverable_id = ANY($1)`, [ids]);
+      // group by deliverable
+      const byDel: Record<number, YearQuantityRow[]> = {};
+      yRes.rows.forEach(r => { (byDel[r.deliverable_id] = byDel[r.deliverable_id] || []).push(r); });
+      for (const d of dRes.rows) {
+        const list = (byDel[d.id] || []).sort((a,b)=>a.year_number-b.year_number);
+        const yearlyQuantities: number[] = list.map(x => Number(x.quantity || 0));
+        deliverables.push({ id: d.id, yearlyQuantities });
+      }
+    }
+
+    const totalProcessTime = await calcProjectTotalWorkingTime(deliverables, projectStartDate, Pool as any);
+    console.log('[getProjectHourlyPrice] projectId', projectId, { operationalTotal, totalProcessTime, deliverableCount: deliverables.length });
+
+    const hourlyPrice = totalProcessTime > 0 ? Number((operationalTotal / totalProcessTime).toFixed(2)) : 0;
+    res.json({ projectId: Number(projectId), hourlyPrice });
+  } catch (err:any) {
+    console.error('[getProjectHourlyPrice] error', err);
+    res.status(500).json({ error: err?.message || 'Error fetching hourly price' });
+  }
+};
+
+// GET /projects/:projectId/deliverables-costs
+export const getProjectDeliverablesCosts = async (req: Request, res: Response) => {
+  const projectId = (req.params as any).projectId || (req.params as any).id;
+  try {
+    // fetch project start_date
+    const pRes = await Pool.query<{ start_date?: string }>('SELECT start_date FROM projects WHERE id=$1', [projectId]);
+    const projectStartDate = pRes.rows[0]?.start_date;
+
+    // fetch deliverables and yearly quantities
+    const dRes = await Pool.query<DeliverableRow>('SELECT d.* FROM deliverables d JOIN workpackages wp ON d.workpackage_id = wp.id WHERE wp.project_id = $1 ORDER BY d.created_at DESC', [projectId]);
+    const ids = dRes.rows.map(r => r.id);
+    const yRes = ids.length ? await Pool.query<YearQuantityRow>('SELECT deliverable_id, year_number, quantity FROM deliverable_yearly_quantities WHERE deliverable_id = ANY($1)', [ids]) : { rows: [] } as any;
+
+    const byDel: Record<number, number[]> = {};
+    for (const q of (yRes.rows || [])) {
+      byDel[q.deliverable_id] = byDel[q.deliverable_id] || [];
+      byDel[q.deliverable_id][q.year_number - 1] = Number(q.quantity || 0);
+    }
+
+    const deliverablesForCalc = dRes.rows.map(d => ({ id: d.id, yearlyQuantities: byDel[d.id] || [] }));
+
+    const costRows = await calcDeliverablesCosts(deliverablesForCalc, projectStartDate, Pool as any);
+
+    // aggregate totals
+    let totalOpRecurrent = 0;
+    let totalOpNonRecurrent = 0;
+    let totalNop = 0;
+    for (const cr of costRows) {
+      totalOpRecurrent += cr.opRecurrentSum;
+      totalOpNonRecurrent += cr.opNonRecurrentSum;
+      totalNop += cr.nopSum;
+    }
+
+  const totalCosts = totalOpRecurrent + totalOpNonRecurrent + totalNop;
+
+  // compute operational DM consistently using the deliverablesForCalc we already built
+  const opResult = await calcOperationalDMForDeliverables(deliverablesForCalc, projectStartDate, Pool as any);
+  const gmbsResult = await calcGMBSForDeliverables(deliverablesForCalc, projectStartDate, Pool as any);
+
+  res.json({ projectId: Number(projectId), totalOpRecurrent, totalOpNonRecurrent, totalNop, totalCosts, operationalRevenue: opResult.totalTO, totalOperationalCosts: opResult.totalOperationalCosts, projectDM: opResult.projectDM, projectGMBS: gmbsResult.projectGMBS });
+  } catch (err:any) {
+    console.error('[getProjectDeliverablesCosts] error', err);
+    res.status(500).json({ error: err?.message || 'Error fetching deliverable costs' });
   }
 };

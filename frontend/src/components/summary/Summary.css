@@ -98,6 +98,8 @@
 .kpi-value.emph { color: var(--brand); }
 .kpi-value.gm.pos { color: var(--ok); }
 .kpi-value.gm.neg { color: var(--bad); }
+/* Force GM label to black when requested */
+.kpi-value.gm.black { color: #000000; }
 
 /* ===== Dashboards ===== */
 

@@ -139,6 +139,10 @@ const SummaryDocument: React.FC<Props> = ({
   const [rows, setRows] = useState<Allocation[] | null>(allocations ?? null);
   const [summary, setSummary] = useState<AllocationSummary | null>(null);
   const [operationalRevenue, setOperationalRevenue] = useState<number | null>(null);
+  const [hourlyPriceRemote, setHourlyPriceRemote] = useState<number | null>(null);
+  const [hourlyCostsRemote, setHourlyCostsRemote] = useState<number | null>(null);
+  const [projectGMBSRemote, setProjectGMBSRemote] = useState<number | null>(null);
+  const [projectDMRemote, setProjectDMRemote] = useState<number | null>(null);
   const [loading, setLoading] = useState(!allocations && !!effectiveProjectId);
   const [tab, setTab] = useState<
     "country" | "profileType" | "deliverable" | "workPackage"
@@ -172,6 +176,43 @@ const SummaryDocument: React.FC<Props> = ({
           } catch (e) {
             console.error('Error fetching operational revenue', e);
             setOperationalRevenue(null);
+          }
+          // fetch hourly price
+          try {
+            const hp = await fetch(`/projects/${effectiveProjectId}/hourly-price`);
+            if (hp.ok) {
+              const hj = await hp.json();
+              setHourlyPriceRemote(Number(hj.hourlyPrice || 0));
+            } else {
+              console.warn('Could not fetch hourly price', hp.status);
+              setHourlyPriceRemote(null);
+            }
+          } catch (e) {
+            console.error('Error fetching hourly price', e);
+            setHourlyPriceRemote(null);
+          }
+          // fetch deliverables costs -> to compute Hourly Costs = totalCosts / totalHours
+          try {
+            const cc = await fetch(`/projects/${effectiveProjectId}/deliverables-costs`);
+            if (cc.ok) {
+              const cj = await cc.json();
+              const totalCosts = Number(cj.totalCosts || 0);
+              const projectDM = cj.projectDM !== undefined ? Number(cj.projectDM) : null;
+              if (projectDM !== null) setProjectDMRemote(projectDM);
+              const projectGMBS = cj.projectGMBS !== undefined ? Number(cj.projectGMBS) : null;
+              if (projectGMBS !== null) setProjectGMBSRemote(projectGMBS);
+              // compute hourlyCosts: prefer totalHoursOverride, then allocData (fresh), then rows state
+              const hoursSource = typeof totalHoursOverride === 'number' ? totalHoursOverride : (allocData ?? rows ?? []);
+              const hours = typeof hoursSource === 'number' ? hoursSource : (hoursSource as Allocation[]).reduce((a, r) => a + (Number(r.hours) || 0), 0);
+              const hourlyCostVal = hours > 0 ? Number((totalCosts / hours).toFixed(2)) : 0;
+              setHourlyCostsRemote(hourlyCostVal);
+            } else {
+              console.warn('Could not fetch deliverables costs', cc.status);
+              setHourlyCostsRemote(null);
+            }
+          } catch (e) {
+            console.error('Error fetching deliverables costs', e);
+            setHourlyCostsRemote(null);
           }
         }
       } catch (e) {
@@ -282,28 +323,28 @@ const SummaryDocument: React.FC<Props> = ({
 
         <div className="kpi-grid">
           <div className="summary-card-item kpi-item">
-            <span className="summary-card-item-label kpi-label">Operational Revenue</span>
+            <span className="summary-card-item-label kpi-label">Operational Turnover</span>
             <span className="summary-card-item-value kpi-value emph">
               {(operationalRevenue ?? revenue ?? 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
             </span>
           </div>
           <div className="summary-card-item kpi-item">
-            <span className="summary-card-item-label kpi-label">Hourly Cost</span>
+            <span className="summary-card-item-label kpi-label">DM</span>
             <span className="summary-card-item-value kpi-value">
-              {hourlyCostCalc
-                ? `${hourlyCostCalc.toLocaleString("es-ES", {
-                    style: "currency",
-                    currency: "EUR",
-                    maximumFractionDigits: 2,
-                  })}/h`
-                : "-"}
+              {(projectDMRemote != null ? projectDMRemote : dm).toLocaleString("es-ES", { maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="summary-card-item kpi-item">
+            <span className="summary-card-item-label kpi-label">GMBS</span>
+            <span className={`summary-card-item-value kpi-value gm ${(projectGMBSRemote ?? (gm * 100)) >= 0.0 ? "pos" : "neg"} ${projectGMBSRemote != null ? 'black' : ''}`}>
+              {`${((projectGMBSRemote != null) ? projectGMBSRemote : (gm * 100)).toFixed(1)}%`}
             </span>
           </div>
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">Hourly Price</span>
             <span className="summary-card-item-value kpi-value">
-              {hourlyPriceCalc
-                ? `${hourlyPriceCalc.toLocaleString("es-ES", {
+              {(hourlyPriceRemote ?? hourlyPriceCalc)
+                ? `${(hourlyPriceRemote ?? hourlyPriceCalc).toLocaleString("es-ES", {
                     style: "currency",
                     currency: "EUR",
                     maximumFractionDigits: 2,
@@ -312,15 +353,15 @@ const SummaryDocument: React.FC<Props> = ({
             </span>
           </div>
           <div className="summary-card-item kpi-item">
-            <span className="summary-card-item-label kpi-label">GM</span>
-            <span className={`summary-card-item-value kpi-value gm ${gm >= 0.0 ? "pos" : "neg"}`}>
-              {`${(gm * 100).toFixed(1)}%`}
-            </span>
-          </div>
-          <div className="summary-card-item kpi-item">
-            <span className="summary-card-item-label kpi-label">DM</span>
+            <span className="summary-card-item-label kpi-label">Hourly Cost</span>
             <span className="summary-card-item-value kpi-value">
-              {dm.toLocaleString("es-ES", { maximumFractionDigits: 2 })}
+              {((hourlyCostsRemote != null) || (hourlyCostCalc != null))
+                ? `${(hourlyCostsRemote ?? hourlyCostCalc).toLocaleString("es-ES", {
+                    style: "currency",
+                    currency: "EUR",
+                    maximumFractionDigits: 2,
+                  })}/h`
+                : "-"}
             </span>
           </div>
           <div className="summary-card-item kpi-item">

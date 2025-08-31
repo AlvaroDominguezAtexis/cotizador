@@ -138,6 +138,7 @@ const SummaryDocument: React.FC<Props> = ({
 
   const [rows, setRows] = useState<Allocation[] | null>(allocations ?? null);
   const [summary, setSummary] = useState<AllocationSummary | null>(null);
+  const [operationalRevenue, setOperationalRevenue] = useState<number | null>(null);
   const [loading, setLoading] = useState(!allocations && !!effectiveProjectId);
   const [tab, setTab] = useState<
     "country" | "profileType" | "deliverable" | "workPackage"
@@ -158,6 +159,20 @@ const SummaryDocument: React.FC<Props> = ({
         if (!cancelled) {
           if (allocData) setRows(allocData);
           setSummary(summaryData);
+          // fetch operational revenue (sum of operational_to in deliverable_yearly_quantities)
+          try {
+            const rr = await fetch(`/projects/${effectiveProjectId}/operational-revenue`);
+            if (rr.ok) {
+              const j = await rr.json();
+              setOperationalRevenue(Number(j.operationalRevenue || 0));
+            } else {
+              console.warn('Could not fetch operational revenue', rr.status);
+              setOperationalRevenue(null);
+            }
+          } catch (e) {
+            console.error('Error fetching operational revenue', e);
+            setOperationalRevenue(null);
+          }
         }
       } catch (e) {
         console.error(e);
@@ -267,9 +282,9 @@ const SummaryDocument: React.FC<Props> = ({
 
         <div className="kpi-grid">
           <div className="summary-card-item kpi-item">
-            <span className="summary-card-item-label kpi-label">TO Total</span>
+            <span className="summary-card-item-label kpi-label">Operational Revenue</span>
             <span className="summary-card-item-value kpi-value emph">
-              {revenue.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
+              {(operationalRevenue ?? revenue ?? 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
             </span>
           </div>
           <div className="summary-card-item kpi-item">

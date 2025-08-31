@@ -2,6 +2,20 @@ import { Request, Response } from 'express';
 import Pool from '../../db';
 import { recalcDeliverablesYearlyForProject } from '../../services/deliverables/marginsYearly';
 
+// GET /projects/:projectId/operational-revenue
+export const getProjectOperationalRevenue = async (req: Request, res: Response) => {
+  const projectId = (req.params as any).projectId || (req.params as any).id;
+  try {
+    const q = `SELECT COALESCE(SUM(dyq.operational_to),0)::numeric AS operational_revenue FROM deliverable_yearly_quantities dyq JOIN deliverables d ON d.id = dyq.deliverable_id JOIN workpackages wp ON wp.id = d.workpackage_id WHERE wp.project_id = $1`;
+    const r = await Pool.query<{ operational_revenue: string }>(q, [projectId]);
+    const val = r.rows[0] ? Number(r.rows[0].operational_revenue || 0) : 0;
+    res.json({ projectId: Number(projectId), operationalRevenue: val });
+  } catch (err:any) {
+    console.error('[getProjectOperationalRevenue] error', err);
+    res.status(500).json({ error: err?.message || 'Error fetching operational revenue' });
+  }
+};
+
 interface DeliverableRow {
   id: number;
   workpackage_id: number;

@@ -254,3 +254,171 @@ export const getProjectDeliverablesCosts = async (req: Request, res: Response) =
     res.status(500).json({ error: err?.message || 'Error fetching deliverable costs' });
   }
 };
+
+// GET /projects/:projectId/deliverables-costs-breakdown
+export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Response) => {
+  const projectId = (req.params as any).projectId || (req.params as any).id;
+  try {
+    // fetch project start_date
+    const pRes = await Pool.query<{ start_date?: string }>('SELECT start_date FROM projects WHERE id=$1', [projectId]);
+    const projectStartDate = pRes.rows[0]?.start_date;
+
+    // fetch workpackages for project
+    const wpRes = await Pool.query('SELECT * FROM workpackages WHERE project_id = $1 ORDER BY created_at DESC', [projectId]);
+    const workPackages = wpRes.rows || [];
+
+    // fetch deliverables and yearly quantities for the project (include workpackage_id)
+    const dRes = await Pool.query<DeliverableRow>('SELECT d.* FROM deliverables d JOIN workpackages wp ON d.workpackage_id = wp.id WHERE wp.project_id = $1 ORDER BY d.created_at DESC', [projectId]);
+    const ids = dRes.rows.map(r => r.id);
+    const yRes = ids.length ? await Pool.query<YearQuantityRow>('SELECT deliverable_id, year_number, quantity FROM deliverable_yearly_quantities WHERE deliverable_id = ANY($1)', [ids]) : { rows: [] } as any;
+
+    const byDel: Record<number, number[]> = {};
+    for (const q of (yRes.rows || [])) {
+      byDel[q.deliverable_id] = byDel[q.deliverable_id] || [];
+      byDel[q.deliverable_id][q.year_number - 1] = Number(q.quantity || 0);
+    }
+
+    const deliverablesForCalc = dRes.rows.map(d => ({ id: d.id, workpackage_id: d.workpackage_id, nombre: d.nombre, yearlyQuantities: byDel[d.id] || [] }));
+
+    // per-deliverable cost rows (per year)
+    const costRows = await calcDeliverablesCosts(deliverablesForCalc.map(d=>({ id: d.id, yearlyQuantities: d.yearlyQuantities })), projectStartDate, Pool as any);
+
+    // build quantity map for quick access
+    const qtyMap: Record<string, number> = {};
+    for (const d of deliverablesForCalc) {
+      const yq = Array.isArray(d.yearlyQuantities) ? d.yearlyQuantities : [];
+      for (let i = 0; i < yq.length; i++) {
+        qtyMap[`${d.id}_${i+1}`] = Number(yq[i] || 0);
+      }
+    }
+
+    // aggregate per-deliverable totals from costRows and quantities
+    const perDeliverableTotals: Record<number, { totalOpRecurrent: number; totalOpNonRecurrent: number; totalNop: number; totalCosts: number; totalQty: number }> = {};
+    for (const cr of costRows) {
+      const did = Number((cr as any).deliverableId ?? (cr as any).deliverable_id);
+      const year_number = Number((cr as any).year_number ?? (cr as any).yearNumber ?? 0);
+      const qty = Number(qtyMap[`${did}_${year_number}`] || 0);
+      const opRecurrentContribution = Number((cr as any).opRecurrentSum ?? (cr as any).op_recurrent_sum ?? 0) * qty;
+      const opNonRecurrentContribution = Number((cr as any).opNonRecurrentSum ?? (cr as any).op_non_recurrent_sum ?? 0);
+      const nopContribution = Number((cr as any).nopSum ?? (cr as any).nop_sum ?? 0) * qty;
+      const entry = perDeliverableTotals[did] || { totalOpRecurrent: 0, totalOpNonRecurrent: 0, totalNop: 0, totalCosts: 0, totalQty: 0 };
+      entry.totalOpRecurrent += opRecurrentContribution;
+      entry.totalOpNonRecurrent += opNonRecurrentContribution;
+      entry.totalNop += nopContribution;
+      entry.totalCosts += opRecurrentContribution + opNonRecurrentContribution + nopContribution;
+      entry.totalQty += qty;
+      perDeliverableTotals[did] = entry;
+    }
+
+    // compute per-deliverable total TO and work_time in a single query
+    // Build VALUES for (deliverable_id, calendar_year, year_number, qty)
+    const tuples: number[] = [];
+    const valuesParts: string[] = [];
+    let paramIdx = 1;
+    const projectStartYear = projectStartDate ? new Date(projectStartDate).getFullYear() : new Date().getFullYear();
+    for (const d of deliverablesForCalc) {
+      const id = Number(d.id);
+      const yq = Array.isArray(d.yearlyQuantities) ? d.yearlyQuantities : [];
+      for (let i = 0; i < yq.length; i++) {
+        const qty = Number(yq[i] || 0);
+        const calendarYear = projectStartYear + i;
+        valuesParts.push(`($${paramIdx++}::int, $${paramIdx++}::int, $${paramIdx++}::int, $${paramIdx++}::numeric)`);
+        tuples.push(id, calendarYear, i+1, qty);
+      }
+    }
+
+    let workTimeRows: Array<{ deliverable_id: number; total_work_time: string }> = [];
+    let toRows: Array<{ deliverable_id: number; total_to: string }> = [];
+    if (valuesParts.length > 0) {
+      const valuesSql = valuesParts.join(',');
+      const qWork = `
+        WITH dy(did, year, year_number, qty) AS (VALUES ${valuesSql})
+        SELECT dy.did AS deliverable_id, COALESCE(SUM(
+          CASE WHEN LOWER(COALESCE(s.unit,'')) = 'days' THEN COALESCE(syd.process_time,0) * COALESCE(pc.hours_per_day,0) * COALESCE(dy.qty,0)
+               ELSE COALESCE(syd.process_time,0) * COALESCE(dy.qty,0) END
+        ),0)::numeric AS total_work_time
+        FROM steps s
+        JOIN dy ON dy.did = s.deliverable_id
+        JOIN step_yearly_data syd ON syd.step_id = s.id AND syd.year = dy.year
+        LEFT JOIN deliverables d ON d.id = s.deliverable_id
+        LEFT JOIN workpackages wp ON wp.id = d.workpackage_id
+        LEFT JOIN project_countries pc ON pc.project_id = wp.project_id AND pc.country_id = s.country_id
+        GROUP BY dy.did
+      `;
+      const rWork = await Pool.query<{ deliverable_id: number; total_work_time: string }>(qWork, tuples);
+      workTimeRows = rWork.rows || [];
+
+      // fetch per-deliverable total TO
+      const qTO = `SELECT deliverable_id, COALESCE(SUM(operational_to),0)::numeric AS total_to FROM deliverable_yearly_quantities WHERE deliverable_id = ANY($1::int[]) GROUP BY deliverable_id`;
+      const rTO = await Pool.query<{ deliverable_id: number; total_to: string }>(qTO, [ids]);
+      toRows = rTO.rows || [];
+    }
+
+    const workTimeMap: Record<number, number> = {};
+    for (const w of workTimeRows) workTimeMap[Number(w.deliverable_id)] = Number(w.total_work_time || 0);
+    const toMap: Record<number, number> = {};
+    for (const t of toRows) toMap[Number(t.deliverable_id)] = Number(t.total_to || 0);
+
+    // Build response grouped by workpackage
+    const wpMap: Record<number, any> = {};
+    for (const wp of workPackages) {
+      wpMap[Number(wp.id)] = { id: wp.id, nombre: wp.nombre || wp.name || wp.codigo || `WP ${wp.id}`, deliverables: [], totals: { totalCosts: 0, totalTO: 0, totalWorkTime: 0 } };
+    }
+
+    for (const d of deliverablesForCalc) {
+      const did = Number(d.id);
+      const wpId = Number((d as any).workpackage_id);
+      const totals = perDeliverableTotals[did] || { totalOpRecurrent: 0, totalOpNonRecurrent: 0, totalNop: 0, totalCosts: 0, totalQty: 0 };
+      const totalTO = toMap[did] || 0;
+      const totalWorkTime = workTimeMap[did] || 0;
+      const hourlyCost = totalWorkTime > 0 ? Number((totals.totalCosts / totalWorkTime).toFixed(2)) : 0;
+      const hourlyPrice = totalWorkTime > 0 ? Number((totalTO / totalWorkTime).toFixed(2)) : 0;
+      const dm = totalTO > 0 ? Number(((1 - ( (totals.totalOpRecurrent + totals.totalOpNonRecurrent) / totalTO)) * 100).toFixed(2)) : 0;
+      const gmbs = totalTO > 0 ? Number(((1 - ( (totals.totalOpRecurrent + totals.totalNop + totals.totalOpNonRecurrent) / totalTO)) * 100).toFixed(2)) : 0;
+
+      const deliverableEntry = {
+        id: did,
+        nombre: (d as any).nombre || `Deliverable ${did}`,
+        workpackage_id: wpId,
+        totalCosts: totals.totalCosts,
+        totalTO,
+        totalWorkTime,
+        hourlyCost,
+        hourlyPrice,
+        dm,
+        gmbs,
+      };
+
+      if (!wpMap[wpId]) {
+        wpMap[wpId] = { id: wpId, nombre: `WP ${wpId}`, deliverables: [], totals: { totalCosts: 0, totalTO: 0, totalWorkTime: 0 } };
+      }
+      wpMap[wpId].deliverables.push(deliverableEntry);
+      wpMap[wpId].totals.totalCosts += deliverableEntry.totalCosts;
+      wpMap[wpId].totals.totalTO += deliverableEntry.totalTO;
+      wpMap[wpId].totals.totalWorkTime += deliverableEntry.totalWorkTime;
+    }
+
+    const wpList = Object.values(wpMap).map((w:any) => {
+      const totalWorkTime = w.totals.totalWorkTime || 0;
+      return {
+        id: w.id,
+        nombre: w.nombre,
+        deliverables: w.deliverables,
+        totals: {
+          totalCosts: Number((w.totals.totalCosts || 0)),
+          totalTO: Number((w.totals.totalTO || 0)),
+          totalWorkTime,
+          hourlyCost: totalWorkTime > 0 ? Number((w.totals.totalCosts / totalWorkTime).toFixed(2)) : 0,
+          hourlyPrice: totalWorkTime > 0 ? Number((w.totals.totalTO / totalWorkTime).toFixed(2)) : 0,
+          dm: w.totals.totalTO > 0 ? Number(((1 - ((w.totals.totalCosts) / w.totals.totalTO)) * 100).toFixed(2)) : 0,
+          gmbs: w.totals.totalTO > 0 ? Number(((1 - ((w.totals.totalCosts + (w.totals.totalNop||0)) / w.totals.totalTO)) * 100).toFixed(2)) : 0,
+        }
+      };
+    });
+
+    res.json({ projectId: Number(projectId), workPackages: wpList });
+  } catch (err:any) {
+    console.error('[getProjectDeliverablesCostsBreakdown] error', err);
+    res.status(500).json({ error: err?.message || 'Error fetching deliverable costs breakdown' });
+  }
+};

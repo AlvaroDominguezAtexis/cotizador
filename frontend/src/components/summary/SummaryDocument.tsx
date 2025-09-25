@@ -143,6 +143,7 @@ const SummaryDocument: React.FC<Props> = ({
   const [hourlyCostsRemote, setHourlyCostsRemote] = useState<number | null>(null);
   const [projectGMBSRemote, setProjectGMBSRemote] = useState<number | null>(null);
   const [projectDMRemote, setProjectDMRemote] = useState<number | null>(null);
+  const [financialBreakdown, setFinancialBreakdown] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(!allocations && !!effectiveProjectId);
   const [tab, setTab] = useState<
     "country" | "profileType" | "deliverable" | "workPackage"
@@ -214,6 +215,21 @@ const SummaryDocument: React.FC<Props> = ({
             console.error('Error fetching deliverables costs', e);
             setHourlyCostsRemote(null);
           }
+
+            // fetch financial breakdown per workpackage/deliverable
+            try {
+              const fb = await fetch(`/projects/${effectiveProjectId}/deliverables-costs-breakdown`);
+              if (fb.ok) {
+                const fj = await fb.json();
+                setFinancialBreakdown(Array.isArray(fj.workPackages) ? fj.workPackages : (fj.workPackages || []));
+              } else {
+                console.warn('Could not fetch financial breakdown', fb.status);
+                setFinancialBreakdown(null);
+              }
+            } catch (e) {
+              console.error('Error fetching financial breakdown', e);
+              setFinancialBreakdown(null);
+            }
         }
       } catch (e) {
         console.error(e);
@@ -374,27 +390,83 @@ const SummaryDocument: React.FC<Props> = ({
       </div>
 
       {/* ===================== */}
-      {/*   Dashboards detalle  */}
-      {/* ===================== */}
-      <div className="summary-card dash-card">
+      {/*   Main financial information */}
+      <div className="summary-card financial-card">
         <div className="summary-card-header dash-header">
-          <h3>FTEs Breakdown</h3>
-          <div className="tabs">
-            <button className={`tab ${tab === "country" ? "active" : ""}`} onClick={() => setTab("country")}>
-              País
-            </button>
-            <button className={`tab ${tab === "profileType" ? "active" : ""}`} onClick={() => setTab("profileType")}>
-              Tipo perfil
-            </button>
-            <button className={`tab ${tab === "deliverable" ? "active" : ""}`} onClick={() => setTab("deliverable")}>
-              Deliverable
-            </button>
-            <button className={`tab ${tab === "workPackage" ? "active" : ""}`} onClick={() => setTab("workPackage")}>
-              WP
-            </button>
-          </div>
+          <h3>Main financial information</h3>
         </div>
 
+        {financialBreakdown == null ? (
+          <div className="summary-hint empty">No hay información financiera disponible.</div>
+        ) : (
+          <div className="financial-table">
+            {financialBreakdown.map((wp: any) => (
+              <div className="wp-row" key={wp.id}>
+                <div className="wp-grid">
+                  <div className="wp-grid-title">
+                    <div className="wp-grid-label">Workpackage</div>
+                    <strong>{wp.nombre}</strong>
+                  </div>
+
+                  <div className="wp-grid-cell">
+                    <div className="wp-grid-label">Hourly Cost</div>
+                    <div className="wp-grid-value">{(wp.totals.hourlyCost || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</div>
+                  </div>
+
+                  <div className="wp-grid-cell">
+                    <div className="wp-grid-label">Hourly Price</div>
+                    <div className="wp-grid-value">{(wp.totals.hourlyPrice || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</div>
+                  </div>
+
+                  <div className="wp-grid-cell">
+                    <div className="wp-grid-label">Operational TO</div>
+                    <div className="wp-grid-value">{(wp.totals.totalTO || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+                  </div>
+
+                  <div className="wp-grid-cell">
+                    <div className="wp-grid-label">GM</div>
+                    <div className="wp-grid-value">{(wp.totals.dm || 0).toFixed(1)}%</div>
+                  </div>
+
+                  <div className="wp-grid-cell">
+                    <div className="wp-grid-label">DM</div>
+                    <div className="wp-grid-value">{(wp.totals.totalCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+                  </div>
+
+                  <div className="wp-grid-toggle">
+                    <button aria-expanded="false" aria-controls={`wp-del-${wp.id}`} title="Expandir deliverables" className="btn small toggle" onClick={(e) => {
+                      const el = document.getElementById(`wp-del-${wp.id}`);
+                      if (el) el.classList.toggle('expanded');
+                      const btn = e.currentTarget as HTMLButtonElement;
+                      btn.setAttribute('aria-expanded', String(el ? el.classList.contains('expanded') : false));
+                    }}>▾</button>
+                  </div>
+                </div>
+
+                <div id={`wp-del-${wp.id}`} className="deliverables-list">
+                  <div className="table-mini-head">
+                    <span>Deliverable</span>
+                    <span>Hourly Cost</span>
+                    <span>Hourly Price</span>
+                    <span>Operational TO</span>
+                    <span>GM</span>
+                    <span>DM</span>
+                  </div>
+                  {(wp.deliverables || []).map((d: any) => (
+                    <div className="table-mini-row" key={d.id}>
+                      <span title={d.nombre}>{d.nombre}</span>
+                      <span>{(d.hourlyCost || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</span>
+                      <span>{(d.hourlyPrice || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</span>
+                      <span>{(d.totalTO || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                      <span>{(d.dm || 0).toFixed(1)}%</span>
+                      <span>{(d.totalCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {currentSummaryData.length === 0 ? (
           <div className="summary-hint empty">Sin datos para esta dimensión.</div>
         ) : (

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getProjects, getProjectById, createProject, updateProject, deleteProject } from '../../controllers/project/projectsController';
-import { recalcProjectDeliverablesMarginsYearly, getProjectOperationalRevenue, getProjectHourlyPrice, getProjectDeliverablesCosts } from '../../controllers/project/deliverablesController';
+import { recalcProjectDeliverablesMarginsYearly, getProjectOperationalRevenue, getProjectHourlyPrice, getProjectDeliverablesCosts, getProjectDeliverablesCostsBreakdown } from '../../controllers/project/deliverablesController';
 
 const router = Router();
 
@@ -13,5 +13,6 @@ router.post('/:id/recalc-margins-yearly', recalcProjectDeliverablesMarginsYearly
 router.get('/:id/operational-revenue', getProjectOperationalRevenue);
 router.get('/:id/hourly-price', getProjectHourlyPrice);
 router.get('/:id/deliverables-costs', getProjectDeliverablesCosts);
+router.get('/:id/deliverables-costs-breakdown', getProjectDeliverablesCostsBreakdown);
 
 export default router;

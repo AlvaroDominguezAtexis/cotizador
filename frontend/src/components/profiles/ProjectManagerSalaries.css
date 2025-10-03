@@ -15,11 +15,41 @@
   margin-bottom: 0.75rem;
 }
 
+.section-title-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .profile-section-header h3 {
   margin: 0;
   font-size: 1.1rem;
   color: #333;
   font-weight: 600;
+}
+
+.collapse-toggle {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.collapse-toggle:hover {
+  color: #333;
+}
+
+.iqp-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  color: #856404;
+  font-size: 0.9rem;
 }
 
 .button-group {

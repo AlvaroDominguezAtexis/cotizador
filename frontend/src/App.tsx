@@ -264,6 +264,7 @@ const App: React.FC = () => {
           onChange={setProfilesData}
           additionalCountries={projectFormData?.countries || []}
           projectId={projectFormData?.id || 0}
+          iqp={projectFormData?.iqp}
         />;
       case 'work-packages':
         return (

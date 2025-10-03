@@ -5,12 +5,14 @@ import './ProjectManagerSalaries.css';
 interface ProjectManagerSalariesProps {
   projectId: number;
   countries: { id: string; name: string }[];
+  iqp?: number;
 }
 
-export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ projectId, countries }) => {
+export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ projectId, countries, iqp = 3 }) => {
   const [salaries, setSalaries] = useState<Record<string, number>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [editedSalaries, setEditedSalaries] = useState<Record<string, string>>({});
+  const [isCollapsed, setIsCollapsed] = useState(iqp === 1 || iqp === 2); // Colapsado por defecto para IQP 1-2
 
   // Load existing PM salaries
   useEffect(() => {
@@ -145,45 +147,66 @@ export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ 
   return (
     <div className="project-manager-salaries">
       <div className="profile-section-header">
-        <h3>Project Manager Salaries</h3>
-        {isEditing ? (
-          <div className="button-group">
-            <Button variant="warning" size="sm" onClick={handleSave}>
-              Guardar
+        <div className="section-title-container">
+          <h3>Project Manager Salaries</h3>
+          <button 
+            className="collapse-toggle"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-label={isCollapsed ? 'Expandir' : 'Colapsar'}
+          >
+            {isCollapsed ? '▶' : '▼'}
+          </button>
+        </div>
+        {!isCollapsed && (
+          isEditing ? (
+            <div className="button-group">
+              <Button variant="warning" size="sm" onClick={handleSave}>
+                Guardar
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleCancel}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <Button variant="primary" size="sm" onClick={handleEdit}>
+              Editar
             </Button>
-            <Button variant="secondary" size="sm" onClick={handleCancel}>
-              Cancelar
-            </Button>
-          </div>
-        ) : (
-          <Button variant="primary" size="sm" onClick={handleEdit}>
-            Editar
-          </Button>
+          )
         )}
       </div>
-      <div className="pm-salaries-grid">
-        {countries.map(country => (
-          <div key={country.id} className="pm-salary-item">
-            <label>{country.name}</label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedSalaries[country.id] || ''}
-                onChange={(e) => setEditedSalaries(prev => ({
-                  ...prev,
-                  [country.id]: e.target.value
-                }))}
-                className="salary-input"
-                placeholder="Enter salary"
-              />
-            ) : (
-              <div className="salary-display">
-                {salaries[country.id] ? `${Number(salaries[country.id]).toLocaleString()}€` : '-'}
+      
+      {!isCollapsed && (
+        <>
+          {(iqp === 1 || iqp === 2) && (
+            <div className="iqp-warning">
+              <strong>⚠️ Warning:</strong> By default, management is 0% as IQP {iqp}. Please, modify this parameter in Workpackages to include management costs.
+            </div>
+          )}
+          <div className="pm-salaries-grid">
+            {countries.map(country => (
+              <div key={country.id} className="pm-salary-item">
+                <label>{country.name}</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editedSalaries[country.id] || ''}
+                    onChange={(e) => setEditedSalaries(prev => ({
+                      ...prev,
+                      [country.id]: e.target.value
+                    }))}
+                    className="salary-input"
+                    placeholder="Enter salary"
+                  />
+                ) : (
+                  <div className="salary-display">
+                    {salaries[country.id] ? `${Number(salaries[country.id]).toLocaleString()}€` : '-'}
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 };

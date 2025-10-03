@@ -14,9 +14,10 @@ interface ProfilesTabProps {
   onChange: (profiles: any[]) => void;
   additionalCountries?: string[]; // mantén el nombre del prop para no romper uso existente
   projectId: number;
+  iqp?: number; // IQP del proyecto
 }
 
-export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, additionalCountries = [], projectId }) => {
+export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, additionalCountries = [], projectId, iqp = 3 }) => {
   const { countries: countryList, loading: loadingCountries } = useCountryNames(additionalCountries);
   const handleExport = () => {
     const profilesData = JSON.stringify(profiles, null, 2);
@@ -78,6 +79,7 @@ export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, ad
             <ProjectManagerSalaries
               projectId={projectId}
               countries={countryList}
+              iqp={iqp}
             />
           </div>
         )}

@@ -736,3 +736,24 @@ export const upsertProjectCountryActivityRate = async (req: Request, res: Respon
     res.status(500).json({ error: 'Error al guardar Activity Rate' });
   }
 };
+
+// GET /projects/:projectId/countries-mng - Obtener porcentajes de management por país para Time & Material
+export const getProjectCountriesMng = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.mng
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesMng error', e);
+    res.status(500).json({ error: 'Error al obtener porcentajes de Management por país' });
+  }
+};

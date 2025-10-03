@@ -25,6 +25,7 @@ import {
 	addProjectCountry,
 	getProjectCountriesManagementSalary,
 	upsertProjectCountryManagementSalary,
+	getProjectCountriesMng,
 	getProjectCountriesMarkup,
 		upsertProjectCountryMarkup,
 		getProjectCountriesSocialContributionRate,
@@ -89,6 +90,9 @@ projectCountriesManagementRouter.get('/test', (req, res) => {
 
 projectCountriesManagementRouter.get('/', getProjectCountriesManagementSalary);
 projectCountriesManagementRouter.put('/:countryId', upsertProjectCountryManagementSalary);
+
+export const projectCountriesMngRouter = express.Router({ mergeParams: true });
+projectCountriesMngRouter.get('/', getProjectCountriesMng);
 
 export const projectCountriesMarkupRouter = express.Router({ mergeParams: true });
 projectCountriesMarkupRouter.get('/', getProjectCountriesMarkup);

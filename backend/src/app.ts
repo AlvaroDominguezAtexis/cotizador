@@ -18,6 +18,7 @@ import projectCountriesRoutes, {
 	projectCountriesWorkingDaysRouter,
 	projectCountriesHoursPerDayRouter,
 	projectCountriesManagementRouter,
+	projectCountriesMngRouter,
 	projectCountriesMarkupRouter,
 	projectCountriesSocialContributionRateRouter,
  	projectCountriesNonProductiveCostRouter,
@@ -75,6 +76,7 @@ app.use('/projects/:projectId/countries-operational-quality-costs', projectCount
 // Debug route registration
 console.log('Registering management salary routes at /projects/:projectId/countries-management');
 app.use('/projects/:projectId/countries-management', projectCountriesManagementRouter);
+app.use('/projects/:projectId/countries-mng', projectCountriesMngRouter);
 app.use('/projects/:projectId/countries-markup', projectCountriesMarkupRouter);
 app.use('/projects/:projectId/countries-social-contribution-rate', projectCountriesSocialContributionRateRouter);
 

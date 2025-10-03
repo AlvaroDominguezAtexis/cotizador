@@ -216,3 +216,81 @@
 .project-data-form .btn-submit:hover {
   background-color: #0056b3;
 }
+
+/* Modal de confirmación */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content h3 {
+  margin: 0 0 15px 0;
+  color: #d73527;
+  font-size: 1.4rem;
+}
+
+.modal-content p {
+  margin: 0 0 15px 0;
+  line-height: 1.5;
+  color: #333;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.modal-actions .btn-secondary {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  background-color: #f8f9fa;
+  color: #333;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-actions .btn-secondary:hover:not(:disabled) {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.modal-actions .btn-primary {
+  padding: 10px 20px;
+  border: none;
+  background-color: #d73527;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-actions .btn-primary:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

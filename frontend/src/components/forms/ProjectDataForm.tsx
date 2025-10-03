@@ -13,6 +13,9 @@ type BusinessUnit = { id: string; name: string };
 
 const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
   const [businessUnits, setBusinessUnits] = useState<BusinessUnit[]>([]);
+  const [showIqpWarning, setShowIqpWarning] = useState(false);
+  const [pendingIqpValue, setPendingIqpValue] = useState<number | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
   useEffect(() => {
     const fetchBusinessUnits = async () => {
       try {
@@ -85,11 +88,11 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
       businessUnit: '',
       buLine: '',
       opsDomain: '',
-  country: '',
-  countries: [],
-      iqp: 1,
-  marginType: '',
-  marginGoal: '',
+      country: '',
+      countries: [],
+      iqp: 0, // Cambio a 0 para indicar vacío
+      marginType: '',
+      marginGoal: '',
       segmentation: 'New Business',
       description: '',
     }
@@ -116,6 +119,28 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+
+    // Manejo especial para IQP
+    if (name === 'iqp') {
+      const newIqpValue = Number(value) || 0;
+      const oldIqp = formData.iqp;
+      
+      // Si ya existe un proyecto con IQP y se quiere cambiar entre categorías diferentes
+      if (initialValues?.id && oldIqp > 0 && newIqpValue > 0) {
+        const oldCategory = oldIqp <= 2 ? 'simple' : 'complex';
+        const newCategory = newIqpValue <= 2 ? 'simple' : 'complex';
+        
+        if (oldCategory !== newCategory) {
+          setPendingIqpValue(newIqpValue);
+          setShowIqpWarning(true);
+          return; // No actualizar aún
+        }
+      }
+      
+      setFormData((prev) => ({ ...prev, iqp: newIqpValue }));
+      return;
+    }
+
     // Keep numeric with decimals for marginGoal, everything else as string
     if (name === 'marginGoal') {
       const cleaned = value.replace(/,/g, '.');
@@ -127,15 +152,62 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Only call onChange when formData actually changes
+  const handleConfirmIqpChange = async () => {
+    if (!initialValues?.id || pendingIqpValue === null) return;
+    
+    setIsClearing(true);
+    try {
+      // Llamar al endpoint para limpiar workpackages
+      const response = await fetch(`/api/projects/${initialValues.id}/clear-workpackages`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Error al limpiar workpackages');
+      }
+      
+      const result = await response.json();
+      console.log('Workpackages eliminados:', result.deleted_workpackages);
+      
+      // Actualizar el IQP en el formulario
+      setFormData(prev => ({ ...prev, iqp: pendingIqpValue }));
+      
+    } catch (error) {
+      console.error('Error al confirmar cambio de IQP:', error);
+      alert(`Error al limpiar los workpackages: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      // Resetear el estado del modal
+      setShowIqpWarning(false);
+      setPendingIqpValue(null);
+      setIsClearing(false);
+    }
+  };
+
+  const handleCancelIqpChange = () => {
+    setShowIqpWarning(false);
+    setPendingIqpValue(null);
+    setIsClearing(false);
+  };
+
+  // Only call onChange when formData actually changes and is valid
   React.useEffect(() => {
-    if (onChange) onChange(formData);
-  }, [formData, onChange]);
+    // Para proyectos nuevos, IQP es obligatorio
+    const isValidForNewProject = !initialValues?.id ? formData.iqp > 0 : true;
+    
+    if (onChange && isValidForNewProject) {
+      onChange(formData);
+    }
+  }, [formData, onChange, initialValues?.id]);
 
 
 
   return (
-    <form className="project-data-form">
+    <div>
+      <form className="project-data-form">
       <h2 className="form-title">Información del Proyecto</h2>
 
       {/* Grid principal */}
@@ -267,11 +339,12 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
   {/* Ámbito eliminado */}
 
         <div className="form-group">
-          <label>IQP</label>
+          <label>IQP *</label>
           <select
             name="iqp"
-            value={formData.iqp}
+            value={formData.iqp || ''}
             onChange={handleInputChange}
+            required
           >
             <option value="">Seleccione IQP</option>
             {[1,2,3,4,5].map(val => (
@@ -344,6 +417,39 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
 
     </form>
+    
+    {/* Modal de confirmación para cambio de IQP */}
+    {showIqpWarning && (
+      <div className="modal-overlay">
+        <div className="modal-content">
+          <h3>Cambio de IQP</h3>
+          <p>
+            Al cambiar el IQP de una categoría a otra (IQP 1-2 ↔ IQP 3-5), 
+            todos los workpackages existentes serán eliminados.
+          </p>
+          <p><strong>¿Está seguro de que desea continuar?</strong></p>
+          <div className="modal-actions">
+            <button 
+              type="button" 
+              onClick={handleCancelIqpChange}
+              className="btn-secondary"
+              disabled={isClearing}
+            >
+              Cancelar
+            </button>
+            <button 
+              type="button" 
+              onClick={handleConfirmIqpChange}
+              className="btn-primary"
+              disabled={isClearing}
+            >
+              {isClearing ? 'Eliminando...' : 'Confirmar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </div>
   );
 };
 

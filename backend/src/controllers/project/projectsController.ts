@@ -349,3 +349,80 @@ export const deleteProject = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al eliminar proyecto' });
   }
 };
+
+// 🔹 Limpiar todos los workpackages de un proyecto (para cambios de IQP)
+export const clearProjectWorkPackages = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const clientConn = await Pool.connect();
+  
+  try {
+    await clientConn.query('BEGIN');
+    
+    // Verificar que el proyecto existe
+    const projectCheck = await clientConn.query('SELECT id FROM projects WHERE id = $1', [id]);
+    if (projectCheck.rows.length === 0) {
+      await clientConn.query('ROLLBACK');
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    // Eliminar en orden: yearly_data → steps → deliverable_yearly_quantities → deliverables → workpackages
+    // La estructura de cascada debería manejar esto, pero lo hacemos explícito por seguridad
+    
+    // 1. Eliminar yearly data de steps de este proyecto
+    await clientConn.query(`
+      DELETE FROM step_yearly_data 
+      WHERE step_id IN (
+        SELECT s.id FROM steps s
+        JOIN deliverables d ON s.deliverable_id = d.id
+        JOIN workpackages wp ON d.workpackage_id = wp.id
+        WHERE wp.project_id = $1
+      )
+    `, [id]);
+
+    // 2. Eliminar steps
+    await clientConn.query(`
+      DELETE FROM steps 
+      WHERE deliverable_id IN (
+        SELECT d.id FROM deliverables d
+        JOIN workpackages wp ON d.workpackage_id = wp.id
+        WHERE wp.project_id = $1
+      )
+    `, [id]);
+
+    // 3. Eliminar deliverable yearly quantities
+    await clientConn.query(`
+      DELETE FROM deliverable_yearly_quantities 
+      WHERE deliverable_id IN (
+        SELECT d.id FROM deliverables d
+        JOIN workpackages wp ON d.workpackage_id = wp.id
+        WHERE wp.project_id = $1
+      )
+    `, [id]);
+
+    // 4. Eliminar deliverables
+    await clientConn.query(`
+      DELETE FROM deliverables 
+      WHERE workpackage_id IN (
+        SELECT id FROM workpackages WHERE project_id = $1
+      )
+    `, [id]);
+
+    // 5. Eliminar work packages
+    const result = await clientConn.query('DELETE FROM workpackages WHERE project_id = $1', [id]);
+    
+    await clientConn.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      deleted_workpackages: result.rowCount,
+      message: 'Workpackages eliminados correctamente' 
+    });
+    
+  } catch (err) {
+    await clientConn.query('ROLLBACK');
+    console.error('Error al limpiar workpackages:', err);
+    res.status(500).json({ error: 'Error al eliminar workpackages' });
+  } finally {
+    clientConn.release();
+  }
+};

@@ -168,7 +168,7 @@ const DeliverablesTable: React.FC<Props> = ({
   useEffect(() => {
     if (createNew) {
       (async () => {
-        const base = { yearlyQuantities: new Array(projectYears.length).fill(0) } as any;
+        const base = { yearlyQuantities: new Array(projectYears.length).fill(1) } as any;
         try {
           if (projectId) {
             const res = await fetch(`${API_BASE}/projects/${projectId}`);
@@ -208,7 +208,7 @@ const DeliverablesTable: React.FC<Props> = ({
         codigo: editingDeliverable.code || '',
         nombre: editingDeliverable.name || '',
   margin_goal: Number(editingDeliverable.dm || 0),
-        yearlyQuantities: editingDeliverable.yearlyQuantities || new Array(projectYears.length).fill(0)
+        yearlyQuantities: editingDeliverable.yearlyQuantities || new Array(projectYears.length).fill(1)
       }).catch(e => { if (e.message === 'DUPLICATE_CODE') { setFormError('Código duplicado'); return null; } throw e; });
       if (created) {
         const newList = [created, ...items];

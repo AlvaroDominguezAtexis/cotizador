@@ -273,6 +273,8 @@ const App: React.FC = () => {
             projectStartDate={projectFormData?.startDate}
             projectEndDate={projectFormData?.endDate}
             projectId={projectFormData?.id}
+            iqp={projectFormData?.iqp}
+            marginGoal={typeof projectFormData?.marginGoal === 'number' ? projectFormData.marginGoal : 0}
             profiles={profileOptions}
             countries={projectCountryOptions}
           />

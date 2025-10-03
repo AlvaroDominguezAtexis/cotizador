@@ -826,8 +826,6 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
         {rows.length > 0 && (
           <div className="profile-counter">
             📊 {rows.length} perfil(es) • {rows.filter(r => r.stepId).length} guardado(s) • {rows.filter(r => !r.stepId).length} pendiente(s) 
-            <br />
-            🔄 {getUsedProfileCityCombinations().size} combinaciones perfil-ciudad utilizadas
           </div>
         )}
       </div>

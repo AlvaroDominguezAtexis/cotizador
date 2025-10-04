@@ -2,33 +2,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 // Removed chart imports
 import "./Summary.css";
-
-/**
- * ============================
- *   Tipos y utilidades
- * ============================
- */
-
-export type Allocation = {
-  hours: number;
-  country?: string | null;
-  year?: number | string | null;
-  profileType?: string | null;
-  step?: string | null;
-  deliverable?: string | null;
-  workPackage?: string | null;
-};
-
-type WorkPackageLite = { dm?: number | string | null };
-
-type CostsInput = {
-  /** Ingresos (TO: Turnover) del proyecto */
-  revenue?: number; // TO total
-  /** Costes totales de personal (si ya vienen agregados) */
-  personnel?: number;
-  /** Otros costes (viajes, subcontrata, IT, etc.) */
-  nonPersonnel?: number;
-};
+import {
+  Allocation,
+  WorkPackageLite,
+  CostsInput,
+  FinancialKPIs,
+  computeFTE,
+  calculateTotalHours,
+  aggregateFTE,
+  calculateFinancialKPIs,
+  calculateTotalDM,
+  calculateProjectKPIs,
+  round
+} from "../../utils/functions";
 
 type Props = {
   /** Puedes pasar el objeto proyecto o sólo su id; si hay ambos, prevalece projectId */
@@ -58,27 +44,6 @@ type Props = {
   /** Si lo tienes precomputado, puedes inyectar total de horas. Si no, se suma de allocations. */
   totalHoursOverride?: number;
 };
-
-/** Convención solicitada: FTE = horasTotales / 1600 */
-export const computeFTE = (totalHours: number) => totalHours / 1600;
-
-const round = (v: number, d = 2) => Number(v.toFixed(d));
-
-/** Agrega horas y convierte a FTE por una clave */
-function aggregateFTE<T extends Allocation>(rows: T[], key: keyof Allocation) {
-  const map = new Map<string, number>();
-  for (const r of rows) {
-    const kRaw = r[key];
-    const k =
-      kRaw === undefined || kRaw === null || kRaw === ""
-        ? "(N/D)"
-        : String(kRaw);
-    map.set(k, (map.get(k) || 0) + (r.hours || 0));
-  }
-  return Array.from(map.entries())
-    .map(([name, hours]) => ({ name, hours, fte: round(computeFTE(hours)) }))
-    .sort((a, b) => b.fte - a.fte);
-}
 
 /**
  * ============================
@@ -250,14 +215,14 @@ const SummaryDocument: React.FC<Props> = ({
   // Total horas y FTEs desde steps.process_time
   const totalHours = useMemo(() => {
     if (typeof totalHoursOverride === "number") return totalHoursOverride;
-    return (rows ?? []).reduce((acc, r) => acc + (Number(r.hours) || 0), 0);
+    return calculateTotalHours(rows ?? []);
   }, [rows, totalHoursOverride]);
 
   const totalFTEs = useMemo(() => summary?.totalFTE ?? 0, [summary]);
 
   // DM desde workPackages
   const dm = useMemo(() => {
-    return (workPackages ?? []).reduce((acc, wp) => acc + (Number(wp?.dm) || 0), 0);
+    return calculateTotalDM(workPackages ?? []);
   }, [workPackages]);
 
   /**
@@ -267,35 +232,12 @@ const SummaryDocument: React.FC<Props> = ({
    * - GM = (revenue - costTotal) / revenue
    */
   const { revenue, costTotal, hourlyPriceCalc, hourlyCostCalc, gm } = useMemo(() => {
-    const hasHours = totalHours > 0;
-
-    const revenueInput =
-      costs?.revenue ??
-      (hourlyPrice && hasHours ? hourlyPrice * totalHours : undefined);
-
-    const personnel = costs?.personnel ?? 0;
-    const nonPersonnel = costs?.nonPersonnel ?? 0;
-
-    const costInput =
-      personnel + nonPersonnel > 0
-        ? personnel + nonPersonnel
-        : (hourlyCost && hasHours ? hourlyCost * totalHours : undefined);
-
-    const hp = hasHours && revenueInput != null ? revenueInput / totalHours : undefined;
-    const hc = hasHours && costInput != null ? costInput / totalHours : undefined;
-
-    const gmVal =
-      revenueInput != null && costInput != null && revenueInput !== 0
-        ? (revenueInput - costInput) / revenueInput
-        : undefined;
-
-    return {
-      revenue: revenueInput ?? 0,
-      costTotal: costInput ?? 0,
-      hourlyPriceCalc: hp ?? 0,
-      hourlyCostCalc: hc ?? 0,
-      gm: gmVal ?? 0,
-    };
+    return calculateFinancialKPIs({
+      costs,
+      totalHours,
+      hourlyPrice,
+      hourlyCost
+    });
   }, [costs, hourlyPrice, hourlyCost, totalHours]);
 
   /** Datos para dashboards de FTEs */

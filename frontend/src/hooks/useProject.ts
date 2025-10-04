@@ -5,6 +5,7 @@ import { WorkPackage} from '../types/workPackages';
 import { Profile } from '../types/profile';
 import { License } from '../types/license';
 import { NonOperationalCost } from '../types/nonOperationalCost';
+import { getProjectYears } from '../utils/functions';
 
 export const useProject = () => {
   // Estados para diferentes aspectos del proyecto
@@ -117,18 +118,8 @@ const updateProfile = (originalProfile: Profile, updatedProfile: Profile) => {
     }, []);
 
     // Método para obtener años del proyecto
-    const getProjectYears = useCallback(() => {
-      if (!projectData.startDate || !projectData.endDate) return [];
-
-      const startYear = new Date(projectData.startDate).getFullYear();
-      const endYear = new Date(projectData.endDate).getFullYear();
-      
-      if (startYear === endYear) return [];
-      
-      return Array.from(
-        { length: endYear - startYear + 1 }, 
-        (_, i) => startYear + i
-      );
+    const getProjectYearsHook = useCallback(() => {
+      return getProjectYears(projectData.startDate, projectData.endDate);
     }, [projectData.startDate, projectData.endDate]);
 
 
@@ -217,6 +208,6 @@ const updateProfile = (originalProfile: Profile, updatedProfile: Profile) => {
     resetProject,
 
     // Obtener años del proyecto
-    getProjectYears
+    getProjectYears: getProjectYearsHook
   };
 };

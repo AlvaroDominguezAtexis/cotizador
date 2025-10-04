@@ -1,7 +1,7 @@
 // src/components/tabs/WorkPackagesTab.tsx
 
 import React from 'react';
-import { getProjectYears } from '../../utils/getProjectYears';
+import { getProjectYears } from '../../utils/functions';
 import { Button } from '../ui/Button';
 import WorkPackagesManagement from '../workpackages/WorkPackagesManagement';
 import TimeAndMaterialForm from '../workpackages/TimeAndMaterialForm';

@@ -390,12 +390,13 @@ export async function calcStepNonProductiveCosts(params: {
   const salariesCost = Number(sydRes.rows[0]?.salaries_cost || 0);
   const managementCosts = Number(sydRes.rows[0]?.management_costs || 0);
 
-  // 3) Read non-productive percentage from project_countries
+  // 3) Read activity_rate from project_countries and calculate non-productive as (100 - activity_rate)
   const pcRes = await db.query(
-    `SELECT non_productive_cost_of_productive_staff FROM project_countries WHERE project_id = $1 AND country_id = $2 LIMIT 1`,
+    `SELECT activity_rate FROM project_countries WHERE project_id = $1 AND country_id = $2 LIMIT 1`,
     [step.project_id, step.country_id]
   );
-  const npRate = Number(pcRes.rows[0]?.non_productive_cost_of_productive_staff || 0);
+  const activityRate = Number(pcRes.rows[0]?.activity_rate || 0);
+  const npRate = 100 - activityRate; // Non-productive rate = (100 - activity_rate)
 
   // 4) Compute
   const nonProductiveCosts = (salariesCost + managementCosts) * (npRate / 100);
@@ -403,265 +404,11 @@ export async function calcStepNonProductiveCosts(params: {
   return { nonProductiveCosts, year };
 }
 
-export async function saveStepNonProductiveCosts(params: {
-  stepId: number;
-  year: number;
-  nonProductiveCosts: number;
-  db: DBClient;
-}): Promise<void> {
-  const { stepId, year, nonProductiveCosts, db } = params;
-  await db.query(
-    `INSERT INTO step_yearly_data (step_id, year, non_productive_costs_of_productive_staff)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (step_id, year)
-     DO UPDATE SET non_productive_costs_of_productive_staff = EXCLUDED.non_productive_costs_of_productive_staff`,
-    [stepId, year, nonProductiveCosts]
-  );
-}
 
-export async function calcStepItProductionSupport(params: {
-  stepId: number;
-  db: DBClient;
-  year: number;
-}): Promise<{ itProductionSupport: number; year: number }> {
-  const { stepId, db, year } = params;
 
-  // Load step to get project and country
-  const stepRes = await db.query(
-    `SELECT s.id, s.country_id, wp.project_id
-       FROM steps s
-       JOIN deliverables d ON d.id = s.deliverable_id
-       JOIN workpackages wp ON wp.id = d.workpackage_id
-      WHERE s.id = $1
-      LIMIT 1`,
-    [stepId]
-  );
-  if (stepRes.rows.length === 0) {
-    const err: any = new Error('Step no encontrado');
-    err.status = 404;
-    throw err;
-  }
-  const step = stepRes.rows[0];
 
-  // Read process_time and mng from step_yearly_data for the year
-  const sydRes = await db.query(
-    `SELECT process_time, mng FROM step_yearly_data WHERE step_id = $1 AND year = $2 LIMIT 1`,
-    [stepId, year]
-  );
-  const process_time = Number(sydRes.rows[0]?.process_time || 0);
-  const mng = Number(sydRes.rows[0]?.mng || 0);
 
-  // Read it_production_support from project_countries
-  const pcRes = await db.query(
-    `SELECT it_production_support FROM project_countries WHERE project_id = $1 AND country_id = $2 LIMIT 1`,
-    [step.project_id, step.country_id]
-  );
-  const itSupport = Number(pcRes.rows[0]?.it_production_support || 0);
 
-  // Formula: process_time * (1 + mng/100) * it_production_support
-  const itProductionSupport = process_time * (1 + mng/100) * itSupport;
-
-  return { itProductionSupport, year };
-}
-
-export async function saveStepItProductionSupport(params: {
-  stepId: number;
-  year: number;
-  itProductionSupport: number;
-  db: DBClient;
-}): Promise<void> {
-  const { stepId, year, itProductionSupport, db } = params;
-  await db.query(
-    `INSERT INTO step_yearly_data (step_id, year, it_production_support)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (step_id, year)
-     DO UPDATE SET it_production_support = EXCLUDED.it_production_support`,
-    [stepId, year, itProductionSupport]
-  );
-}
-
-export async function calcStepOperationalQualityCosts(params: {
-  stepId: number;
-  db: DBClient;
-  year: number;
-}): Promise<{ operationalQualityCosts: number; year: number }> {
-  const { stepId, db, year } = params;
-
-  // Load step with project and country
-  const stepRes = await db.query(
-    `SELECT s.id, s.country_id, wp.project_id
-       FROM steps s
-       JOIN deliverables d ON d.id = s.deliverable_id
-       JOIN workpackages wp ON wp.id = d.workpackage_id
-      WHERE s.id = $1
-      LIMIT 1`,
-    [stepId]
-  );
-  if (stepRes.rows.length === 0) {
-    const err: any = new Error('Step no encontrado');
-    err.status = 404;
-    throw err;
-  }
-  const step = stepRes.rows[0];
-
-  // Read process_time and mng from step_yearly_data
-  const sydRes = await db.query(
-    `SELECT process_time, mng FROM step_yearly_data WHERE step_id = $1 AND year = $2 LIMIT 1`,
-    [stepId, year]
-  );
-  const process_time = Number(sydRes.rows[0]?.process_time || 0);
-  const mng = Number(sydRes.rows[0]?.mng || 0);
-
-  // Read operational_quality_costs from project_countries
-  const pcRes = await db.query(
-    `SELECT operational_quality_costs FROM project_countries WHERE project_id = $1 AND country_id = $2 LIMIT 1`,
-    [step.project_id, step.country_id]
-  );
-  const oqc = Number(pcRes.rows[0]?.operational_quality_costs || 0);
-
-  // Formula: process_time * (1 + mng/100) * operational_quality_costs
-  const operationalQualityCosts = process_time * (1 + mng/100) * oqc;
-
-  return { operationalQualityCosts, year };
-}
-
-export async function saveStepOperationalQualityCosts(params: {
-  stepId: number;
-  year: number;
-  operationalQualityCosts: number;
-  db: DBClient;
-}): Promise<void> {
-  const { stepId, year, operationalQualityCosts, db } = params;
-  await db.query(
-    `INSERT INTO step_yearly_data (step_id, year, operational_quality_costs)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (step_id, year)
-     DO UPDATE SET operational_quality_costs = EXCLUDED.operational_quality_costs`,
-    [stepId, year, operationalQualityCosts]
-  );
-}
-
-export async function calcStepOperationsManagementCosts(params: {
-  stepId: number;
-  db: DBClient;
-  year: number;
-}): Promise<{ operationsManagementCosts: number; year: number }> {
-  const { stepId, db, year } = params;
-
-  // Load step with project and country
-  const stepRes = await db.query(
-    `SELECT s.id, s.country_id, wp.project_id
-       FROM steps s
-       JOIN deliverables d ON d.id = s.deliverable_id
-       JOIN workpackages wp ON wp.id = d.workpackage_id
-      WHERE s.id = $1
-      LIMIT 1`,
-    [stepId]
-  );
-  if (stepRes.rows.length === 0) {
-    const err: any = new Error('Step no encontrado');
-    err.status = 404;
-    throw err;
-  }
-  const step = stepRes.rows[0];
-
-  // Read process_time and mng from step_yearly_data
-  const sydRes = await db.query(
-    `SELECT process_time, mng FROM step_yearly_data WHERE step_id = $1 AND year = $2 LIMIT 1`,
-    [stepId, year]
-  );
-  const process_time = Number(sydRes.rows[0]?.process_time || 0);
-  const mng = Number(sydRes.rows[0]?.mng || 0);
-
-  // Read operations_management_costs from project_countries
-  const pcRes = await db.query(
-    `SELECT operations_management_costs FROM project_countries WHERE project_id = $1 AND country_id = $2 LIMIT 1`,
-    [step.project_id, step.country_id]
-  );
-  const omc = Number(pcRes.rows[0]?.operations_management_costs || 0);
-
-  // Formula: process_time * (1 + mng/100) * operations_management_costs
-  const operationsManagementCosts = process_time * (1 + mng/100) * omc;
-
-  return { operationsManagementCosts, year };
-}
-
-export async function saveStepOperationsManagementCosts(params: {
-  stepId: number;
-  year: number;
-  operationsManagementCosts: number;
-  db: DBClient;
-}): Promise<void> {
-  const { stepId, year, operationsManagementCosts, db } = params;
-  await db.query(
-    `INSERT INTO step_yearly_data (step_id, year, operations_management_costs)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (step_id, year)
-     DO UPDATE SET operations_management_costs = EXCLUDED.operations_management_costs`,
-    [stepId, year, operationsManagementCosts]
-  );
-}
-
-export async function calcStepLeanManagementCosts(params: {
-  stepId: number;
-  db: DBClient;
-  year: number;
-}): Promise<{ leanManagementCosts: number; year: number }> {
-  const { stepId, db, year } = params;
-
-  // Load step with project and country
-  const stepRes = await db.query(
-    `SELECT s.id, s.country_id, wp.project_id
-       FROM steps s
-       JOIN deliverables d ON d.id = s.deliverable_id
-       JOIN workpackages wp ON wp.id = d.workpackage_id
-      WHERE s.id = $1
-      LIMIT 1`,
-    [stepId]
-  );
-  if (stepRes.rows.length === 0) {
-    const err: any = new Error('Step no encontrado');
-    err.status = 404;
-    throw err;
-  }
-  const step = stepRes.rows[0];
-
-  // Read process_time and mng from step_yearly_data
-  const sydRes = await db.query(
-    `SELECT process_time, mng FROM step_yearly_data WHERE step_id = $1 AND year = $2 LIMIT 1`,
-    [stepId, year]
-  );
-  const process_time = Number(sydRes.rows[0]?.process_time || 0);
-  const mng = Number(sydRes.rows[0]?.mng || 0);
-
-  // Read lean_management_costs from project_countries
-  const pcRes = await db.query(
-    `SELECT lean_management_costs FROM project_countries WHERE project_id = $1 AND country_id = $2 LIMIT 1`,
-    [step.project_id, step.country_id]
-  );
-  const lmc = Number(pcRes.rows[0]?.lean_management_costs || 0);
-
-  // Formula: process_time * (1 + mng/100) * lean_management_costs
-  const leanManagementCosts = process_time * (1 + mng / 100) * lmc;
-
-  return { leanManagementCosts, year };
-}
-
-export async function saveStepLeanManagementCosts(params: {
-  stepId: number;
-  year: number;
-  leanManagementCosts: number;
-  db: DBClient;
-}): Promise<void> {
-  const { stepId, year, leanManagementCosts, db } = params;
-  await db.query(
-    `INSERT INTO step_yearly_data (step_id, year, lean_management_costs)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (step_id, year)
-     DO UPDATE SET lean_management_costs = EXCLUDED.lean_management_costs`,
-    [stepId, year, leanManagementCosts]
-  );
-}
 
 export async function calcStepPremisesCost(params: {
   stepId: number;
@@ -895,59 +642,20 @@ export async function batchCalculateProjectCosts(params: {
           db 
         });
 
-        // Calculate and save non-productive costs (depends on salaries_cost and management_costs)
-        try {
-          const { nonProductiveCosts } = await calcStepNonProductiveCosts({ stepId, year: Number(year), db });
-          await saveStepNonProductiveCosts({ stepId, year: Number(year), nonProductiveCosts, db });
-        } catch (err) {
-          console.warn('Failed to calc/save non-productive costs for', stepId, year, err);
-        }
+
 
         // Calculate and save premises costs
         try {
           const { premisesCost } = await calcStepPremisesCost({ stepId, year: Number(year), db });
           await saveStepPremisesCost({ stepId, year: Number(year), premisesCost, db });
-          // Calculate and save IT production support
-            try {
-              const [{ itProductionSupport }, { operationalQualityCosts }, { operationsManagementCosts }, { leanManagementCosts }] = await Promise.all([
-                calcStepItProductionSupport({ stepId, year: Number(year), db }),
-                calcStepOperationalQualityCosts({ stepId, year: Number(year), db }),
-                calcStepOperationsManagementCosts({ stepId, year: Number(year), db }),
-                calcStepLeanManagementCosts({ stepId, year: Number(year), db }),
-              ]);
-              await Promise.all([
-                saveStepItProductionSupport({ stepId, year: Number(year), itProductionSupport, db }),
-                saveStepOperationalQualityCosts({ stepId, year: Number(year), operationalQualityCosts, db }),
-                saveStepOperationsManagementCosts({ stepId, year: Number(year), operationsManagementCosts, db }),
-                saveStepLeanManagementCosts({ stepId, year: Number(year), leanManagementCosts, db }),
-              ]);
-              result.push({
-                stepId,
-                year: Number(year),
-                salariesCost,
-                managementCost,
-                fte,
-                premisesCost,
-                itProductionSupport,
-                operationalQualityCosts,
-                operationsManagementCosts,
-                leanManagementCosts,
-              });
-              } catch (err) {
-                console.warn('Failed to calc/save IT or operational quality or operations management or lean management costs for', stepId, year, err);
-                result.push({
-                  stepId,
-                  year: Number(year),
-                  salariesCost,
-                  managementCost,
-                  fte,
-                  premisesCost,
-                  itProductionSupport: 0,
-                  operationalQualityCosts: 0,
-                  operationsManagementCosts: 0,
-                  leanManagementCosts: 0,
-                });
-              }
+          result.push({
+            stepId,
+            year: Number(year),
+            salariesCost,
+            managementCost,
+            fte,
+            premisesCost,
+          });
         } catch (err) {
           console.warn('Failed to calc/save premises cost for', stepId, year, err);
           result.push({
@@ -957,7 +665,6 @@ export async function batchCalculateProjectCosts(params: {
             managementCost,
             fte,
             premisesCost: 0,
-            itProductionSupport: 0
           });
         }
       } catch (error) {

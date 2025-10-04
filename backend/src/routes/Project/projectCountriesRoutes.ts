@@ -6,30 +6,24 @@ import {
 	upsertProjectCountryActivityRate,
 	getProjectCountriesNptRate,
 	upsertProjectCountryNptRate,
-	getProjectCountriesNonProductiveCost,
-	upsertProjectCountryNonProductiveCost,
-	getProjectCountriesItProductionSupport,
-	upsertProjectCountryItProductionSupport,
-	getProjectCountriesOperationalQualityCosts,
-	upsertProjectCountryOperationalQualityCosts,
-	getProjectCountriesOperationsManagementCosts,
-	upsertProjectCountryOperationsManagementCosts,
-	getProjectCountriesLeanManagementCosts,
-	upsertProjectCountryLeanManagementCosts,
 	getProjectCountriesItCost,
 	upsertProjectCountryItCost,
 	getProjectCountriesWorkingDays,
 	upsertProjectCountryWorkingDays,
 	getProjectCountriesHoursPerDay,
 	upsertProjectCountryHoursPerDay,
+	getProjectCountriesHolidays,
+	upsertProjectCountryHolidays,
+	getProjectCountriesTotalDays,
+	upsertProjectCountryTotalDays,
 	addProjectCountry,
 	getProjectCountriesManagementSalary,
 	upsertProjectCountryManagementSalary,
 	getProjectCountriesMng,
 	getProjectCountriesMarkup,
-		upsertProjectCountryMarkup,
-		getProjectCountriesSocialContributionRate,
-		upsertProjectCountrySocialContributionRate,
+	upsertProjectCountryMarkup,
+	getProjectCountriesSocialContributionRate,
+	upsertProjectCountrySocialContributionRate,
 } from '../../controllers/project/projectCountriesController';
 
 // Individual routers with mergeParams to inherit :projectId from mount path
@@ -45,25 +39,7 @@ export const projectCountriesNptRouter = express.Router({ mergeParams: true });
 projectCountriesNptRouter.get('/', getProjectCountriesNptRate);
 projectCountriesNptRouter.put('/:countryId', upsertProjectCountryNptRate);
 
-export const projectCountriesNonProductiveCostRouter = express.Router({ mergeParams: true });
-projectCountriesNonProductiveCostRouter.get('/', getProjectCountriesNonProductiveCost);
-projectCountriesNonProductiveCostRouter.put('/:countryId', upsertProjectCountryNonProductiveCost);
 
-export const projectCountriesItProductionSupportRouter = express.Router({ mergeParams: true });
-projectCountriesItProductionSupportRouter.get('/', getProjectCountriesItProductionSupport);
-projectCountriesItProductionSupportRouter.put('/:countryId', upsertProjectCountryItProductionSupport);
-
-export const projectCountriesOperationalQualityCostsRouter = express.Router({ mergeParams: true });
-projectCountriesOperationalQualityCostsRouter.get('/', getProjectCountriesOperationalQualityCosts);
-projectCountriesOperationalQualityCostsRouter.put('/:countryId', upsertProjectCountryOperationalQualityCosts);
-
-export const projectCountriesOperationsManagementCostsRouter = express.Router({ mergeParams: true });
-projectCountriesOperationsManagementCostsRouter.get('/', getProjectCountriesOperationsManagementCosts);
-projectCountriesOperationsManagementCostsRouter.put('/:countryId', upsertProjectCountryOperationsManagementCosts);
-
-export const projectCountriesLeanManagementCostsRouter = express.Router({ mergeParams: true });
-projectCountriesLeanManagementCostsRouter.get('/', getProjectCountriesLeanManagementCosts);
-projectCountriesLeanManagementCostsRouter.put('/:countryId', upsertProjectCountryLeanManagementCosts);
 
 export const projectCountriesItRouter = express.Router({ mergeParams: true });
 projectCountriesItRouter.get('/', getProjectCountriesItCost);
@@ -78,6 +54,14 @@ projectCountriesWorkingDaysRouter.put('/:countryId', upsertProjectCountryWorking
 export const projectCountriesHoursPerDayRouter = express.Router({ mergeParams: true });
 projectCountriesHoursPerDayRouter.get('/', getProjectCountriesHoursPerDay);
 projectCountriesHoursPerDayRouter.put('/:countryId', upsertProjectCountryHoursPerDay);
+
+export const projectCountriesHolidaysRouter = express.Router({ mergeParams: true });
+projectCountriesHolidaysRouter.get('/', getProjectCountriesHolidays);
+projectCountriesHolidaysRouter.put('/:countryId', upsertProjectCountryHolidays);
+
+export const projectCountriesTotalDaysRouter = express.Router({ mergeParams: true });
+projectCountriesTotalDaysRouter.get('/', getProjectCountriesTotalDays);
+projectCountriesTotalDaysRouter.put('/:countryId', upsertProjectCountryTotalDays);
 
 export const projectCountriesManagementRouter = express.Router({ mergeParams: true });
 

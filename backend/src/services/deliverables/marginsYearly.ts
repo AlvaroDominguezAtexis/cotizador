@@ -148,11 +148,7 @@ export async function calcDeliverablesCosts(deliverables: { id: number; yearlyQu
       COALESCE(SUM(
         COALESCE(syd.it_costs,0) + COALESCE(syd.travel_costs,0) + COALESCE(syd.subco_costs,0) + COALESCE(syd.purchases_costs,0)
       ),0)::numeric AS op_non_recurrent_sum,
-      COALESCE(SUM(
-        COALESCE(syd.non_productive_costs_of_productive_staff,0) + COALESCE(syd.it_production_support,0) +
-        COALESCE(syd.operational_quality_costs,0) + COALESCE(syd.operations_management_costs,0) +
-        COALESCE(syd.lean_management_costs,0)
-      ),0)::numeric AS nop_sum
+      0::numeric AS nop_sum
     FROM steps s
     JOIN dy ON dy.did = s.deliverable_id
     JOIN step_yearly_data syd ON syd.step_id = s.id AND syd.year = dy.year

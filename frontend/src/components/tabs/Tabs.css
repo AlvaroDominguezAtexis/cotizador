@@ -205,6 +205,27 @@
   background: #f1f3f5;
   border-radius: 6px;
 }
+.settings-value.readonly {
+  background: #e9ecef;
+  color: #6c757d;
+  font-style: italic;
+}
+.spain-alert {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #856404;
+  font-weight: 500;
+  font-size: 0.95rem;
+  animation: fadeInOut 3s ease-in-out;
+}
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-10px); }
+  10%, 90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
 .settings-table td, .settings-table th { vertical-align: middle; }
 
 /* Responsive: on small screens, reduce input width and allow table to stack visually */

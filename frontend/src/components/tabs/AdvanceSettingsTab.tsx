@@ -11,18 +11,15 @@ type SettingsRow = {
   activity_rate: number | null;
   npt_rate: number | null;
   it_cost: number | null;
+  holidays: number | null;
+  total_days: number | null;
   working_days: number | null;
   hours_per_day: number | null;
   markup: number | null;
   social_contribution_rate: number | null;
-  non_productive_cost_of_productive_staff: number | null;
-  it_production_support: number | null;
-  operational_quality_costs: number | null;
-  operations_management_costs: number | null;
-  lean_management_costs: number | null;
 };
 
-type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'working_days' | 'hours_per_day' | 'markup' | 'social_contribution_rate' | 'non_productive_cost_of_productive_staff' | 'it_production_support' | 'operational_quality_costs' | 'operations_management_costs' | 'lean_management_costs';
+type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'holidays' | 'total_days' | 'working_days' | 'hours_per_day' | 'markup' | 'social_contribution_rate';
 
 
 interface Props {
@@ -39,6 +36,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
   const [rows, setRows] = useState<SettingsRow[]>([]);
   const [editingRow, setEditingRow] = useState<number | null>(null); // country_id in edit
   const [dirty, setDirty] = useState<Record<number, Partial<Record<ParamKey, number>>>>({});
+  const [spainAlert, setSpainAlert] = useState<boolean>(false);
 
   // Load per-parameter values and merge into a single table
   useEffect(() => {
@@ -46,57 +44,48 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
     const load = async () => {
       try {
         setLoading(true);
-  const [cpiRes, arRes, nptRes, itRes, wdRes, hpdRes, mkRes, scrRes, npcRes, itpsRes, oqcRes, omcRes, lmcRes] = await Promise.all([
+        const [cpiRes, arRes, nptRes, itRes, holidaysRes, totalDaysRes, wdRes, hpdRes, mkRes, scrRes] = await Promise.all([
           fetch(`/projects/${projectId}/countries-cpi`),
           fetch(`/projects/${projectId}/countries-activity-rate`),
           fetch(`/projects/${projectId}/countries-npt-rate`),
           fetch(`/projects/${projectId}/countries-it-cost`),
+          fetch(`/projects/${projectId}/countries-holidays`),
+          fetch(`/projects/${projectId}/countries-total-days`),
           fetch(`/projects/${projectId}/countries-working-days`),
           fetch(`/projects/${projectId}/countries-hours-per-day`),
           fetch(`/projects/${projectId}/countries-markup`),
           fetch(`/projects/${projectId}/countries-social-contribution-rate`),
-          fetch(`/projects/${projectId}/countries-non-productive-cost`),
-  fetch(`/projects/${projectId}/countries-it-production-support`),
-  fetch(`/projects/${projectId}/countries-operational-quality-costs`),
-  fetch(`/projects/${projectId}/countries-operations-management-costs`),
-  fetch(`/projects/${projectId}/countries-lean-management-costs`),
         ]);
         if (!cpiRes.ok) throw new Error('Error cargando CPI del proyecto');
         if (!arRes.ok) throw new Error('Error cargando Activity Rate del proyecto');
         if (!nptRes.ok) throw new Error('Error cargando NPT Rate del proyecto');
-  if (!itRes.ok) throw new Error('Error cargando IT Cost del proyecto');
-  if (!wdRes.ok) throw new Error('Error cargando Working Days del proyecto');
-  const [cpiJson, arJson, nptJson, itJson, wdJson, hpdJson, mkJson, scrJson, npcJson, itpsJson, oqcJson, omcJson, lmcJson] = await Promise.all([
+        if (!itRes.ok) throw new Error('Error cargando IT Cost del proyecto');
+        if (!holidaysRes.ok) throw new Error('Error cargando Holidays del proyecto');
+        if (!totalDaysRes.ok) throw new Error('Error cargando Total Days del proyecto');
+        if (!wdRes.ok) throw new Error('Error cargando Working Days del proyecto');
+        const [cpiJson, arJson, nptJson, itJson, holidaysJson, totalDaysJson, wdJson, hpdJson, mkJson, scrJson] = await Promise.all([
           cpiRes.json(),
           arRes.json(),
           nptRes.json(),
           itRes.json(),
+          holidaysRes.json(),
+          totalDaysRes.json(),
           wdRes.json(),
           hpdRes.json(),
           mkRes.json(),
           scrRes.json(),
-          npcRes.json(),
-          itpsRes.json(),
-          oqcRes.json(),
-          omcRes.json(),
-          lmcRes.json(),
-        ]);
-
-        if (cancelled) return;
+        ]);        if (cancelled) return;
 
         const cpiMap = new Map<number, number | null>((cpiJson || []).map((r: any) => [r.country_id, r.cpi]));
         const arMap = new Map<number, number | null>((arJson || []).map((r: any) => [r.country_id, r.activity_rate]));
         const nptMap = new Map<number, number | null>((nptJson || []).map((r: any) => [r.country_id, r.npt_rate]));
         const itMap = new Map<number, number | null>((itJson || []).map((r: any) => [r.country_id, r.it_cost]));
-  const wdMap = new Map<number, number | null>((wdJson || []).map((r: any) => [r.country_id, r.working_days]));
-  const hpdMap = new Map<number, number | null>((hpdJson || []).map((r: any) => [r.country_id, r.hours_per_day]));
-  const mkMap = new Map<number, number | null>((mkJson || []).map((r: any) => [r.country_id, r.markup]));
-  const scrMap = new Map<number, number | null>((scrJson || []).map((r: any) => [r.country_id, r.social_contribution_rate]));
-  const npcMap = new Map<number, number | null>((npcJson || []).map((r: any) => [r.country_id, r.non_productive_cost_of_productive_staff]));
-  const itpsMap = new Map<number, number | null>((itpsJson || []).map((r: any) => [r.country_id, r.it_production_support]));
-  const oqcMap = new Map<number, number | null>((oqcJson || []).map((r: any) => [r.country_id, r.operational_quality_costs]));
-  const omcMap = new Map<number, number | null>((omcJson || []).map((r: any) => [r.country_id, r.operations_management_costs]));
-  const lmcMap = new Map<number, number | null>((lmcJson || []).map((r: any) => [r.country_id, r.lean_management_costs]));
+        const holidaysMap = new Map<number, number | null>((holidaysJson || []).map((r: any) => [r.country_id, r.holidays]));
+        const totalDaysMap = new Map<number, number | null>((totalDaysJson || []).map((r: any) => [r.country_id, r.total_days]));
+        const wdMap = new Map<number, number | null>((wdJson || []).map((r: any) => [r.country_id, r.working_days]));
+        const hpdMap = new Map<number, number | null>((hpdJson || []).map((r: any) => [r.country_id, r.hours_per_day]));
+        const mkMap = new Map<number, number | null>((mkJson || []).map((r: any) => [r.country_id, r.markup]));
+        const scrMap = new Map<number, number | null>((scrJson || []).map((r: any) => [r.country_id, r.social_contribution_rate]));
 
         const merged: SettingsRow[] = countries
           .map((c) => ({
@@ -106,14 +95,11 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
             activity_rate: arMap.get(c.id) ?? null,
             npt_rate: nptMap.get(c.id) ?? null,
             it_cost: itMap.get(c.id) ?? null,
+            holidays: holidaysMap.get(c.id) ?? null,
+            total_days: totalDaysMap.get(c.id) ?? null,
             working_days: wdMap.get(c.id) ?? null,
             hours_per_day: hpdMap.get(c.id) ?? null,
             // mng removed from Advance Settings
-            non_productive_cost_of_productive_staff: npcMap.get(c.id) ?? null,
-            it_production_support: itpsMap.get(c.id) ?? null,
-            operational_quality_costs: oqcMap.get(c.id) ?? null,
-            operations_management_costs: omcMap.get(c.id) ?? null,
-            lean_management_costs: lmcMap.get(c.id) ?? null,
             markup: mkMap.get(c.id) ?? null,
             social_contribution_rate: scrMap.get(c.id) ?? null,
           }))
@@ -140,20 +126,17 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
     setDirty(prev => ({
       ...prev,
       [countryId]: {
-  cpi: row.cpi ?? 0,
+        cpi: row.cpi ?? 0,
         activity_rate: row.activity_rate ?? 0,
         npt_rate: row.npt_rate ?? 0,
         it_cost: row.it_cost ?? 0,
-  working_days: row.working_days ?? 0,
-  hours_per_day: row.hours_per_day ?? 0,
-  // mng removed from Advance Settings
-  non_productive_cost_of_productive_staff: row.non_productive_cost_of_productive_staff ?? 0,
-  it_production_support: row.it_production_support ?? 0,
-  operational_quality_costs: row.operational_quality_costs ?? 0,
-  operations_management_costs: row.operations_management_costs ?? 0,
-  lean_management_costs: row.lean_management_costs ?? 0,
+        holidays: row.holidays ?? 0,
+        total_days: row.total_days ?? 0,
+        working_days: row.working_days ?? 0,
+        hours_per_day: row.hours_per_day ?? 0,
+        // mng removed from Advance Settings
         markup: row.markup ?? 0,
-  social_contribution_rate: row.social_contribution_rate ?? 0,
+        social_contribution_rate: row.social_contribution_rate ?? 0,
       },
     }));
   };
@@ -163,15 +146,49 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
     setDirty(prev => { const p = { ...prev }; delete p[countryId]; return p; });
   };
 
+  // Calculate working_days in real time based on holidays and total_days
+  const calculateWorkingDays = (countryId: number, draft: Partial<Record<ParamKey, number>>, row: SettingsRow) => {
+    const totalDays = draft.total_days !== undefined ? draft.total_days : (row.total_days ?? 0);
+    const holidays = draft.holidays !== undefined ? draft.holidays : (row.holidays ?? 0);
+    let workingDays = totalDays - holidays;
+    
+    // Apply Spain limit (country id = 1)
+    if (countryId === 1 && workingDays > 216) {
+      workingDays = 216;
+    }
+    
+    return workingDays;
+  };
+
   const onChangeField = (countryId: number, key: ParamKey, val: string) => {
     const parsed = Number(val);
-    setDirty(prev => ({
-      ...prev,
+    const newDirty = {
+      ...dirty,
       [countryId]: {
-        ...(prev[countryId] || {}),
+        ...(dirty[countryId] || {}),
         [key]: isNaN(parsed) || parsed < 0 ? NaN : parsed,
       },
-    }));
+    };
+
+    // Check if this change affects working_days calculation for Spain
+    if (countryId === 1 && (key === 'holidays' || key === 'total_days')) {
+      const row = rowsById.get(countryId);
+      if (row) {
+        const totalDays = key === 'total_days' ? parsed : (newDirty[countryId]?.total_days ?? row.total_days ?? 0);
+        const holidays = key === 'holidays' ? parsed : (newDirty[countryId]?.holidays ?? row.holidays ?? 0);
+        
+        // Calculate the working days without Spain's limit
+        const calculatedWorkingDays = totalDays - holidays;
+        
+        // Show warning only if the calculated value (without limit) would be > 216
+        if (!isNaN(totalDays) && !isNaN(holidays) && totalDays >= 0 && holidays >= 0 && calculatedWorkingDays > 216) {
+          setSpainAlert(true);
+          setTimeout(() => setSpainAlert(false), 3000); // Hide alert after 3 seconds
+        }
+      }
+    }
+
+    setDirty(newDirty);
   };
 
   const saveRow = async (countryId: number) => {
@@ -185,7 +202,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
 
   // Determine which fields changed vs current row
   const changes: Partial<Record<ParamKey, number>> = {};
-  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'working_days', 'hours_per_day', 'non_productive_cost_of_productive_staff', 'it_production_support', 'operational_quality_costs', 'operations_management_costs', 'lean_management_costs', 'markup', 'social_contribution_rate'] as ParamKey[]).forEach((k) => {
+  (['cpi', 'activity_rate', 'npt_rate', 'it_cost', 'holidays', 'total_days', 'working_days', 'hours_per_day', 'markup', 'social_contribution_rate'] as ParamKey[]).forEach((k) => {
       const newVal = draft[k];
       if (typeof newVal === 'number' && newVal !== (row[k] ?? null)) {
         changes[k] = newVal;
@@ -222,32 +239,18 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ it_cost: changes.it_cost }),
         }));
       }
+      if (changes.holidays !== undefined) {
+        calls.push(fetch(`/projects/${projectId}/countries-holidays/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ holidays: changes.holidays }),
+        }));
+      }
+      if (changes.total_days !== undefined) {
+        calls.push(fetch(`/projects/${projectId}/countries-total-days/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ total_days: changes.total_days }),
+        }));
+      }
   // premises_cost is now managed at city level; no country-level API call
-      if (changes.non_productive_cost_of_productive_staff !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-non-productive-cost/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ non_productive_cost_of_productive_staff: changes.non_productive_cost_of_productive_staff }),
-        }));
-      }
-      if (changes.it_production_support !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-it-production-support/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ it_production_support: changes.it_production_support }),
-        }));
-      }
-      if (changes.operational_quality_costs !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-operational-quality-costs/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operational_quality_costs: changes.operational_quality_costs }),
-        }));
-      }
-      if (changes.operations_management_costs !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-operations-management-costs/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operations_management_costs: changes.operations_management_costs }),
-        }));
-      }
-      if (changes.lean_management_costs !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-lean-management-costs/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lean_management_costs: changes.lean_management_costs }),
-        }));
-      }
+
       if (changes.working_days !== undefined) {
         calls.push(fetch(`/projects/${projectId}/countries-working-days/${countryId}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ working_days: changes.working_days }),
@@ -274,8 +277,29 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
       const bad = results.find(r => !r.ok);
       if (bad) throw new Error('Error guardando cambios');
 
-      // Apply changes locally
-  setRows(prev => prev.map(r => r.country_id === countryId ? ({ ...r, ...changes }) : r));
+      // Apply changes locally and recalculate working_days if needed
+      setRows(prev => prev.map(r => {
+        if (r.country_id === countryId) {
+          const updatedRow = { ...r, ...changes };
+          
+          // If holidays or total_days changed, recalculate working_days
+          if (changes.holidays !== undefined || changes.total_days !== undefined) {
+            const totalDays = updatedRow.total_days ?? 0;
+            const holidays = updatedRow.holidays ?? 0;
+            let workingDays = totalDays - holidays;
+            
+            // Apply Spain limit (country id = 1)
+            if (countryId === 1 && workingDays > 216) {
+              workingDays = 216;
+            }
+            
+            updatedRow.working_days = workingDays;
+          }
+          
+          return updatedRow;
+        }
+        return r;
+      }));
       setEditingRow(null);
       setDirty(prev => { const p = { ...prev }; delete p[countryId]; return p; });
     } catch (e) {
@@ -292,6 +316,11 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
       <div className="tab-header">
         <h1>Advance Setting</h1>
       </div>
+      {spainAlert && (
+        <div className="spain-alert">
+          ⚠️ El cálculo excede 216 días. Para España, los días laborables se limitarán automáticamente a 216.
+        </div>
+      )}
       <div className="tab-content">
         <div style={{ overflowX: 'auto' }}>
           <table className="settings-table">
@@ -310,17 +339,14 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                   { key: 'activity_rate', label: 'Activity Rate', type: 'decimal' },
                   { key: 'npt_rate', label: 'NPT Rate', type: 'decimal' },
                   { key: 'it_cost', label: 'IT Cost', type: 'decimal' },
-                  { key: 'working_days', label: 'Working Days', type: 'int' },
+                  { key: 'holidays', label: 'Holidays', type: 'int' },
+                  { key: 'total_days', label: 'Total Days', type: 'int' },
+                  { key: 'working_days', label: 'Working Days (Calculated)', type: 'int', readonly: true },
                   { key: 'hours_per_day', label: 'Hours per Day', type: 'decimal' },
                   // %Mng removed from Advance Settings
-                  { key: 'non_productive_cost_of_productive_staff', label: 'Non Productive Part of Productive Staff', type: 'decimal' },
-                  { key: 'it_production_support', label: 'IT Production Support', type: 'decimal' },
-                  { key: 'operational_quality_costs', label: 'Operational Quality Costs', type: 'decimal' },
-                  { key: 'operations_management_costs', label: 'Operations Management Costs', type: 'decimal' },
-                  { key: 'lean_management_costs', label: 'Lean Management Costs', type: 'decimal' },
                   { key: 'markup', label: 'Markup', type: 'decimal' },
                   { key: 'social_contribution_rate', label: 'Social Contribution Rate', type: 'decimal' },
-                ] as Array<{ key: ParamKey; label: string; type: 'decimal' | 'int' }>
+                ] as Array<{ key: ParamKey; label: string; type: 'decimal' | 'int'; readonly?: boolean }>
               ).map((param) => {
                 return (
                   <tr key={param.key}>
@@ -330,6 +356,15 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                       const isEditing = editingRow === row.country_id;
                       const v = (k: ParamKey) => (draft[k] !== undefined ? (draft[k] as number) : (row[k] ?? 0));
                       const showValue = () => {
+                        // For working_days, always show real-time calculation if we have draft values
+                        if (param.key === 'working_days') {
+                          const hasDraftValues = draft.holidays !== undefined || draft.total_days !== undefined;
+                          if (isEditing && hasDraftValues) {
+                            const calculatedWorkingDays = calculateWorkingDays(row.country_id, draft, row);
+                            return calculatedWorkingDays.toFixed(0);
+                          }
+                        }
+                        
                         const val = row[param.key as ParamKey];
                         if (val == null) return '-';
                         if (param.type === 'int') return Number(val).toFixed(0);
@@ -338,7 +373,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                       };
                       return (
                         <td key={row.country_id}>
-                          {isEditing ? (
+                          {isEditing && !param.readonly ? (
                             <input
                               className="settings-input"
                               type="number"
@@ -348,7 +383,14 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                               onChange={(e) => onChangeField(row.country_id, param.key, e.target.value)}
                             />
                           ) : (
-                            <span className="settings-value">{showValue()}</span>
+                            <span className={`settings-value ${param.readonly ? 'readonly' : ''}`}>
+                              {showValue()}
+                              {param.readonly && isEditing && (
+                                <small style={{display: 'block', fontSize: '0.8em', color: '#666'}}>
+                                  (Auto-calculated)
+                                </small>
+                              )}
+                            </span>
                           )}
                         </td>
                       );

@@ -293,9 +293,110 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
 
     const deliverablesForCalc = dRes.rows.map(d => ({ id: d.id, workpackage_id: d.workpackage_id, nombre: d.nombre, yearlyQuantities: byDel[d.id] || [] }));
 
-    // TODO: Implement new breakdown calculation using calcBulkMargins
-    // For now, create empty cost rows structure
+    // Calculate actual costs from step_yearly_data for each deliverable
     const costRows: any[] = [];
+    
+    for (const deliverable of deliverablesForCalc) {
+      // Get steps for this deliverable with their cost data
+      const yearlyQuantities = deliverable.yearlyQuantities || [];
+      const projectStartYear = projectStartDate ? new Date(projectStartDate).getFullYear() : new Date().getFullYear();
+      
+      for (let yearIdx = 0; yearIdx < yearlyQuantities.length; yearIdx++) {
+        const year = projectStartYear + yearIdx;
+        const quantity = Number(yearlyQuantities[yearIdx] || 0);
+        
+        if (quantity <= 0) continue;
+        
+        try {
+          // Get actual costs from step_yearly_data for this deliverable and year
+          const costsQuery = `
+            SELECT 
+              s.id as step_id,
+              s.deliverable_id,
+              COALESCE(syd.salaries_cost, 0) as salaries_costs,
+              COALESCE(syd.management_costs, 0) as management_costs,
+              COALESCE(syd.npt_costs, 0) as npt_costs,
+              COALESCE(syd.it_costs, 0) as it_costs,
+              COALESCE(syd.premises_costs, 0) as premises_costs,
+              COALESCE(syd.it_recurrent_costs, 0) as it_recurrent_costs,
+              COALESCE(syd.travel_costs, 0) as travel_costs,
+              COALESCE(syd.subco_costs, 0) as subco_costs,
+              COALESCE(syd.purchases_costs, 0) as purchases_costs,
+              COALESCE(pc.activity_rate, 100) as activity_rate
+            FROM steps s
+            JOIN step_yearly_data syd ON s.id = syd.step_id AND syd.year = $2
+            LEFT JOIN project_countries pc ON s.country_id = pc.country_id AND pc.project_id = $3
+            WHERE s.deliverable_id = $1
+          `;
+          
+          const costsRes = await Pool.query(costsQuery, [deliverable.id, year, projectId]);
+          
+          if (costsRes.rows.length === 0) {
+            console.log(`⚠️ No cost data found for deliverable ${deliverable.id}, year ${year}`);
+            continue;
+          }
+          
+          let totalDmCosts = 0;      // DM: operational (with activity rate) + non-operational
+          let totalGmbsCosts = 0;    // GMBS: operational (without activity rate) + non-operational
+          let totalNopCosts = 0;     // Non-operational costs only
+          
+          // Aggregate costs from all steps in this deliverable
+          for (const stepCost of costsRes.rows) {
+            const salariesNum = Number(stepCost.salaries_costs || 0);
+            const managementNum = Number(stepCost.management_costs || 0);
+            const nptNum = Number(stepCost.npt_costs || 0);
+            const itNum = Number(stepCost.it_costs || 0);
+            const premisesNum = Number(stepCost.premises_costs || 0);
+            const itRecurrentNum = Number(stepCost.it_recurrent_costs || 0);
+            const travelNum = Number(stepCost.travel_costs || 0);
+            const subcoNum = Number(stepCost.subco_costs || 0);
+            const purchasesNum = Number(stepCost.purchases_costs || 0);
+            const activityRate = Number(stepCost.activity_rate || 100);
+            
+            // OPERATIONAL COSTS BASE: Multiply base costs by quantity (without activity rate)
+            const operationalBase = (salariesNum + managementNum + nptNum + itNum + premisesNum) * quantity;
+            
+            // OPERATIONAL COSTS ADJUSTED: Apply activity rate for DM calculation
+            const adjustedOperational = (operationalBase * activityRate) / 100;
+            
+            // NON-OPERATIONAL COSTS: Add directly without multiplying by quantity
+            const nonOperational = itRecurrentNum + travelNum + subcoNum + purchasesNum;
+            
+            // DM costs = adjusted operational + non-operational
+            totalDmCosts += adjustedOperational + nonOperational;
+            
+            // GMBS costs = base operational + non-operational (higher than DM when activity_rate < 100%)
+            totalGmbsCosts += operationalBase + nonOperational;
+            
+            // Track non-operational separately
+            totalNopCosts += nonOperational;
+          }
+          
+          // Create cost row entry
+          costRows.push({
+            deliverableId: deliverable.id,
+            year_number: yearIdx + 1,
+            opRecurrentSum: totalDmCosts - totalNopCosts, // Operational costs for DM (without non-op)
+            opNonRecurrentSum: 0,
+            nopSum: totalNopCosts,
+            totalCosts: totalDmCosts, // Total DM costs
+            totalGmbsCosts: totalGmbsCosts, // Add GMBS costs to the structure
+            totalTO: 0 // Will be calculated separately
+          });
+          
+          console.log(`💰 Calculated real costs for deliverable ${deliverable.id}, year ${year}:`, {
+            quantity,
+            totalDmCosts: totalDmCosts.toFixed(2),
+            totalGmbsCosts: totalGmbsCosts.toFixed(2),
+            totalNopCosts: totalNopCosts.toFixed(2),
+            stepsCount: costsRes.rows.length
+          });
+          
+        } catch (error) {
+          console.error(`❌ Error calculating costs for deliverable ${deliverable.id}, year ${year}:`, error);
+        }
+      }
+    }
 
     // build quantity map for quick access
     const qtyMap: Record<string, number> = {};
@@ -307,19 +408,23 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
     }
 
     // aggregate per-deliverable totals from costRows and quantities
-    const perDeliverableTotals: Record<number, { totalOpRecurrent: number; totalOpNonRecurrent: number; totalNop: number; totalCosts: number; totalQty: number }> = {};
+    const perDeliverableTotals: Record<number, { totalOpRecurrent: number; totalOpNonRecurrent: number; totalNop: number; totalCosts: number; totalGmbsCosts: number; totalQty: number }> = {};
     for (const cr of costRows) {
       const did = Number((cr as any).deliverableId ?? (cr as any).deliverable_id);
       const year_number = Number((cr as any).year_number ?? (cr as any).yearNumber ?? 0);
       const qty = Number(qtyMap[`${did}_${year_number}`] || 0);
-      const opRecurrentContribution = Number((cr as any).opRecurrentSum ?? (cr as any).op_recurrent_sum ?? 0) * qty;
+      const opRecurrentContribution = Number((cr as any).opRecurrentSum ?? (cr as any).op_recurrent_sum ?? 0); // Already calculated with qty
       const opNonRecurrentContribution = Number((cr as any).opNonRecurrentSum ?? (cr as any).op_non_recurrent_sum ?? 0);
-      const nopContribution = Number((cr as any).nopSum ?? (cr as any).nop_sum ?? 0) * qty;
-      const entry = perDeliverableTotals[did] || { totalOpRecurrent: 0, totalOpNonRecurrent: 0, totalNop: 0, totalCosts: 0, totalQty: 0 };
+      const nopContribution = Number((cr as any).nopSum ?? (cr as any).nop_sum ?? 0);
+      const totalCostsContribution = Number((cr as any).totalCosts ?? 0);
+      const totalGmbsCostsContribution = Number((cr as any).totalGmbsCosts ?? 0);
+      
+      const entry = perDeliverableTotals[did] || { totalOpRecurrent: 0, totalOpNonRecurrent: 0, totalNop: 0, totalCosts: 0, totalGmbsCosts: 0, totalQty: 0 };
       entry.totalOpRecurrent += opRecurrentContribution;
       entry.totalOpNonRecurrent += opNonRecurrentContribution;
       entry.totalNop += nopContribution;
-      entry.totalCosts += opRecurrentContribution + opNonRecurrentContribution + nopContribution;
+      entry.totalCosts += totalCostsContribution; // DM costs
+      entry.totalGmbsCosts += totalGmbsCostsContribution; // GMBS costs
       entry.totalQty += qty;
       perDeliverableTotals[did] = entry;
     }
@@ -376,19 +481,23 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
     // Build response grouped by workpackage
     const wpMap: Record<number, any> = {};
     for (const wp of workPackages) {
-      wpMap[Number(wp.id)] = { id: wp.id, nombre: wp.nombre || wp.name || wp.codigo || `WP ${wp.id}`, deliverables: [], totals: { totalCosts: 0, totalTO: 0, totalWorkTime: 0 } };
+      wpMap[Number(wp.id)] = { id: wp.id, nombre: wp.nombre || wp.name || wp.codigo || `WP ${wp.id}`, deliverables: [], totals: { totalCosts: 0, totalGmbsCosts: 0, totalTO: 0, totalWorkTime: 0, totalNop: 0 } };
     }
 
     for (const d of deliverablesForCalc) {
       const did = Number(d.id);
       const wpId = Number((d as any).workpackage_id);
-      const totals = perDeliverableTotals[did] || { totalOpRecurrent: 0, totalOpNonRecurrent: 0, totalNop: 0, totalCosts: 0, totalQty: 0 };
+      const totals = perDeliverableTotals[did] || { totalOpRecurrent: 0, totalOpNonRecurrent: 0, totalNop: 0, totalCosts: 0, totalGmbsCosts: 0, totalQty: 0 };
       const totalTO = toMap[did] || 0;
       const totalWorkTime = workTimeMap[did] || 0;
       const hourlyCost = totalWorkTime > 0 ? Number((totals.totalCosts / totalWorkTime).toFixed(2)) : 0;
       const hourlyPrice = totalWorkTime > 0 ? Number((totalTO / totalWorkTime).toFixed(2)) : 0;
-      const dm = totalTO > 0 ? Number(((1 - ( (totals.totalOpRecurrent + totals.totalOpNonRecurrent) / totalTO)) * 100).toFixed(2)) : 0;
-      const gmbs = totalTO > 0 ? Number(((1 - ( (totals.totalOpRecurrent + totals.totalNop + totals.totalOpNonRecurrent) / totalTO)) * 100).toFixed(2)) : 0;
+      
+      // DM = (TO - DM_costs) / TO * 100
+      const dm = totalTO > 0 ? Number(((totalTO - totals.totalCosts) / totalTO * 100).toFixed(2)) : 0;
+      
+      // GMBS = (TO - GMBS_costs) / TO * 100  
+      const gmbs = totalTO > 0 ? Number(((totalTO - totals.totalGmbsCosts) / totalTO * 100).toFixed(2)) : 0;
 
       const deliverableEntry = {
         id: did,
@@ -404,12 +513,21 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
       };
 
       if (!wpMap[wpId]) {
-        wpMap[wpId] = { id: wpId, nombre: `WP ${wpId}`, deliverables: [], totals: { totalCosts: 0, totalTO: 0, totalWorkTime: 0 } };
+        wpMap[wpId] = { id: wpId, nombre: `WP ${wpId}`, deliverables: [], totals: { totalCosts: 0, totalGmbsCosts: 0, totalTO: 0, totalWorkTime: 0, totalNop: 0 } };
       }
       wpMap[wpId].deliverables.push(deliverableEntry);
       wpMap[wpId].totals.totalCosts += deliverableEntry.totalCosts;
+      wpMap[wpId].totals.totalGmbsCosts += totals.totalGmbsCosts; // Add GMBS costs to workpackage totals
       wpMap[wpId].totals.totalTO += deliverableEntry.totalTO;
       wpMap[wpId].totals.totalWorkTime += deliverableEntry.totalWorkTime;
+      wpMap[wpId].totals.totalNop = (wpMap[wpId].totals.totalNop || 0) + (totals.totalNop || 0);
+      
+      console.log(`📊 [WP ${wpId}] Adding deliverable ${did} costs:`, {
+        deliverableDmCosts: totals.totalCosts,
+        deliverableGmbsCosts: totals.totalGmbsCosts,
+        wpTotalDmCosts: wpMap[wpId].totals.totalCosts,
+        wpTotalGmbsCosts: wpMap[wpId].totals.totalGmbsCosts
+      });
     }
 
     const wpList = Object.values(wpMap).map((w:any) => {
@@ -425,22 +543,34 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
       
       const unitPrice = totalQuantity > 0 ? Number((w.totals.totalTO / totalQuantity).toFixed(2)) : 0;
       
-      return {
+      const result = {
         id: w.id,
         nombre: w.nombre,
         deliverables: w.deliverables,
         totals: {
           totalCosts: Number((w.totals.totalCosts || 0)),
+          totalGmbsCosts: Number((w.totals.totalGmbsCosts || 0)), // Add this to response
           totalTO: Number((w.totals.totalTO || 0)),
           totalWorkTime,
           totalQuantity,
           unitPrice,
           hourlyCost: totalWorkTime > 0 ? Number((w.totals.totalCosts / totalWorkTime).toFixed(2)) : 0,
           hourlyPrice: totalWorkTime > 0 ? Number((w.totals.totalTO / totalWorkTime).toFixed(2)) : 0,
-          dm: w.totals.totalTO > 0 ? Number(((1 - ((w.totals.totalCosts) / w.totals.totalTO)) * 100).toFixed(2)) : 0,
-          gmbs: w.totals.totalTO > 0 ? Number(((1 - ((w.totals.totalCosts + (w.totals.totalNop||0)) / w.totals.totalTO)) * 100).toFixed(2)) : 0,
+          dm: w.totals.totalTO > 0 ? Number(((w.totals.totalTO - w.totals.totalCosts) / w.totals.totalTO * 100).toFixed(2)) : 0,
+          gmbs: w.totals.totalTO > 0 ? Number(((w.totals.totalTO - w.totals.totalGmbsCosts) / w.totals.totalTO * 100).toFixed(2)) : 0,
         }
       };
+      
+      console.log(`📈 [WP ${result.id}] Final margins calculation:`, {
+        nombre: result.nombre,
+        totalTO: result.totals.totalTO,
+        totalDmCosts: result.totals.totalCosts,
+        totalGmbsCosts: result.totals.totalGmbsCosts,
+        dmPercent: result.totals.dm,
+        gmbsPercent: result.totals.gmbs
+      });
+      
+      return result;
     });
 
     res.json({ projectId: Number(projectId), workPackages: wpList });
@@ -568,6 +698,53 @@ export const testBulkMarginCalculation = async (req: Request, res: Response) => 
     
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Error testing bulk margin calculation' });
+  }
+};
+
+// GET /projects/:projectId/customer-unit-prices
+export const getProjectCustomerUnitPrices = async (req: Request, res: Response) => {
+  try {
+    const projectId = req.params.projectId || req.params.id;
+    
+    if (!projectId || isNaN(parseInt(projectId))) {
+      return res.status(400).json({ error: 'Invalid project ID' });
+    }
+    
+    console.log(`[GetCustomerUnitPrices] Fetching customer unit prices for project ${projectId}`);
+    
+    // Para proyectos IQP 1-2, obtener customer_unit_price de deliverables agrupado por workpackage
+    // Como hay un deliverable por workpackage, podemos agrupar directamente
+    const query = `
+      SELECT 
+        wp.id as workpackage_id,
+        wp.nombre as workpackage_name,
+        d.id as deliverable_id,
+        d.customer_unit_price
+      FROM workpackages wp
+      JOIN deliverables d ON wp.id = d.workpackage_id
+      WHERE wp.project_id = $1 
+        AND d.customer_unit_price IS NOT NULL
+      ORDER BY wp.id;
+    `;
+    
+    const result = await Pool.query(query, [projectId]);
+    
+    // Transformar resultado en formato { workpackageId: customerUnitPrice }
+    const customerUnitPrices: Record<number, number> = {};
+    
+    for (const row of result.rows) {
+      customerUnitPrices[row.workpackage_id] = parseFloat(row.customer_unit_price);
+    }
+    
+    console.log(`[GetCustomerUnitPrices] Found ${Object.keys(customerUnitPrices).length} customer unit prices for project ${projectId}:`, customerUnitPrices);
+    
+    res.json({
+      projectId: parseInt(projectId),
+      customerUnitPrices
+    });
+  } catch (error: any) {
+    console.error('[GetCustomerUnitPrices] Error fetching customer unit prices:', error);
+    res.status(500).json({ error: error?.message || 'Error fetching customer unit prices' });
   }
 };
 

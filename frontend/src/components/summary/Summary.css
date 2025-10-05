@@ -38,6 +38,18 @@
   border-bottom: 0; /* más compacto */
   padding-bottom: 4px;
   margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Cuando hay leyenda en el header, mejorar el layout */
+.summary-card-header:has(.margin-legend) {
+  align-items: flex-start;
+  padding-bottom: 8px;
+}
+
+.summary-card-header:has(.margin-legend) h2 {
+  margin-bottom: 4px;
 }
 
 .summary-card-header h2,
@@ -323,6 +335,23 @@
   border-color: rgba(47, 125, 217, 0.2);
 }
 
+/* Estado de edición (cambios pendientes) */
+.manual-unit-price-input.editing {
+  background: linear-gradient(180deg, #fff8e1, #ffffff);
+  border-color: #ff9800;
+  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.1);
+}
+
+.manual-unit-price-input.editing::after {
+  content: '●';
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ff9800;
+  font-size: 8px;
+}
+
 /* Responsive breakpoints para wp-grid */
 @media (max-width: 1200px) {
   .wp-grid:not(.wp-grid-iqp12) {
@@ -394,6 +423,206 @@
 
 .wp-grid-cell-right .wp-grid-value {
   text-align: right;
+}
+
+/* Estilos para comparación de márgenes (real vs teórico) */
+.margin-comparison {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  justify-content: center;
+}
+
+.margin-real {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.margin-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 1px 0;
+}
+
+.margin-theoretical {
+  font-weight: 600;
+  color: var(--brand-2);
+  font-size: 12px;
+  line-height: 1.2;
+  font-style: italic;
+}
+
+/* Tooltip para explicar la comparación */
+.margin-comparison:hover .margin-theoretical {
+  color: var(--brand);
+}
+
+.margin-comparison[title]:hover {
+  cursor: help;
+}
+
+/* Responsividad para comparación de márgenes */
+@media (max-width: 900px) {
+  .margin-comparison {
+    min-height: 32px;
+    gap: 1px;
+  }
+  
+  .margin-real {
+    font-size: 13px;
+  }
+  
+  .margin-theoretical {
+    font-size: 11px;
+  }
+}
+
+/* Estado cuando no hay Manual Unit Price */
+.wp-grid-value:not(:has(.margin-comparison)) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 36px;
+}
+
+/* Leyenda para explicar los tipos de márgenes */
+.financial-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* Leyenda para Summary Detail */
+.margin-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(47, 125, 217, 0.06), rgba(47, 125, 217, 0.02));
+  border: 1px solid rgba(47, 125, 217, 0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(47, 125, 217, 0.1);
+  margin-left: auto; /* Empuja la leyenda hacia la derecha */
+  white-space: nowrap;
+}
+
+.legend-real {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.legend-real::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background-color: var(--ink);
+  border-radius: 2px;
+}
+
+.legend-theoretical {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brand-2);
+  font-weight: 600;
+}
+
+.legend-theoretical::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background-color: var(--brand-2);
+  border-radius: 2px;
+}
+
+.legend-divider {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Efecto hover sutil para la leyenda */
+.margin-legend:hover {
+  background: linear-gradient(135deg, rgba(47, 125, 217, 0.08), rgba(47, 125, 217, 0.04));
+  border-color: rgba(47, 125, 217, 0.3);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.margin-legend:hover .legend-real::before,
+.margin-legend:hover .legend-theoretical::before {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+@media (max-width: 900px) {
+  .financial-legend {
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  
+  .margin-legend {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  .legend-real::before,
+  .legend-theoretical::before {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .margin-legend {
+    justify-content: center;
+    padding: 3px 6px;
+    font-size: 10px;
+    gap: 4px;
+    margin-left: 0;
+    width: 100%;
+    order: 3; /* Aparece en la tercera línea en pantallas pequeñas */
+  }
+  
+  .summary-card-header:has(.margin-legend) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .summary-card-header:has(.margin-legend) h2 {
+    order: 1;
+  }
+  
+  .summary-card-header:has(.margin-legend) .tag {
+    order: 2;
+  }
 }
 
 .btn.toggle { font-size:16px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(180deg,#f4f8ff,#ffffff); border:1px solid rgba(47,125,217,0.06); }

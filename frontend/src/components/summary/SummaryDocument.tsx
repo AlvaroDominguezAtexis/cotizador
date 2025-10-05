@@ -16,6 +16,7 @@ import {
   calculateHourlyCost,
   round
 } from "../../utils/functions";
+import { calculateMarginsSimple } from "../../utils/marginCalculations";
 
 type Props = {
   /** Puedes pasar el objeto proyecto o sólo su id; si hay ambos, prevalece projectId */
@@ -118,6 +119,93 @@ const SummaryDocument: React.FC<Props> = ({
   const [tab, setTab] = useState<
     "country" | "profileType" | "deliverable" | "workPackage"
   >("country");
+  
+  // Estado temporal para los valores del Manual Unit Price mientras el usuario escribe
+  const [tempUnitPrices, setTempUnitPrices] = useState<Record<number, string>>({});
+  
+  // Estado para los customer unit prices desde la BD
+  const [customerUnitPrices, setCustomerUnitPrices] = useState<Record<number, number>>({});
+
+  // Función para calcular TO teórico del proyecto
+  const calculateTheoreticalTO = (workpackages: any[]) => {
+    if (!isIqp12 || !Array.isArray(workpackages)) return null;
+    
+    let totalTheoreticalTO = 0;
+    
+    for (const wp of workpackages) {
+      const unitPrice = customerUnitPrices[wp.id] || wp.totals?.customerUnitPrice || 0;
+      const quantity = wp.totals?.totalQuantity || 0;
+      
+      if (unitPrice > 0 && quantity > 0) {
+        // Usar el TO teórico (manual unit price * quantity)
+        totalTheoreticalTO += unitPrice * quantity;
+      } else {
+        // Si no hay manual unit price, usar el TO real del workpackage
+        totalTheoreticalTO += wp.totals?.totalTO || 0;
+      }
+    }
+    
+    return totalTheoreticalTO;
+  };
+
+  // Función para calcular márgenes teóricos del proyecto
+  const calculateTheoreticalMargins = (workpackages: any[]) => {
+    const theoreticalTO = calculateTheoreticalTO(workpackages);
+    if (!theoreticalTO) return null;
+    
+    // Sumar todos los costos del proyecto
+    let totalDmCosts = 0;
+    let totalGmbsCosts = 0;
+    
+    for (const wp of workpackages) {
+      totalDmCosts += wp.totals?.totalCosts || 0;
+      totalGmbsCosts += wp.totals?.totalGmbsCosts || 0;
+    }
+    
+    return calculateMarginsSimple({
+      givenTO: theoreticalTO,
+      totalDmCosts: totalDmCosts,
+      totalGmbsCosts: totalGmbsCosts
+    });
+  };
+
+  // Función para recalcular DM y GMBS usando TO existente
+  const recalculateWorkpackageMargins = (workpackages: any[]) => {
+    return workpackages.map(wp => {
+      const totalTO = wp.totals?.totalTO || 0;
+      const totalDmCosts = wp.totals?.totalCosts || 0;
+      const totalNopCosts = wp.totals?.totalNop || 0;
+      
+      // Si tenemos los datos necesarios, recalcular márgenes usando la función de utilidad
+      if (totalTO > 0 && wp.totals) {
+        const totalGmbsCosts = totalDmCosts + totalNopCosts; // GMBS incluye costos no operacionales
+        
+        const recalculated = calculateMarginsSimple({
+          givenTO: totalTO,
+          totalDmCosts: totalDmCosts,
+          totalGmbsCosts: totalGmbsCosts
+        });
+
+        console.log(`📊 Recalculated margins for WP "${wp.nombre}":`, {
+          original: { DM: wp.totals.dm || 0, GMBS: wp.totals.gmbs || 0 },
+          recalculated: { DM: recalculated.DM, GMBS: recalculated.GMBS },
+          costs: { totalTO, totalDmCosts, totalNopCosts, totalGmbsCosts }
+        });
+
+        return {
+          ...wp,
+          totals: {
+            ...wp.totals,
+            dm: recalculated.DM,
+            gmbs: recalculated.GMBS
+          }
+        };
+      }
+
+      // Si no se pueden recalcular, usar los valores existentes del backend
+      return wp;
+    });
+  };
 
   // Fetch allocations and summary if not provided
   useEffect(() => {
@@ -191,7 +279,19 @@ const SummaryDocument: React.FC<Props> = ({
               const fb = await fetch(`/projects/${effectiveProjectId}/deliverables-costs-breakdown`);
               if (fb.ok) {
                 const fj = await fb.json();
-                setFinancialBreakdown(Array.isArray(fj.workPackages) ? fj.workPackages : (fj.workPackages || []));
+                const rawWorkPackages = Array.isArray(fj.workPackages) ? fj.workPackages : (fj.workPackages || []);
+                // Usar directamente los valores calculados por el backend (no recalcular)
+                console.log('📊 Raw workpackages from backend:', rawWorkPackages.map((wp: any) => ({
+                  nombre: wp.nombre,
+                  totals: {
+                    totalTO: wp.totals.totalTO,
+                    totalCosts: wp.totals.totalCosts,
+                    totalGmbsCosts: wp.totals.totalGmbsCosts,
+                    dm: wp.totals.dm,
+                    gmbs: wp.totals.gmbs
+                  }
+                })));
+                setFinancialBreakdown(rawWorkPackages);
               } else {
                 console.warn('Could not fetch financial breakdown', fb.status);
                 setFinancialBreakdown(null);
@@ -199,6 +299,23 @@ const SummaryDocument: React.FC<Props> = ({
             } catch (e) {
               console.error('Error fetching financial breakdown', e);
               setFinancialBreakdown(null);
+            }
+
+            // fetch customer unit prices existentes para poblar placeholders
+            try {
+              const cup = await fetch(`/projects/${effectiveProjectId}/customer-unit-prices`);
+              if (cup.ok) {
+                const cupj = await cup.json();
+                const prices = cupj.customerUnitPrices || {};
+                console.log('🏷️ Loaded existing customer unit prices:', prices);
+                setCustomerUnitPrices(prices);
+              } else {
+                console.warn('Could not fetch customer unit prices', cup.status);
+                setCustomerUnitPrices({});
+              }
+            } catch (e) {
+              console.error('Error fetching customer unit prices', e);
+              setCustomerUnitPrices({});
             }
         }
       } catch (e) {
@@ -282,6 +399,17 @@ const SummaryDocument: React.FC<Props> = ({
         <div className="summary-card-header kpi-header">
           <h2>Summary Detail</h2>
           {loading && <span className="tag subtle">Cargando horas…</span>}
+          {isIqp12 && financialBreakdown && (() => {
+            const theoreticalTO = calculateTheoreticalTO(financialBreakdown);
+            const realTO = operationalRevenue ?? revenue ?? 0;
+            return theoreticalTO && theoreticalTO !== realTO && (
+              <div className="margin-legend">
+                <span className="legend-real">Real</span>
+                <span className="legend-divider">|</span>
+                <span className="legend-theoretical">Theoretical (Manual Unit Price)</span>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="kpi-grid">
@@ -294,39 +422,114 @@ const SummaryDocument: React.FC<Props> = ({
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">DM</span>
             <span className="summary-card-item-value kpi-value">
-              {(projectDMRemote != null ? projectDMRemote : dm).toLocaleString("es-ES", { maximumFractionDigits: 2 })}%
+              {(() => {
+                const realDM = projectDMRemote != null ? projectDMRemote : dm;
+                const theoreticalMargins = financialBreakdown ? calculateTheoreticalMargins(financialBreakdown) : null;
+                const theoreticalTO = financialBreakdown ? calculateTheoreticalTO(financialBreakdown) : null;
+                const realTO = operationalRevenue ?? revenue ?? 0;
+                
+                if (isIqp12 && theoreticalMargins && theoreticalTO && theoreticalTO !== realTO) {
+                  return (
+                    <div 
+                      className="margin-comparison"
+                      title={`DM Real: ${realDM.toFixed(1)}% (TO: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs DM Teórico: ${theoreticalMargins.DM.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                    >
+                      <div className="margin-real">{realDM.toLocaleString("es-ES", { maximumFractionDigits: 2 })}%</div>
+                      <div className="margin-divider"></div>
+                      <div className="margin-theoretical">{theoreticalMargins.DM.toFixed(1)}%</div>
+                    </div>
+                  );
+                }
+                
+                return `${realDM.toLocaleString("es-ES", { maximumFractionDigits: 2 })}%`;
+              })()}
             </span>
           </div>
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">GMBS</span>
             <span className={`summary-card-item-value kpi-value gm ${(projectGMBSRemote ?? (gm * 100)) >= 0.0 ? "pos" : "neg"} ${projectGMBSRemote != null ? 'black' : ''}`}>
-              {`${((projectGMBSRemote != null) ? projectGMBSRemote : (gm * 100)).toFixed(1)}%`}
+              {(() => {
+                const realGMBS = projectGMBSRemote != null ? projectGMBSRemote : (gm * 100);
+                const theoreticalMargins = financialBreakdown ? calculateTheoreticalMargins(financialBreakdown) : null;
+                const theoreticalTO = financialBreakdown ? calculateTheoreticalTO(financialBreakdown) : null;
+                const realTO = operationalRevenue ?? revenue ?? 0;
+                
+                if (isIqp12 && theoreticalMargins && theoreticalTO && theoreticalTO !== realTO) {
+                  return (
+                    <div 
+                      className="margin-comparison"
+                      title={`GMBS Real: ${realGMBS.toFixed(1)}% (TO: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs GMBS Teórico: ${theoreticalMargins.GMBS.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                    >
+                      <div className="margin-real">{realGMBS.toFixed(1)}%</div>
+                      <div className="margin-divider"></div>
+                      <div className="margin-theoretical">{theoreticalMargins.GMBS.toFixed(1)}%</div>
+                    </div>
+                  );
+                }
+                
+                return `${realGMBS.toFixed(1)}%`;
+              })()}
             </span>
           </div>
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">Hourly Price</span>
             <span className="summary-card-item-value kpi-value">
-              {(hourlyPriceRemote ?? hourlyPriceCalc)
-                ? `${(hourlyPriceRemote ?? hourlyPriceCalc).toLocaleString("es-ES", {
-                    style: "currency",
-                    currency: "EUR",
-                    maximumFractionDigits: 2,
-                  })}/h`
-                : "-"}
+              {(() => {
+                const realHourlyPrice = hourlyPriceRemote ?? hourlyPriceCalc;
+                const theoreticalTO = financialBreakdown ? calculateTheoreticalTO(financialBreakdown) : null;
+                const realTO = operationalRevenue ?? revenue ?? 0;
+                
+                if (!realHourlyPrice) return "-";
+                
+                // Calcular total de horas correctas del proyecto desde financialBreakdown
+                const totalProjectWorkTime = financialBreakdown ? 
+                  financialBreakdown.reduce((sum: number, wp: any) => 
+                    sum + (wp.totals?.totalWorkTime || 0), 0) : 0;
+                
+                if (isIqp12 && theoreticalTO && theoreticalTO !== realTO && totalProjectWorkTime > 0) {
+                  const theoreticalHourlyPrice = theoreticalTO / totalProjectWorkTime;
+                  return (
+                    <div 
+                      className="margin-comparison"
+                      title={`Hourly Price Real: ${realHourlyPrice.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}/h (TO: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}, ${totalProjectWorkTime.toLocaleString('es-ES')} h) vs Hourly Price Teórico: ${theoreticalHourlyPrice.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}/h (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}, ${totalProjectWorkTime.toLocaleString('es-ES')} h)`}
+                    >
+                      <div className="margin-real">{realHourlyPrice.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })}/h</div>
+                      <div className="margin-divider"></div>
+                      <div className="margin-theoretical">{theoreticalHourlyPrice.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })}/h</div>
+                    </div>
+                  );
+                }
+                
+                return `${realHourlyPrice.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })}/h`;
+              })()}
             </span>
           </div>
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">GMBS in €</span>
             <span className="summary-card-item-value kpi-value">
               {(() => {
-                const operationalTO = operationalRevenue ?? revenue ?? 0;
-                const gmbsPercentage = projectGMBSRemote != null ? projectGMBSRemote : (gm * 100);
-                const gmbsInEuros = operationalTO * gmbsPercentage / 100;
-                return gmbsInEuros.toLocaleString("es-ES", {
-                  style: "currency",
-                  currency: "EUR",
-                  maximumFractionDigits: 2,
-                });
+                const realTO = operationalRevenue ?? revenue ?? 0;
+                const realGmbsPercentage = projectGMBSRemote != null ? projectGMBSRemote : (gm * 100);
+                const realGmbsInEuros = realTO * realGmbsPercentage / 100;
+                
+                const theoreticalMargins = financialBreakdown ? calculateTheoreticalMargins(financialBreakdown) : null;
+                const theoreticalTO = financialBreakdown ? calculateTheoreticalTO(financialBreakdown) : null;
+                
+                if (isIqp12 && theoreticalMargins && theoreticalTO && theoreticalTO !== realTO) {
+                  const theoreticalGmbsInEuros = theoreticalTO * theoreticalMargins.GMBS / 100;
+                  return (
+                    <div 
+                      className="margin-comparison"
+                      title={`GMBS Real: ${realGmbsInEuros.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})} (${realGmbsPercentage.toFixed(1)}% de ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs GMBS Teórico: ${theoreticalGmbsInEuros.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})} (${theoreticalMargins.GMBS.toFixed(1)}% de ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                    >
+                      <div className="margin-real">{realGmbsInEuros.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })}</div>
+                      <div className="margin-divider"></div>
+                      <div className="margin-theoretical">{theoreticalGmbsInEuros.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 })}</div>
+                    </div>
+                  );
+                }
+                
+                return realGmbsInEuros.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
               })()}
             </span>
           </div>
@@ -360,22 +563,137 @@ const SummaryDocument: React.FC<Props> = ({
 
                   <div className="wp-grid-cell">
                     <div className="wp-grid-label">Hourly Price</div>
-                    <div className="wp-grid-value">{(wp.totals.hourlyPrice || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</div>
+                    <div className="wp-grid-value">
+                      {(() => {
+                        const realHourlyPrice = wp.totals?.hourlyPrice || 0;
+                        
+                        // Si hay Manual Unit Price, calcular Hourly Price teórico
+                        const currentUnitPrice = tempUnitPrices[wp.id] !== undefined 
+                          ? parseFloat(tempUnitPrices[wp.id]) || 0
+                          : (customerUnitPrices[wp.id] || wp.totals?.customerUnitPrice || 0);
+                          
+                        if (isIqp12 && currentUnitPrice > 0 && wp.totals?.totalQuantity > 0 && wp.totals?.totalWorkTime > 0) {
+                          const theoreticalTO = currentUnitPrice * wp.totals.totalQuantity;
+                          const theoreticalHourlyPrice = theoreticalTO / wp.totals.totalWorkTime;
+                          
+                          return (
+                            <div 
+                              className="margin-comparison"
+                              title={`Hourly Price Real: ${realHourlyPrice.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}/h (TO: ${wp.totals.totalTO?.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs Hourly Price Teórico: ${theoreticalHourlyPrice.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}/h (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                            >
+                              <div className="margin-real">{realHourlyPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</div>
+                              <div className="margin-divider"></div>
+                              <div className="margin-theoretical">{theoreticalHourlyPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</div>
+                            </div>
+                          );
+                        }
+                        
+                        return `${realHourlyPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h`;
+                      })()}
+                    </div>
                   </div>
 
                   <div className="wp-grid-cell">
                     <div className="wp-grid-label">Operational TO</div>
-                    <div className="wp-grid-value">{(wp.totals.totalTO || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
-                  </div>
-
-                  <div className="wp-grid-cell">
-                    <div className="wp-grid-label">GM</div>
-                    <div className="wp-grid-value">{(wp.totals.dm || 0).toFixed(1)}%</div>
+                    <div className="wp-grid-value">
+                      {(() => {
+                        const realTO = wp.totals.totalTO || 0;
+                        
+                        // Si hay Manual Unit Price, calcular TO teórico
+                        const currentUnitPrice = tempUnitPrices[wp.id] !== undefined 
+                          ? parseFloat(tempUnitPrices[wp.id]) || 0
+                          : (customerUnitPrices[wp.id] || wp.totals.customerUnitPrice || 0);
+                          
+                        if (isIqp12 && currentUnitPrice > 0 && wp.totals.totalQuantity > 0) {
+                          const theoreticalTO = currentUnitPrice * wp.totals.totalQuantity;
+                          
+                          return (
+                            <div 
+                              className="margin-comparison"
+                              title={`TO Real: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})} vs TO Teórico: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})} (${currentUnitPrice.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})} × ${wp.totals.totalQuantity})`}
+                            >
+                              <div className="margin-real">{realTO.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+                              <div className="margin-divider"></div>
+                              <div className="margin-theoretical">{theoreticalTO.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+                            </div>
+                          );
+                        }
+                        
+                        return realTO.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+                      })()}
+                    </div>
                   </div>
 
                   <div className="wp-grid-cell">
                     <div className="wp-grid-label">DM</div>
-                    <div className="wp-grid-value">{(wp.totals.totalCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+                    <div className="wp-grid-value">
+                      {(() => {
+                        const realDM = (wp.totals.dm || 0).toFixed(1);
+                        
+                        // Si hay Manual Unit Price, calcular DM teórico
+                        const currentUnitPrice = tempUnitPrices[wp.id] !== undefined 
+                          ? parseFloat(tempUnitPrices[wp.id]) || 0
+                          : (customerUnitPrices[wp.id] || wp.totals.customerUnitPrice || 0);
+                          
+                        if (isIqp12 && currentUnitPrice > 0 && wp.totals.totalQuantity > 0) {
+                          const theoreticalTO = currentUnitPrice * wp.totals.totalQuantity;
+                          const theoreticalMargins = calculateMarginsSimple({
+                            givenTO: theoreticalTO,
+                            totalDmCosts: wp.totals.totalCosts || 0,
+                            totalGmbsCosts: wp.totals.totalGmbsCosts || 0
+                          });
+                          
+                          return (
+                            <div 
+                              className="margin-comparison"
+                              title={`DM Real: ${realDM}% (TO actual: ${wp.totals.totalTO?.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs DM Teórico: ${theoreticalMargins.DM.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                            >
+                              <div className="margin-real">{realDM}%</div>
+                              <div className="margin-divider"></div>
+                              <div className="margin-theoretical">{theoreticalMargins.DM.toFixed(1)}%</div>
+                            </div>
+                          );
+                        }
+                        
+                        return `${realDM}%`;
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="wp-grid-cell">
+                    <div className="wp-grid-label">GMBS</div>
+                    <div className="wp-grid-value">
+                      {(() => {
+                        const realGMBS = (wp.totals.gmbs || 0).toFixed(1);
+                        
+                        // Si hay Manual Unit Price, calcular GMBS teórico
+                        const currentUnitPrice = tempUnitPrices[wp.id] !== undefined 
+                          ? parseFloat(tempUnitPrices[wp.id]) || 0
+                          : (customerUnitPrices[wp.id] || wp.totals.customerUnitPrice || 0);
+                          
+                        if (isIqp12 && currentUnitPrice > 0 && wp.totals.totalQuantity > 0) {
+                          const theoreticalTO = currentUnitPrice * wp.totals.totalQuantity;
+                          const theoreticalMargins = calculateMarginsSimple({
+                            givenTO: theoreticalTO,
+                            totalDmCosts: wp.totals.totalCosts || 0,
+                            totalGmbsCosts: wp.totals.totalGmbsCosts || 0
+                          });
+                          
+                          return (
+                            <div 
+                              className="margin-comparison"
+                              title={`GMBS Real: ${realGMBS}% (TO actual: ${wp.totals.totalTO?.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs GMBS Teórico: ${theoreticalMargins.GMBS.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                            >
+                              <div className="margin-real">{realGMBS}%</div>
+                              <div className="margin-divider"></div>
+                              <div className="margin-theoretical">{theoreticalMargins.GMBS.toFixed(1)}%</div>
+                            </div>
+                          );
+                        }
+                        
+                        return `${realGMBS}%`;
+                      })()}
+                    </div>
                   </div>
 
                   {/* Mostrar Unit Price solo para proyectos IQP 1-2 */}
@@ -395,11 +713,18 @@ const SummaryDocument: React.FC<Props> = ({
                           type="number"
                           step="0.01"
                           min="0"
-                          value={wp.totals.customerUnitPrice || ''}
-                          placeholder="€ 0.00"
-                          className="manual-unit-price-input"
-                          title="Click to edit manual unit price"
-                          onChange={async (e) => {
+                          value={tempUnitPrices[wp.id] !== undefined ? tempUnitPrices[wp.id] : (customerUnitPrices[wp.id]?.toString() || '')}
+                          placeholder={customerUnitPrices[wp.id] ? `€ ${customerUnitPrices[wp.id].toFixed(2)}` : "€ 0.00"}
+                          className={`manual-unit-price-input ${tempUnitPrices[wp.id] !== undefined ? 'editing' : ''}`}
+                          title={tempUnitPrices[wp.id] !== undefined ? "Press Tab or click outside to save" : "Click to edit manual unit price"}
+                          onChange={(e) => {
+                            // Actualización temporal solo para la UI (sin API call)
+                            setTempUnitPrices(prev => ({
+                              ...prev,
+                              [wp.id]: e.target.value
+                            }));
+                          }}
+                          onBlur={async (e) => {
                             const newValue = e.target.value === '' ? null : parseFloat(e.target.value);
                             
                             // Para IQP 1-2, siempre hay un único deliverable por workpackage
@@ -420,29 +745,69 @@ const SummaryDocument: React.FC<Props> = ({
                               });
                               
                               if (response.ok) {
-                                // Actualizar el estado local
+                                // Limpiar el estado temporal
+                                setTempUnitPrices(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[wp.id];
+                                  return updated;
+                                });
+                                
+                                // Actualizar el estado de customer unit prices
+                                setCustomerUnitPrices(prev => {
+                                  const updated = { ...prev };
+                                  if (newValue !== null && newValue !== undefined) {
+                                    updated[wp.id] = newValue;
+                                  } else {
+                                    delete updated[wp.id];
+                                  }
+                                  return updated;
+                                });
+                                
+                                // Actualizar el estado local y recalcular márgenes teóricos
                                 setFinancialBreakdown(prev => 
-                                  prev?.map(wpItem => 
-                                    wpItem.id === wp.id 
-                                      ? { 
-                                          ...wpItem, 
-                                          totals: { 
-                                            ...wpItem.totals, 
-                                            customerUnitPrice: newValue 
-                                          }
+                                  prev?.map(wpItem => {
+                                    if (wpItem.id === wp.id) {
+                                      const updatedWp = { 
+                                        ...wpItem, 
+                                        totals: { 
+                                          ...wpItem.totals, 
+                                          customerUnitPrice: newValue 
                                         }
-                                      : wpItem
-                                  ) || null
+                                      };
+                                      
+                                      // Log para debugging
+                                      if (newValue && wpItem.totals.totalQuantity > 0) {
+                                        const theoreticalTO = newValue * wpItem.totals.totalQuantity;
+                                        console.log(`📊 Manual Unit Price updated for ${wpItem.nombre}:`, {
+                                          unitPrice: newValue,
+                                          totalQuantity: wpItem.totals.totalQuantity,
+                                          theoreticalTO: theoreticalTO,
+                                          realTO: wpItem.totals.totalTO
+                                        });
+                                      }
+                                      
+                                      return updatedWp;
+                                    }
+                                    return wpItem;
+                                  }) || null
                                 );
                               } else {
                                 console.error('Failed to update customer unit price');
-                                // Revertir el valor en caso de error
-                                e.target.value = wp.totals.customerUnitPrice || '';
+                                // Revertir el valor temporal en caso de error
+                                setTempUnitPrices(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[wp.id];
+                                  return updated;
+                                });
                               }
                             } catch (error) {
                               console.error('Error updating customer unit price:', error);
-                              // Revertir el valor en caso de error
-                              e.target.value = wp.totals.customerUnitPrice || '';
+                              // Revertir el valor temporal en caso de error
+                              setTempUnitPrices(prev => {
+                                const updated = { ...prev };
+                                delete updated[wp.id];
+                                return updated;
+                              });
                             }
                           }}
                         />

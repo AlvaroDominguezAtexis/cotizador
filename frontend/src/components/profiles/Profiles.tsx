@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useOfficialProfiles } from '../../hooks/useOfficialProfiles';
 import { Table } from '../ui/Table';
 import { Button } from '../ui/Button';
+import { round } from '../../utils/functions';
 
 import { Profile } from '../../types/profile';
 // import { COUNTRIES } from '../../types/common';
@@ -1122,8 +1123,8 @@ const ProfileYearSalaries: React.FC<{ profile: Profile; projectId: number; count
     let prev = baseVal;
     for (let i = 1; i < ys.length; i++) {
       prev = prev * (1 + cpi / 100);
-      // Optionally round to 2 decimals
-      const nextVal = Math.round(prev * 100) / 100;
+      // Round to 2 decimals using centralized function
+      const nextVal = round(prev);
       onCompositeEditChange(countryId, ys[i], nextVal);
     }
   };

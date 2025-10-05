@@ -13,6 +13,7 @@ import {
   calculateFinancialKPIs,
   calculateTotalDM,
   calculateProjectKPIs,
+  calculateHourlyCost,
   round
 } from "../../utils/functions";
 
@@ -169,8 +170,8 @@ const SummaryDocument: React.FC<Props> = ({
               if (projectGMBS !== null) setProjectGMBSRemote(projectGMBS);
               // compute hourlyCosts: prefer totalHoursOverride, then allocData (fresh), then rows state
               const hoursSource = typeof totalHoursOverride === 'number' ? totalHoursOverride : (allocData ?? rows ?? []);
-              const hours = typeof hoursSource === 'number' ? hoursSource : (hoursSource as Allocation[]).reduce((a, r) => a + (Number(r.hours) || 0), 0);
-              const hourlyCostVal = hours > 0 ? Number((totalCosts / hours).toFixed(2)) : 0;
+              const hours = typeof hoursSource === 'number' ? hoursSource : calculateTotalHours(hoursSource as Allocation[]);
+              const hourlyCostVal = calculateHourlyCost(totalCosts, hours);
               setHourlyCostsRemote(hourlyCostVal);
             } else {
               console.warn('Could not fetch deliverables costs', cc.status);

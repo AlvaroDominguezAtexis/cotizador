@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getSteps, createStep, updateStep, deleteStep, getAnnualData, upsertAnnualData, deleteAnnualData, recalcSalaries } from '../../controllers/project/stepsController';
+import { getSteps, createStep, updateStep, deleteStep, getAnnualData, upsertAnnualData, deleteAnnualData, recalcSalaries, recalcNPTCosts } from '../../controllers/project/stepsController';
 
 const router = Router({ mergeParams: true });
 
@@ -13,5 +13,7 @@ router.put('/:stepId/annual-data/:year', upsertAnnualData);
 router.delete('/:stepId/annual-data/:year', deleteAnnualData);
 // Recalculate and persist salaries cost
 router.post('/:stepId/recalc-salaries', recalcSalaries);
+// Recalculate and persist NPT costs
+router.post('/:stepId/recalc-npt-costs', recalcNPTCosts);
 
 export default router;

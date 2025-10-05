@@ -15,6 +15,7 @@ import projectCountriesRoutes, {
 	projectCountriesActivityRouter,
 	projectCountriesNptRouter,
 	projectCountriesItRouter,
+	projectCountriesPremisesRouter,
 	projectCountriesWorkingDaysRouter,
 	projectCountriesHoursPerDayRouter,
 	projectCountriesHolidaysRouter,
@@ -63,6 +64,7 @@ app.use('/projects/:projectId/countries-cpi', projectCountriesRoutes);
 app.use('/projects/:projectId/countries-activity-rate', projectCountriesActivityRouter);
 app.use('/projects/:projectId/countries-npt-rate', projectCountriesNptRouter);
 app.use('/projects/:projectId/countries-it-cost', projectCountriesItRouter);
+app.use('/projects/:projectId/countries-premises-rate', projectCountriesPremisesRouter);
 app.use('/projects/:projectId/countries-working-days', projectCountriesWorkingDaysRouter);
 app.use('/projects/:projectId/countries-hours-per-day', projectCountriesHoursPerDayRouter);
 app.use('/projects/:projectId/countries-holidays', projectCountriesHolidaysRouter);

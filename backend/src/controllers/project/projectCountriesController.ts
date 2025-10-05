@@ -143,7 +143,8 @@ export const addProjectCountry = async (req: Request, res: Response) => {
         hours_per_day_by_default,
         mng_by_default,
         markup_by_default,
-        social_contribution_rate_by_default
+        social_contribution_rate_by_default,
+        premises_rate_by_default
       FROM countries
       WHERE id = $1
     `;
@@ -180,9 +181,10 @@ export const addProjectCountry = async (req: Request, res: Response) => {
         hours_per_day,
         mng,
         markup,
-        social_contribution_rate
+        social_contribution_rate,
+        premises_rate
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       ON CONFLICT (project_id, country_id)
       DO UPDATE SET 
         management_yearly_salary = EXCLUDED.management_yearly_salary,
@@ -196,7 +198,8 @@ export const addProjectCountry = async (req: Request, res: Response) => {
         hours_per_day = EXCLUDED.hours_per_day,
         mng = EXCLUDED.mng,
         markup = EXCLUDED.markup,
-        social_contribution_rate = EXCLUDED.social_contribution_rate
+        social_contribution_rate = EXCLUDED.social_contribution_rate,
+        premises_rate = EXCLUDED.premises_rate
       RETURNING *
     `;
     const { rows } = await db.query(q, [
@@ -214,6 +217,7 @@ export const addProjectCountry = async (req: Request, res: Response) => {
       defaults.mng_by_default,
       defaults.markup_by_default,
       defaults.social_contribution_rate_by_default,
+      defaults.premises_rate_by_default,
     ]);
     res.json(rows[0]);
   } catch (e) {
@@ -571,7 +575,50 @@ export const upsertProjectCountryItCost = async (req: Request, res: Response) =>
   }
 };
 
-// Premises cost is now managed at city level. Country-level premises endpoints removed.
+// GET /projects/:projectId/countries-premises-rate
+export const getProjectCountriesPremisesRate = async (req: Request, res: Response) => {
+  const { projectId } = req.params as { projectId: string };
+  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  try {
+    const q = `
+      SELECT pc.country_id, c.name AS country_name, pc.premises_rate
+      FROM project_countries pc
+      JOIN countries c ON c.id = pc.country_id
+      WHERE pc.project_id = $1
+      ORDER BY c.name ASC
+    `;
+    const { rows } = await db.query(q, [projectId]);
+    res.json(rows);
+  } catch (e) {
+    console.error('getProjectCountriesPremisesRate error', e);
+    res.status(500).json({ error: 'Error al obtener Premises Rate por país' });
+  }
+};
+
+// PUT /projects/:projectId/countries-premises-rate/:countryId
+export const upsertProjectCountryPremisesRate = async (req: Request, res: Response) => {
+  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
+  const { premises_rate } = req.body as { premises_rate: number };
+  
+  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
+  if (premises_rate === undefined || premises_rate === null) return res.status(400).json({ error: 'premises_rate requerido' });
+
+  try {
+    const q = `
+      UPDATE project_countries
+      SET premises_rate = $1
+      WHERE project_id = $2 AND country_id = $3
+      RETURNING *
+    `;
+    const { rows } = await db.query(q, [premises_rate, projectId, countryId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'País no encontrado en el proyecto' });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('upsertProjectCountryPremisesRate error', e);
+    res.status(500).json({ error: 'Error al actualizar Premises Rate del país' });
+  }
+};
+
 // GET /projects/:projectId/countries-activity-rate
 export const getProjectCountriesActivityRate = async (req: Request, res: Response) => {
   const { projectId } = req.params as { projectId: string };

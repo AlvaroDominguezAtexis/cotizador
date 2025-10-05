@@ -1,5 +1,6 @@
 // src/components/tabs/AdvanceSettingsTab.tsx
 import React, { useEffect, useMemo, useState } from 'react';
+import { calculateWorkingDaysWithValidation } from '../../utils/functions';
 import './Tabs.css';
 
 type Country = { id: number; name: string };
@@ -11,6 +12,7 @@ type SettingsRow = {
   activity_rate: number | null;
   npt_rate: number | null;
   it_cost: number | null;
+  premises_rate: number | null;
   holidays: number | null;
   total_days: number | null;
   working_days: number | null;
@@ -19,7 +21,7 @@ type SettingsRow = {
   social_contribution_rate: number | null;
 };
 
-type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'holidays' | 'total_days' | 'working_days' | 'hours_per_day' | 'markup' | 'social_contribution_rate';
+type ParamKey = 'cpi' | 'activity_rate' | 'npt_rate' | 'it_cost' | 'premises_rate' | 'holidays' | 'total_days' | 'working_days' | 'hours_per_day' | 'markup' | 'social_contribution_rate';
 
 
 interface Props {
@@ -44,11 +46,12 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
     const load = async () => {
       try {
         setLoading(true);
-        const [cpiRes, arRes, nptRes, itRes, holidaysRes, totalDaysRes, wdRes, hpdRes, mkRes, scrRes] = await Promise.all([
+        const [cpiRes, arRes, nptRes, itRes, premisesRes, holidaysRes, totalDaysRes, wdRes, hpdRes, mkRes, scrRes] = await Promise.all([
           fetch(`/projects/${projectId}/countries-cpi`),
           fetch(`/projects/${projectId}/countries-activity-rate`),
           fetch(`/projects/${projectId}/countries-npt-rate`),
           fetch(`/projects/${projectId}/countries-it-cost`),
+          fetch(`/projects/${projectId}/countries-premises-rate`),
           fetch(`/projects/${projectId}/countries-holidays`),
           fetch(`/projects/${projectId}/countries-total-days`),
           fetch(`/projects/${projectId}/countries-working-days`),
@@ -60,14 +63,16 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         if (!arRes.ok) throw new Error('Error cargando Activity Rate del proyecto');
         if (!nptRes.ok) throw new Error('Error cargando NPT Rate del proyecto');
         if (!itRes.ok) throw new Error('Error cargando IT Cost del proyecto');
+        if (!premisesRes.ok) throw new Error('Error cargando Premises Rate del proyecto');
         if (!holidaysRes.ok) throw new Error('Error cargando Holidays del proyecto');
         if (!totalDaysRes.ok) throw new Error('Error cargando Total Days del proyecto');
         if (!wdRes.ok) throw new Error('Error cargando Working Days del proyecto');
-        const [cpiJson, arJson, nptJson, itJson, holidaysJson, totalDaysJson, wdJson, hpdJson, mkJson, scrJson] = await Promise.all([
+        const [cpiJson, arJson, nptJson, itJson, premisesJson, holidaysJson, totalDaysJson, wdJson, hpdJson, mkJson, scrJson] = await Promise.all([
           cpiRes.json(),
           arRes.json(),
           nptRes.json(),
           itRes.json(),
+          premisesRes.json(),
           holidaysRes.json(),
           totalDaysRes.json(),
           wdRes.json(),
@@ -80,6 +85,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
         const arMap = new Map<number, number | null>((arJson || []).map((r: any) => [r.country_id, r.activity_rate]));
         const nptMap = new Map<number, number | null>((nptJson || []).map((r: any) => [r.country_id, r.npt_rate]));
         const itMap = new Map<number, number | null>((itJson || []).map((r: any) => [r.country_id, r.it_cost]));
+        const premisesMap = new Map<number, number | null>((premisesJson || []).map((r: any) => [r.country_id, r.premises_rate]));
         const holidaysMap = new Map<number, number | null>((holidaysJson || []).map((r: any) => [r.country_id, r.holidays]));
         const totalDaysMap = new Map<number, number | null>((totalDaysJson || []).map((r: any) => [r.country_id, r.total_days]));
         const wdMap = new Map<number, number | null>((wdJson || []).map((r: any) => [r.country_id, r.working_days]));
@@ -95,6 +101,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
             activity_rate: arMap.get(c.id) ?? null,
             npt_rate: nptMap.get(c.id) ?? null,
             it_cost: itMap.get(c.id) ?? null,
+            premises_rate: premisesMap.get(c.id) ?? null,
             holidays: holidaysMap.get(c.id) ?? null,
             total_days: totalDaysMap.get(c.id) ?? null,
             working_days: wdMap.get(c.id) ?? null,
@@ -150,14 +157,12 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
   const calculateWorkingDays = (countryId: number, draft: Partial<Record<ParamKey, number>>, row: SettingsRow) => {
     const totalDays = draft.total_days !== undefined ? draft.total_days : (row.total_days ?? 0);
     const holidays = draft.holidays !== undefined ? draft.holidays : (row.holidays ?? 0);
-    let workingDays = totalDays - holidays;
     
-    // Apply Spain limit (country id = 1)
-    if (countryId === 1 && workingDays > 216) {
-      workingDays = 216;
-    }
+    // Use centralized function with Spain validation
+    const countryName = countryId === 1 ? 'Spain' : 'Other';
+    const result = calculateWorkingDaysWithValidation(totalDays, holidays, countryName);
     
-    return workingDays;
+    return result.workingDays;
   };
 
   const onChangeField = (countryId: number, key: ParamKey, val: string) => {
@@ -237,6 +242,11 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
       if (changes.it_cost !== undefined) {
         calls.push(fetch(`/projects/${projectId}/countries-it-cost/${countryId}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ it_cost: changes.it_cost }),
+        }));
+      }
+      if (changes.premises_rate !== undefined) {
+        calls.push(fetch(`/projects/${projectId}/countries-premises-rate/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ premises_rate: changes.premises_rate }),
         }));
       }
       if (changes.holidays !== undefined) {
@@ -339,6 +349,7 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
                   { key: 'activity_rate', label: 'Activity Rate', type: 'decimal' },
                   { key: 'npt_rate', label: 'NPT Rate', type: 'decimal' },
                   { key: 'it_cost', label: 'IT Cost', type: 'decimal' },
+                  { key: 'premises_rate', label: 'Premises Rate', type: 'decimal' },
                   { key: 'holidays', label: 'Holidays', type: 'int' },
                   { key: 'total_days', label: 'Total Days', type: 'int' },
                   { key: 'working_days', label: 'Working Days (Calculated)', type: 'int', readonly: true },

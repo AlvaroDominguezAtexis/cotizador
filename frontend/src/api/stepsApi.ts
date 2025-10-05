@@ -72,11 +72,27 @@ export const recalcProjectStepsCosts = async (projectId: number): Promise<{
     year: number;
     salariesCost: number;
     managementCost: number;
+    nptCosts?: number;
   }>;
 }> => {
   const res = await fetch(`${API_BASE}/projects/${projectId}/steps/recalc-costs`, {
     method: 'POST'
   });
   if (!res.ok) throw new Error('Error recalculating project costs');
+  return res.json();
+};
+
+export const recalcStepNPTCosts = async (stepId: number): Promise<{
+  step_id: number;
+  npt_costs_results: Array<{
+    year: number;
+    nptCosts: number;
+    error?: string;
+  }>;
+}> => {
+  const res = await fetch(`${API_BASE}/projects/0/workpackages/0/deliverables/0/steps/${stepId}/recalc-npt-costs`, {
+    method: 'POST'
+  });
+  if (!res.ok) throw new Error('Error recalculating NPT costs');
   return res.json();
 };

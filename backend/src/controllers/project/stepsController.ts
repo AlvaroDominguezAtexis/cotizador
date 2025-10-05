@@ -5,7 +5,11 @@ import {
   saveStepSalariesCost, 
   calcStepManagementCost, 
   saveStepManagementCost,
-  batchCalculateProjectCosts 
+  calcStepNPTCosts,
+  saveStepNPTCosts,
+  batchCalculateProjectCosts,
+  verifyItCostsColumn,
+  diagnoseItCostsSetup
 } from '../../services/steps/costs';
 
 
@@ -475,7 +479,7 @@ export const recalcSalaries = async (req: Request, res: Response) => {
     );
     if (cfgRes.rows.length === 0) return res.status(400).json({ error: 'Config país no encontrada' });
     const cfg = cfgRes.rows[0];
-    const annualHours = Number(cfg.working_days || 0) * Number(cfg.activity_rate || 0) * Number(cfg.hours_per_day || 0);
+    const annualHours = Number(cfg.working_days || 0) * (Number(cfg.activity_rate || 0) / 100) * Number(cfg.hours_per_day || 0);
     if (!(annualHours > 0)) return res.status(400).json({ error: 'annual_hours debe ser > 0' });
     const scr = Number(cfg.social_contribution_rate || 0);
     // All yearly rows
@@ -537,5 +541,68 @@ export const recalcSalaries = async (req: Request, res: Response) => {
   } catch (e: any) {
     const status = e?.status || 500;
     res.status(status).json({ error: e?.message || 'Error recalculando salarios', code: e?.code });
+  }
+};
+
+// POST /steps/:stepId/recalc-npt-costs
+export const recalcNPTCosts = async (req: Request, res: Response) => {
+  const { stepId } = req.params as any;
+  
+  if (!stepId) {
+    return res.status(400).json({ error: 'Step ID is required' });
+  }
+  
+  try {
+    console.log('[stepsController#recalcNPTCosts] starting recalc for step', stepId);
+    
+    // Get all years for this step
+    const yearRes = await db.query(
+      `SELECT year FROM step_yearly_data WHERE step_id = $1 ORDER BY year`,
+      [Number(stepId)]
+    );
+    
+    const results = [];
+    
+    // Calculate NPT costs for each year
+    for (const { year } of yearRes.rows) {
+      try {
+        const { nptCosts } = await calcStepNPTCosts({ 
+          stepId: Number(stepId), 
+          year: Number(year), 
+          db 
+        });
+        
+        await saveStepNPTCosts({ 
+          stepId: Number(stepId), 
+          year: Number(year), 
+          nptCosts, 
+          db 
+        });
+        
+        results.push({
+          year: Number(year),
+          nptCosts
+        });
+        
+        console.log('[recalcNPTCosts] Calculated and saved NPT costs:', { stepId, year, nptCosts });
+      } catch (error) {
+        console.error(`Error calculating NPT costs for step ${stepId} year ${year}:`, error);
+        results.push({
+          year: Number(year),
+          nptCosts: 0,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    res.json({
+      step_id: Number(stepId),
+      npt_costs_results: results
+    });
+  } catch (e: any) {
+    const status = e?.status || 500;
+    const message = e?.message || 'Error recalculando NPT costs';
+    console.error('[stepsController#recalcNPTCosts] error:', e);
+    res.status(status).json({ error: message });
   }
 };

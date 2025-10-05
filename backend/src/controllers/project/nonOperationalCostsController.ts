@@ -4,7 +4,7 @@ import { calcAnnualHours } from '../../services/steps/costs';
 
 // Simple in-process cooldown map to avoid immediate repeated recomputes for same project/year.
 // Key: `${projectId}:${year}` -> timestamp (ms)
-const RECOMPUTE_COOLDOWN_SECONDS = Number(process.env.RECOMPUTE_COOLDOWN_SECONDS || '30');
+const RECOMPUTE_COOLDOWN_SECONDS = Number(process.env.RECOMPUTE_COOLDOWN_SECONDS || '5');
 const lastRecomputeMap: Map<string, number> = new Map();
 
 const VALID_CONTEXT = ['it', 'subcontract', 'travel', 'purchases'];
@@ -319,9 +319,16 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
   const last = lastRecomputeMap.get(key) || 0;
   const now = Date.now();
   if (last && (now - last) < RECOMPUTE_COOLDOWN_SECONDS * 1000) {
-    console.warn('[recomputeItCosts] rejected: cooldown active', { projectId, year, cooldownSeconds: RECOMPUTE_COOLDOWN_SECONDS });
-    return res.status(429).json({ error: 'Recompute solicitado muy pronto. Intente de nuevo más tarde.' });
+    const remainingCooldown = Math.ceil((RECOMPUTE_COOLDOWN_SECONDS * 1000 - (now - last)) / 1000);
+    console.warn('[recomputeItCosts] rejected: cooldown active', { projectId, year, cooldownSeconds: RECOMPUTE_COOLDOWN_SECONDS, remainingSeconds: remainingCooldown });
+    return res.status(429).json({ 
+      error: 'Recompute solicitado muy pronto. Intente de nuevo más tarde.',
+      retryAfterSeconds: remainingCooldown
+    });
   }
+  
+  // Set timestamp immediately to prevent race conditions
+  lastRecomputeMap.set(key, now);
 
   let client: any = null;
   let acquiredLock = false;
@@ -345,17 +352,19 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
     await client.query('BEGIN');
 
     // Reset target columns (best-effort; ignore errors for missing columns)
-    await client.query(
-      `UPDATE step_yearly_data syd
-       SET it_costs = 0
-       FROM steps s
-       JOIN deliverables d ON d.id = s.deliverable_id
-       JOIN workpackages wp ON wp.id = d.workpackage_id
-       WHERE syd.step_id = s.id
-         AND wp.project_id = $1
-         AND syd.year = $2`,
-      [projectId, year]
-    );
+    // NOTE: We DO NOT reset it_costs anymore because it's now used for IT costs from project_countries
+    // await client.query(
+    //   `UPDATE step_yearly_data syd
+    //    SET it_costs = 0
+    //    FROM steps s
+    //    JOIN deliverables d ON d.id = s.deliverable_id
+    //    JOIN workpackages wp ON wp.id = d.workpackage_id
+    //    WHERE syd.step_id = s.id
+    //      AND wp.project_id = $1
+    //      AND syd.year = $2`,
+    //   [projectId, year]
+    // );
+    console.log('[recomputeItCosts] NOTE: Skipping it_costs reset - now managed by batchCalculateProjectCosts');
     try {
       await client.query(`UPDATE step_yearly_data syd SET it_recurrent_costs = 0 FROM steps s JOIN deliverables d ON d.id = s.deliverable_id JOIN workpackages wp ON wp.id = d.workpackage_id WHERE syd.step_id = s.id AND wp.project_id = $1 AND syd.year = $2`, [projectId, year]);
     } catch (err) {
@@ -396,36 +405,81 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
         if (!stepIds.length) continue;
       }
 
-      const { rows: sydRows } = await client.query(`SELECT syd.id AS syd_id, syd.step_id, syd.process_time, syd.salaries_cost, syd.management_costs, s.country_id FROM step_yearly_data syd JOIN steps s ON s.id = syd.step_id WHERE syd.step_id = ANY($1::int[]) AND syd.year = $2`, [stepIds, year]);
+      const { rows: sydRows } = await client.query(`SELECT syd.id AS syd_id, syd.step_id, syd.process_time, syd.salaries_cost, syd.management_costs, s.country_id, s.unit AS process_time_unit FROM step_yearly_data syd JOIN steps s ON s.id = syd.step_id WHERE syd.step_id = ANY($1::int[]) AND syd.year = $2`, [stepIds, year]);
       if (!sydRows.length) continue;
 
       if (String(cost.type) === 'License Per Use') {
         const countryIds = Array.from(new Set(sydRows.map((r: any) => Number(r.country_id)).filter((n: number) => !isNaN(n))));
         const nptMap: Record<number, number> = {};
+        const hoursPerDayMap: Record<number, number> = {};
         if (countryIds.length) {
-          const pcRes = await client.query(`SELECT country_id, npt_rate FROM project_countries WHERE project_id=$1 AND country_id = ANY($2::int[])`, [projectId, countryIds]);
-          for (const row of pcRes.rows) nptMap[Number(row.country_id)] = Number(row.npt_rate || 0);
+          const pcRes = await client.query(`SELECT country_id, npt_rate, hours_per_day FROM project_countries WHERE project_id=$1 AND country_id = ANY($2::int[])`, [projectId, countryIds]);
+          for (const row of pcRes.rows) {
+            nptMap[Number(row.country_id)] = Number(row.npt_rate || 0);
+            hoursPerDayMap[Number(row.country_id)] = Number(row.hours_per_day || 8);
+          }
         }
 
         for (const r of sydRows) {
           try {
             const countryId = Number(r.country_id);
-            const annualHours = await calcAnnualHours({ projectId: Number(projectId), countryId, db: client });
-            if (!(annualHours > 0)) continue;
-            const npt = Number(nptMap[countryId] || 0);
-            const denom = 1 - (npt / 100);
-            if (!(denom > 0)) continue;
-            const process_time = Number(r.process_time || 0);
-            const shareRaw = (amount / annualHours) * (process_time / denom);
+            const hours_per_day = hoursPerDayMap[countryId] || 8;
+            
+            // Get country configuration to calculate productive hours correctly
+            const pcRes = await client.query(
+              `SELECT working_days, hours_per_day, activity_rate 
+               FROM project_countries 
+               WHERE project_id = $1 AND country_id = $2 LIMIT 1`,
+              [projectId, countryId]
+            );
+            
+            if (pcRes.rows.length === 0) continue;
+            const { working_days, activity_rate } = pcRes.rows[0];
+            const working_days_num = Number(working_days || 0);
+            const activity_rate_num = Number(activity_rate || 0);
+            const hours_per_day_num = Number(pcRes.rows[0].hours_per_day || 8);
+            
+            // Calculate productive hours per year (NO NPT adjustment)
+            const productiveHoursPerYear = working_days_num * hours_per_day_num * (activity_rate_num / 100);
+            
+            if (!(productiveHoursPerYear > 0)) continue;
+            
+            // Convert process_time to hours if needed
+            const process_time_raw = Number(r.process_time || 0);
+            const process_time_unit = r.process_time_unit?.toLowerCase();
+            const process_time_hours = process_time_unit === 'days' ? process_time_raw * hours_per_day_num : process_time_raw;
+            
+            // Apply the CORRECT License Per Use formula (NO NPT adjustment)
+            // Step 1: Calculate hourly cost
+            const hourlyCost = amount / productiveHoursPerYear;
+            
+            // Step 2: Calculate final cost for this step
+            const shareRaw = hourlyCost * process_time_hours;
             const share = Math.round(shareRaw * 100) / 100;
+            
+            console.log(`[recomputeItCosts] License Per Use calculation for step ${r.step_id}:`, {
+              totalCost: amount,
+              process_time_raw,
+              process_time_unit,
+              process_time_hours,
+              working_days: working_days_num,
+              hours_per_day: hours_per_day_num,
+              activity_rate: activity_rate_num,
+              productiveHoursPerYear,
+              hourlyCost,
+              formula: `(${amount} / ${productiveHoursPerYear}) × ${process_time_hours} = ${shareRaw}`,
+              share
+            });
             try {
               await client.query(`UPDATE step_yearly_data SET it_recurrent_costs = COALESCE(it_recurrent_costs,0) + $1 WHERE id = $2`, [share, r.syd_id]);
             } catch (err) {
-              try {
-                await client.query(`UPDATE step_yearly_data SET it_costs = COALESCE(it_costs,0) + $1 WHERE id = $2`, [share, r.syd_id]);
-              } catch (err2) {
-                console.error('[recomputeItCosts] failed to store license-per-use share', String(err2));
-              }
+              console.warn('[recomputeItCosts] it_recurrent_costs column missing, cannot store license-per-use share:', String(err));
+              // NOTE: We no longer use it_costs as fallback because it's now used for IT costs from project_countries
+              // try {
+              //   await client.query(`UPDATE step_yearly_data SET it_costs = COALESCE(it_costs,0) + $1 WHERE id = $2`, [share, r.syd_id]);
+              // } catch (err2) {
+              //   console.error('[recomputeItCosts] failed to store license-per-use share', String(err2));
+              // }
             }
           } catch (err) {
             console.warn('[recomputeItCosts] error computing license-per-use for syd', r.syd_id, err);
@@ -442,7 +496,8 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
         if (!(sumW > 0)) { weights = weights.map((w: any) => ({ ...w, w: 1 })); sumW = weights.length; }
         for (const w of weights) {
           const share = amount * (w.w / sumW);
-          await client.query(`UPDATE step_yearly_data SET it_costs = COALESCE(it_costs,0) + $1 WHERE id = $2`, [share, w.syd_id]);
+          console.log(`[recomputeItCosts] Adding IT recurrent cost share to step ${w.step_id}:`, { amount, share, syd_id: w.syd_id });
+          await client.query(`UPDATE step_yearly_data SET it_recurrent_costs = COALESCE(it_recurrent_costs,0) + $1 WHERE id = $2`, [share, w.syd_id]);
         }
       }
     }
@@ -450,7 +505,7 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
     // IT premium
     const premiumQ = `
       WITH syd_target AS (
-        SELECT syd.id AS syd_id, syd.step_id, syd.process_time, syd.hardware
+        SELECT syd.id AS syd_id, syd.step_id, syd.process_time, syd.hardware, s.unit AS process_time_unit
         FROM step_yearly_data syd
         JOIN steps s ON s.id = syd.step_id
         JOIN deliverables d ON d.id = s.deliverable_id
@@ -464,12 +519,12 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
         JOIN deliverables d ON d.id = s.deliverable_id
       ),
       params AS (
-        SELECT st.step_id, st.country_id, pc.it_cost, pc.npt_rate
+        SELECT st.step_id, st.country_id, pc.it_cost, pc.npt_rate, pc.hours_per_day
         FROM step_country st
         JOIN project_countries pc
           ON pc.project_id = $3 AND pc.country_id = st.country_id
       )
-      SELECT st.syd_id, st.step_id, st.process_time, st.hardware, p.it_cost, p.npt_rate
+      SELECT st.syd_id, st.step_id, st.process_time, st.hardware, st.process_time_unit, p.it_cost, p.npt_rate, p.hours_per_day
       FROM syd_target st
       LEFT JOIN params p ON p.step_id = st.step_id
     `;
@@ -479,11 +534,30 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
       const itCost = Number(r.it_cost || 0);
       const npt = Number(r.npt_rate || 0);
       if (!itCost || npt >= 100) continue;
-      const premium = Number(r.process_time || 0) * itCost / (1 - (npt / 100));
+      
+      // Convert process_time to hours if needed
+      const process_time_raw = Number(r.process_time || 0);
+      const process_time_unit = r.process_time_unit?.toLowerCase();
+      const hours_per_day = Number(r.hours_per_day || 8);
+      const process_time_hours = process_time_unit === 'days' ? process_time_raw * hours_per_day : process_time_raw;
+      
+      const premium = process_time_hours * itCost / (1 - (npt / 100));
+      console.log(`[recomputeItCosts] Adding IT premium to step ${r.step_id}:`, { 
+        process_time_raw, 
+        process_time_unit, 
+        hours_per_day, 
+        process_time_hours, 
+        itCost, 
+        npt, 
+        premium, 
+        syd_id: r.syd_id 
+      });
       try {
         await client.query(`UPDATE step_yearly_data SET it_recurrent_costs = COALESCE(it_recurrent_costs,0) + $1 WHERE id = $2`, [premium, r.syd_id]);
       } catch (err) {
-        try { await client.query(`UPDATE step_yearly_data SET it_costs = COALESCE(it_costs,0) + $1 WHERE id = $2`, [premium, r.syd_id]); } catch (err2) { console.error('[recomputeItCosts] failed to store IT premium', String(err2)); }
+        console.warn('[recomputeItCosts] it_recurrent_costs column missing for IT premium:', String(err));
+        // NOTE: We no longer use it_costs as fallback because it's now used for IT costs from project_countries
+        // try { await client.query(`UPDATE step_yearly_data SET it_costs = COALESCE(it_costs,0) + $1 WHERE id = $2`, [premium, r.syd_id]); } catch (err2) { console.error('[recomputeItCosts] failed to store IT premium', String(err2)); }
       }
     }
 
@@ -523,11 +597,13 @@ export const recomputeItCostsForProjectYear = async (req: Request, res: Response
     await allocateByContext('purchases', 'purchases_costs');
 
     await client.query('COMMIT');
-    lastRecomputeMap.set(key, Date.now());
+    // Timestamp was already set at the beginning to prevent race conditions
     console.info('[recomputeItCosts] finished successfully', { projectId, year });
     return res.json({ success: true });
   } catch (err) {
     try { if (client) await client.query('ROLLBACK'); } catch (rbErr) { console.error('[recomputeItCosts] rollback failed', String(rbErr)); }
+    // Reset the timestamp so the user can retry immediately after an error
+    lastRecomputeMap.delete(key);
     console.error('Error recomputing IT costs:', err);
     return res.status(500).json({ error: 'Error recomputando IT costs' });
   } finally {

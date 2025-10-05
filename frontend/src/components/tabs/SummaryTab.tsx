@@ -19,11 +19,14 @@ interface SummaryTabProps {
 export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workPackages, costs }) => {
   const [loading, setLoading] = React.useState(false);
   const [recalcId, setRecalcId] = React.useState<number>(0);
+  const [isRecalculating, setIsRecalculating] = React.useState(false);
 
   // Recalculate costs when loading summary
   React.useEffect(() => {
     const recalcCosts = async () => {
-      if (!project?.id) return;
+      if (!project?.id || isRecalculating) return;
+      
+      setIsRecalculating(true);
       
       try {
         setLoading(true);
@@ -43,25 +46,56 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
         }
         if (years.length === 0) years = [new Date().getFullYear()];
 
-        for (const y of years) {
-          try {
-            await recomputeItCosts(project.id, y);
-          } catch (e) {
-            console.error('Error recomputing IT costs for year', y, e);
+        // Recompute IT costs for each year with proper error handling and retry logic
+        for (let i = 0; i < years.length; i++) {
+          const y = years[i];
+          let retryCount = 0;
+          const maxRetries = 2;
+          
+          while (retryCount <= maxRetries) {
+            try {
+              if (i > 0 || retryCount > 0) {
+                // Add delay between requests to avoid rate limiting
+                const delay = retryCount === 0 ? 1000 : 2000 * retryCount;
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+              
+              await recomputeItCosts(project.id, y);
+              console.log(`✅ IT costs recomputed successfully for year ${y}`);
+              break; // Success, exit retry loop
+              
+            } catch (e: any) {
+              if (e?.status === 429 || (e?.response?.status === 429)) {
+                if (retryCount < maxRetries) {
+                  console.warn(`⏱️ Rate limited for year ${y}, retrying in ${2000 * (retryCount + 1)}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+                  retryCount++;
+                } else {
+                  console.warn(`⏱️ Rate limited for year ${y}, max retries reached, skipping...`);
+                  break;
+                }
+              } else if (e?.status === 409 || (e?.response?.status === 409)) {
+                console.warn(`🔄 Recompute already in progress for year ${y}, skipping...`);
+                break;
+              } else {
+                console.error('Error recomputing IT costs for year', y, e);
+                break;
+              }
+            }
           }
         }
       } catch (e) {
         console.error('Error recalculating project costs:', e);
       } finally {
-  setLoading(false);
-  // mark that a recalc has completed so SummaryDocument remounts and fetches fresh data
-  // trigger yearly margins recalc (persist operational_to, dm_real, gmbs_real) and then remount SummaryDocument
-  try {
-    await recalcProjectMarginsYearlyApi(project.id);
-  } catch (e) {
-    console.error('Error recalculating yearly deliverable margins', e);
-  }
-  setRecalcId(Date.now());
+        setLoading(false);
+        setIsRecalculating(false);
+        // mark that a recalc has completed so SummaryDocument remounts and fetches fresh data
+        // trigger yearly margins recalc (persist operational_to, dm_real, gmbs_real) and then remount SummaryDocument
+        try {
+          await recalcProjectMarginsYearlyApi(project.id);
+        } catch (e) {
+          console.error('Error recalculating yearly deliverable margins', e);
+        }
+        setRecalcId(Date.now());
       }
     };
 
@@ -93,7 +127,12 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
     <div className="tab-container">
       <div className="tab-header">
         <h1>Resumen del Proyecto</h1>
-        {loading && <span style={{ marginLeft: 10, color: '#666' }}>Recalculando costes...</span>}
+        {loading && <span style={{ marginLeft: 10, color: '#666' }}>
+          Recalculando costes...
+          {isRecalculating && <span style={{ display: 'block', fontSize: '0.9em', fontStyle: 'italic' }}>
+            Procesando costes IT por años...
+          </span>}
+        </span>}
         <div className="tab-actions">
           <Button 
             variant="secondary"

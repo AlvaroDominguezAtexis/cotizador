@@ -101,6 +101,10 @@ const SummaryDocument: React.FC<Props> = ({
 }) => {
   // Permite pasar project o projectId; si ambos existen, prevalece projectId
   const effectiveProjectId = projectId ?? project?.id ?? project?.projectId ?? undefined;
+  
+  // Extraer el IQP del proyecto para determinar si es IQP 1-2 (solo workpackages, sin deliverables)
+  const projectIqp = project?.iqp || 1;
+  const isIqp12 = projectIqp === 1 || projectIqp === 2;
 
   const [rows, setRows] = useState<Allocation[] | null>(allocations ?? null);
   const [summary, setSummary] = useState<AllocationSummary | null>(null);
@@ -290,7 +294,7 @@ const SummaryDocument: React.FC<Props> = ({
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">DM</span>
             <span className="summary-card-item-value kpi-value">
-              {(projectDMRemote != null ? projectDMRemote : dm).toLocaleString("es-ES", { maximumFractionDigits: 2 })}
+              {(projectDMRemote != null ? projectDMRemote : dm).toLocaleString("es-ES", { maximumFractionDigits: 2 })}%
             </span>
           </div>
           <div className="summary-card-item kpi-item">
@@ -312,21 +316,24 @@ const SummaryDocument: React.FC<Props> = ({
             </span>
           </div>
           <div className="summary-card-item kpi-item">
-            <span className="summary-card-item-label kpi-label">Hourly Cost</span>
+            <span className="summary-card-item-label kpi-label">GMBS in €</span>
             <span className="summary-card-item-value kpi-value">
-              {((hourlyCostsRemote != null) || (hourlyCostCalc != null))
-                ? `${(hourlyCostsRemote ?? hourlyCostCalc).toLocaleString("es-ES", {
-                    style: "currency",
-                    currency: "EUR",
-                    maximumFractionDigits: 2,
-                  })}/h`
-                : "-"}
+              {(() => {
+                const operationalTO = operationalRevenue ?? revenue ?? 0;
+                const gmbsPercentage = projectGMBSRemote != null ? projectGMBSRemote : (gm * 100);
+                const gmbsInEuros = operationalTO * gmbsPercentage / 100;
+                return gmbsInEuros.toLocaleString("es-ES", {
+                  style: "currency",
+                  currency: "EUR",
+                  maximumFractionDigits: 2,
+                });
+              })()}
             </span>
           </div>
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">Total FTEs</span>
             <span className="summary-card-item-value kpi-value">
-              {totalFTEs.toLocaleString("es-ES")}
+              {totalFTEs.toLocaleString("es-ES", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}
             </span>
           </div>
         </div>
@@ -352,11 +359,6 @@ const SummaryDocument: React.FC<Props> = ({
                   </div>
 
                   <div className="wp-grid-cell">
-                    <div className="wp-grid-label">Hourly Cost</div>
-                    <div className="wp-grid-value">{(wp.totals.hourlyCost || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</div>
-                  </div>
-
-                  <div className="wp-grid-cell">
                     <div className="wp-grid-label">Hourly Price</div>
                     <div className="wp-grid-value">{(wp.totals.hourlyPrice || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</div>
                   </div>
@@ -376,40 +378,53 @@ const SummaryDocument: React.FC<Props> = ({
                     <div className="wp-grid-value">{(wp.totals.totalCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
                   </div>
 
-                  <div className="wp-grid-toggle">
-                    <button aria-expanded="false" aria-controls={`wp-del-${wp.id}`} title="Expandir deliverables" className="btn small toggle" onClick={(e) => {
-                      const el = document.getElementById(`wp-del-${wp.id}`);
-                      if (el) el.classList.toggle('expanded');
-                      const btn = e.currentTarget as HTMLButtonElement;
-                      btn.setAttribute('aria-expanded', String(el ? el.classList.contains('expanded') : false));
-                    }}>▾</button>
-                  </div>
+                  {/* Solo mostrar toggle y deliverables para IQP 3-5 */}
+                  {!isIqp12 && (
+                    <div className="wp-grid-toggle">
+                      <button aria-expanded="false" aria-controls={`wp-del-${wp.id}`} title="Expandir deliverables" className="btn small toggle" onClick={(e) => {
+                        const el = document.getElementById(`wp-del-${wp.id}`);
+                        if (el) el.classList.toggle('expanded');
+                        const btn = e.currentTarget as HTMLButtonElement;
+                        btn.setAttribute('aria-expanded', String(el ? el.classList.contains('expanded') : false));
+                      }}>▾</button>
+                    </div>
+                  )}
                 </div>
 
-                <div id={`wp-del-${wp.id}`} className="deliverables-list">
-                  <div className="table-mini-head">
-                    <span>Deliverable</span>
-                    <span>Hourly Cost</span>
-                    <span>Hourly Price</span>
-                    <span>Operational TO</span>
-                    <span>GM</span>
-                    <span>DM</span>
-                  </div>
-                  {(wp.deliverables || []).map((d: any) => (
-                    <div className="table-mini-row" key={d.id}>
-                      <span title={d.nombre}>{d.nombre}</span>
-                      <span>{(d.hourlyCost || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</span>
-                      <span>{(d.hourlyPrice || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</span>
-                      <span>{(d.totalTO || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                      <span>{(d.dm || 0).toFixed(1)}%</span>
-                      <span>{(d.totalCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                {/* Solo mostrar lista de deliverables para IQP 3-5 */}
+                {!isIqp12 && (
+                  <div id={`wp-del-${wp.id}`} className="deliverables-list">
+                    <div className="table-mini-head">
+                      <span>Deliverable</span>
+                      <span>Hourly Price</span>
+                      <span>Operational TO</span>
+                      <span>GM</span>
+                      <span>DM</span>
                     </div>
-                  ))}
-                </div>
+                    {(wp.deliverables || []).map((d: any) => (
+                      <div className="table-mini-row" key={d.id}>
+                        <span title={d.nombre}>{d.nombre}</span>
+                        <span>{(d.hourlyPrice || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/h</span>
+                        <span>{(d.totalTO || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                        <span>{(d.dm || 0).toFixed(1)}%</span>
+                        <span>{(d.totalCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
+      </div>
+
+      {/* ===================== */}
+      {/*   FTE detailed breakdown */}
+      <div className="summary-card financial-card">
+        <div className="summary-card-header dash-header">
+          <h3>FTE detailed breakdown</h3>
+        </div>
+
         {currentSummaryData.length === 0 ? (
           <div className="summary-hint empty">Sin datos para esta dimensión.</div>
         ) : (
@@ -428,8 +443,8 @@ const SummaryDocument: React.FC<Props> = ({
             ))}
           </div>
         )}
-        </div>
       </div>
+    </div>
   );
 };
 

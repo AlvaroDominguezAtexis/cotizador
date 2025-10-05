@@ -812,9 +812,18 @@ export async function calcProjectTotalWorkingTime(deliverables: { id: number; ye
 
   const q = `
     WITH dy(did, year, qty) AS (VALUES ${valuesSql})
-    SELECT COALESCE(SUM(syd.process_time * dy.qty),0)::numeric AS total_work_time
+    SELECT COALESCE(SUM(
+      CASE 
+        WHEN LOWER(s.unit) = 'days' 
+        THEN syd.process_time * pc.hours_per_day * dy.qty
+        ELSE syd.process_time * dy.qty 
+      END
+    ),0)::numeric AS total_work_time
     FROM steps s
     JOIN step_yearly_data syd ON syd.step_id = s.id
+    JOIN deliverables d ON s.deliverable_id = d.id
+    JOIN workpackages wp ON d.workpackage_id = wp.id
+    JOIN project_countries pc ON s.country_id = pc.country_id AND wp.project_id = pc.project_id
     JOIN dy ON dy.did = s.deliverable_id AND syd.year = dy.year
   `;
 

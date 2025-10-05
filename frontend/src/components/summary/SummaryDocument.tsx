@@ -352,7 +352,7 @@ const SummaryDocument: React.FC<Props> = ({
           <div className="financial-table">
             {financialBreakdown.map((wp: any) => (
               <div className="wp-row" key={wp.id}>
-                <div className="wp-grid">
+                <div className={`wp-grid ${isIqp12 ? 'wp-grid-iqp12' : ''}`}>
                   <div className="wp-grid-title">
                     <div className="wp-grid-label">Workpackage</div>
                     <strong>{wp.nombre}</strong>
@@ -377,6 +377,78 @@ const SummaryDocument: React.FC<Props> = ({
                     <div className="wp-grid-label">DM</div>
                     <div className="wp-grid-value">{(wp.totals.totalCosts || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
                   </div>
+
+                  {/* Mostrar Unit Price solo para proyectos IQP 1-2 */}
+                  {isIqp12 && (
+                    <div className="wp-grid-cell">
+                      <div className="wp-grid-label">Unit Price</div>
+                      <div className="wp-grid-value">{(wp.totals.unitPrice || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+                    </div>
+                  )}
+
+                  {/* Mostrar Manual Unit Price solo para proyectos IQP 1-2 */}
+                  {isIqp12 && (
+                    <div className="wp-grid-cell">
+                      <div className="wp-grid-label">Manual Unit Price ✏️</div>
+                      <div className="wp-grid-value">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={wp.totals.customerUnitPrice || ''}
+                          placeholder="€ 0.00"
+                          className="manual-unit-price-input"
+                          title="Click to edit manual unit price"
+                          onChange={async (e) => {
+                            const newValue = e.target.value === '' ? null : parseFloat(e.target.value);
+                            
+                            // Para IQP 1-2, siempre hay un único deliverable por workpackage
+                            const deliverable = wp.deliverables && wp.deliverables.length > 0 ? wp.deliverables[0] : null;
+                            
+                            if (!deliverable) {
+                              console.error('No deliverable found for workpackage', wp.id);
+                              return;
+                            }
+                            
+                            try {
+                              const response = await fetch(`/deliverables/${deliverable.id}/customer-unit-price`, {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ customer_unit_price: newValue })
+                              });
+                              
+                              if (response.ok) {
+                                // Actualizar el estado local
+                                setFinancialBreakdown(prev => 
+                                  prev?.map(wpItem => 
+                                    wpItem.id === wp.id 
+                                      ? { 
+                                          ...wpItem, 
+                                          totals: { 
+                                            ...wpItem.totals, 
+                                            customerUnitPrice: newValue 
+                                          }
+                                        }
+                                      : wpItem
+                                  ) || null
+                                );
+                              } else {
+                                console.error('Failed to update customer unit price');
+                                // Revertir el valor en caso de error
+                                e.target.value = wp.totals.customerUnitPrice || '';
+                              }
+                            } catch (error) {
+                              console.error('Error updating customer unit price:', error);
+                              // Revertir el valor en caso de error
+                              e.target.value = wp.totals.customerUnitPrice || '';
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Solo mostrar toggle y deliverables para IQP 3-5 */}
                   {!isIqp12 && (

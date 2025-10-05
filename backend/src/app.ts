@@ -32,6 +32,7 @@ import workPackagesRoutes from './routes/Project/workPackagesRoutes';
 import deliverablesRoutes from './routes/Project/deliverablesRoutes';
 import stepsRoutes from './routes/Project/stepsRoutes';
 import allocationsRoutes from './routes/Project/allocationsRoutes';
+import deliverablesDirectRoutes from './routes/deliverablesDirectRoutesClean';
 
 dotenv.config();
 const app = express();
@@ -59,6 +60,8 @@ app.use('/projects/:projectId/workpackages', workPackagesRoutes);
 app.use('/projects/:projectId/workpackages/:workPackageId/deliverables', deliverablesRoutes);
 app.use('/projects/:projectId/workpackages/:workPackageId/deliverables/:deliverableId/steps', stepsRoutes);
 app.use('/projects/:projectId/allocations', allocationsRoutes);
+// Direct deliverables routes (not nested under project/workpackage)
+app.use('/deliverables', deliverablesDirectRoutes);
 // Project countries CPI
 app.use('/projects/:projectId/countries-cpi', projectCountriesRoutes);
 app.use('/projects/:projectId/countries-activity-rate', projectCountriesActivityRouter);

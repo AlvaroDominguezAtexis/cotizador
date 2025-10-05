@@ -414,6 +414,17 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
 
     const wpList = Object.values(wpMap).map((w:any) => {
       const totalWorkTime = w.totals.totalWorkTime || 0;
+      
+      // Calcular Unit Price = Operational TO / Total Quantity del workpackage
+      const totalQuantity = w.deliverables.reduce((sum: number, d: any) => {
+        const deliverable = deliverablesForCalc.find(del => del.id === d.id);
+        const yearlyQuantities = deliverable?.yearlyQuantities || [];
+        const deliverableTotalQty = yearlyQuantities.reduce((s: number, q: number) => s + (q || 0), 0);
+        return sum + deliverableTotalQty;
+      }, 0);
+      
+      const unitPrice = totalQuantity > 0 ? Number((w.totals.totalTO / totalQuantity).toFixed(2)) : 0;
+      
       return {
         id: w.id,
         nombre: w.nombre,
@@ -422,6 +433,8 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
           totalCosts: Number((w.totals.totalCosts || 0)),
           totalTO: Number((w.totals.totalTO || 0)),
           totalWorkTime,
+          totalQuantity,
+          unitPrice,
           hourlyCost: totalWorkTime > 0 ? Number((w.totals.totalCosts / totalWorkTime).toFixed(2)) : 0,
           hourlyPrice: totalWorkTime > 0 ? Number((w.totals.totalTO / totalWorkTime).toFixed(2)) : 0,
           dm: w.totals.totalTO > 0 ? Number(((1 - ((w.totals.totalCosts) / w.totals.totalTO)) * 100).toFixed(2)) : 0,
@@ -555,5 +568,54 @@ export const testBulkMarginCalculation = async (req: Request, res: Response) => 
     
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Error testing bulk margin calculation' });
+  }
+};
+
+// PUT /deliverables/:deliverableId/customer-unit-price
+export const updateDeliverableCustomerUnitPrice = async (req: Request, res: Response) => {
+  try {
+    const { deliverableId } = req.params;
+    const { customer_unit_price } = req.body;
+    
+    if (!deliverableId || isNaN(parseInt(deliverableId))) {
+      return res.status(400).json({ error: 'Invalid deliverable ID' });
+    }
+    
+    // Permitir null para limpiar el precio manual
+    const priceValue = customer_unit_price === null || customer_unit_price === undefined ? null : parseFloat(customer_unit_price);
+    
+    if (priceValue !== null && (isNaN(priceValue) || priceValue < 0)) {
+      return res.status(400).json({ error: 'Invalid customer unit price' });
+    }
+    
+    console.log(`[UpdateCustomerUnitPrice] Updating deliverable ${deliverableId} customer unit price to ${priceValue}`);
+    
+    const updateQuery = `
+      UPDATE deliverables 
+      SET customer_unit_price = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, codigo, nombre, customer_unit_price;
+    `;
+    
+    const result = await Pool.query(updateQuery, [priceValue, deliverableId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Deliverable not found' });
+    }
+    
+    console.log(`[UpdateCustomerUnitPrice] Successfully updated deliverable ${deliverableId}`);
+    
+    res.json({
+      success: true,
+      deliverable: {
+        id: result.rows[0].id,
+        codigo: result.rows[0].codigo,
+        nombre: result.rows[0].nombre,
+        customer_unit_price: result.rows[0].customer_unit_price
+      }
+    });
+  } catch (error: any) {
+    console.error('[UpdateCustomerUnitPrice] Error updating customer unit price:', error);
+    res.status(500).json({ error: error?.message || 'Error updating customer unit price' });
   }
 };

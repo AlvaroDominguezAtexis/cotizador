@@ -477,14 +477,21 @@ export async function recalcDeliverablesYearlyForProject(projectId: number, db: 
     marginGoal: margin_goal + '%'
   });
   
-  // 2) Get deliverable ids for project
-  const dRes = await db.query<{ id: number }>(`SELECT d.id FROM deliverables d JOIN workpackages wp ON d.workpackage_id = wp.id WHERE wp.project_id = $1`, [projectId]);
+  // 2) Get deliverables with their margin_goal for project
+  const dRes = await db.query<{ id: number; margin_goal: number }>(`SELECT d.id, d.margin_goal FROM deliverables d JOIN workpackages wp ON d.workpackage_id = wp.id WHERE wp.project_id = $1`, [projectId]);
   const deliverableIds = dRes.rows.map(r => r.id);
   console.log('📦 [recalcDeliverablesYearlyForProject] Found deliverables:', deliverableIds);
   if (deliverableIds.length === 0) {
     console.log('⚠️ [recalcDeliverablesYearlyForProject] No deliverables found for project');
     return [];
   }
+
+  // Create map of deliverable ID to margin_goal
+  const deliverableMarginMap: Record<number, number> = {};
+  for (const d of dRes.rows) {
+    deliverableMarginMap[d.id] = Number(d.margin_goal || margin_goal); // Fallback to project margin_goal if deliverable doesn't have one
+  }
+  console.log('🎯 [recalcDeliverablesYearlyForProject] Deliverable margin goals:', deliverableMarginMap);
 
   // 3) Get all yearly quantities for these deliverables
   const qtyRes = await db.query<{ deliverable_id: number; year_number: number; quantity: number }>(`SELECT deliverable_id, year_number, quantity FROM deliverable_yearly_quantities WHERE deliverable_id = ANY($1::int[]) ORDER BY deliverable_id, year_number`, [deliverableIds]);
@@ -540,12 +547,16 @@ export async function recalcDeliverablesYearlyForProject(projectId: number, db: 
       continue;
     }
     
+    // Get the specific margin_goal for this deliverable
+    const deliverableMarginGoal = deliverableMarginMap[deliverableId];
+    
     // Calculate bulk margins for all steps in this deliverable
     console.log(`🧮 [recalcDeliverablesYearlyForProject] Calling calcBulkMargins for deliverable ${deliverableId} with:`, {
       stepIds,
       calendarYear,
       marginType,
-      marginGoal: Number(margin_goal)
+      marginGoal: deliverableMarginGoal,
+      source: 'deliverable.margin_goal'
     });
     
     try {
@@ -553,7 +564,7 @@ export async function recalcDeliverablesYearlyForProject(projectId: number, db: 
         stepIds,
         year: calendarYear,
         marginType,
-        marginGoal: Number(margin_goal),
+        marginGoal: deliverableMarginGoal,
         db
       });
       
@@ -876,9 +887,9 @@ export async function calcProjectMargins(projectId: number, year: number, db: DB
 
 // Calculate margins for specific deliverable
 export async function calcDeliverableMargins(deliverableId: number, year: number, db: DB): Promise<BulkMarginResult> {
-  // Get project margin configuration through deliverable
-  const pRes = await db.query<{ margin_type: string; margin_goal: number }>(`
-    SELECT p.margin_type, p.margin_goal 
+  // Get deliverable margin_goal and project margin configuration
+  const pRes = await db.query<{ margin_type: string; project_margin_goal: number; deliverable_margin_goal: number }>(`
+    SELECT p.margin_type, p.margin_goal as project_margin_goal, d.margin_goal as deliverable_margin_goal
     FROM projects p
     JOIN workpackages wp ON p.id = wp.project_id
     JOIN deliverables d ON wp.id = d.workpackage_id
@@ -886,8 +897,19 @@ export async function calcDeliverableMargins(deliverableId: number, year: number
   `, [deliverableId]);
   
   if (!pRes.rows || pRes.rows.length === 0) throw new Error('Deliverable or project not found');
-  const { margin_type, margin_goal } = pRes.rows[0];
-  if (margin_type == null || margin_goal == null) throw new Error('Project margin_type or margin_goal undefined');
+  const { margin_type, project_margin_goal, deliverable_margin_goal } = pRes.rows[0];
+  if (margin_type == null) throw new Error('Project margin_type undefined');
+  
+  // Use deliverable margin_goal if available, fallback to project margin_goal
+  const margin_goal = deliverable_margin_goal != null ? deliverable_margin_goal : project_margin_goal;
+  if (margin_goal == null) throw new Error('Neither deliverable nor project margin_goal defined');
+  
+  console.log(`🎯 [calcDeliverableMargins] Using margin_goal for deliverable ${deliverableId}:`, {
+    deliverable_margin_goal,
+    project_margin_goal,
+    selected_margin_goal: margin_goal,
+    source: deliverable_margin_goal != null ? 'deliverable' : 'project'
+  });
 
   const marginType = String(margin_type).toUpperCase() as 'DM' | 'GMBS';
   

@@ -169,6 +169,29 @@ const SummaryDocument: React.FC<Props> = ({
     });
   };
 
+  // Función para calcular márgenes reales del proyecto usando TO real
+  const calculateRealMargins = (workpackages: any[]) => {
+    if (!workpackages || workpackages.length === 0) return null;
+    
+    const realTO = operationalRevenue ?? revenue ?? 0;
+    if (realTO <= 0) return null;
+    
+    // Sumar todos los costos del proyecto
+    let totalDmCosts = 0;
+    let totalGmbsCosts = 0;
+    
+    for (const wp of workpackages) {
+      totalDmCosts += wp.totals?.totalCosts || 0;
+      totalGmbsCosts += wp.totals?.totalGmbsCosts || 0;
+    }
+    
+    return calculateMarginsSimple({
+      givenTO: realTO,
+      totalDmCosts: totalDmCosts,
+      totalGmbsCosts: totalGmbsCosts
+    });
+  };
+
   // Función para recalcular DM y GMBS usando TO existente
   const recalculateWorkpackageMargins = (workpackages: any[]) => {
     return workpackages.map(wp => {
@@ -416,14 +439,35 @@ const SummaryDocument: React.FC<Props> = ({
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">Operational Turnover</span>
             <span className="summary-card-item-value kpi-value emph">
-              {(operationalRevenue ?? revenue ?? 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
+              {(() => {
+                const realTO = operationalRevenue ?? revenue ?? 0;
+                const theoreticalTO = financialBreakdown ? calculateTheoreticalTO(financialBreakdown) : null;
+                
+                if (isIqp12 && theoreticalTO && theoreticalTO !== realTO) {
+                  return (
+                    <div 
+                      className="margin-comparison"
+                      title={`TO Real: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})} vs TO Teórico: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})} (Manual Unit Price × quantities)`}
+                    >
+                      <div className="margin-real">{realTO.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</div>
+                      <div className="margin-divider"></div>
+                      <div className="margin-theoretical">{theoreticalTO.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</div>
+                    </div>
+                  );
+                }
+                
+                return realTO.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+              })()}
             </span>
           </div>
           <div className="summary-card-item kpi-item">
             <span className="summary-card-item-label kpi-label">DM</span>
             <span className="summary-card-item-value kpi-value">
               {(() => {
-                const realDM = projectDMRemote != null ? projectDMRemote : dm;
+                // Calcular DM real usando TO real del proyecto
+                const realMargins = financialBreakdown ? calculateRealMargins(financialBreakdown) : null;
+                const realDM = realMargins ? realMargins.DM : (projectDMRemote != null ? projectDMRemote : dm);
+                
                 const theoreticalMargins = financialBreakdown ? calculateTheoreticalMargins(financialBreakdown) : null;
                 const theoreticalTO = financialBreakdown ? calculateTheoreticalTO(financialBreakdown) : null;
                 const realTO = operationalRevenue ?? revenue ?? 0;
@@ -432,7 +476,7 @@ const SummaryDocument: React.FC<Props> = ({
                   return (
                     <div 
                       className="margin-comparison"
-                      title={`DM Real: ${realDM.toFixed(1)}% (TO: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs DM Teórico: ${theoreticalMargins.DM.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                      title={`DM Real: ${realDM.toFixed(1)}% (TO real: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs DM Teórico: ${theoreticalMargins.DM.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
                     >
                       <div className="margin-real">{realDM.toLocaleString("es-ES", { maximumFractionDigits: 2 })}%</div>
                       <div className="margin-divider"></div>
@@ -449,7 +493,10 @@ const SummaryDocument: React.FC<Props> = ({
             <span className="summary-card-item-label kpi-label">GMBS</span>
             <span className={`summary-card-item-value kpi-value gm ${(projectGMBSRemote ?? (gm * 100)) >= 0.0 ? "pos" : "neg"} ${projectGMBSRemote != null ? 'black' : ''}`}>
               {(() => {
-                const realGMBS = projectGMBSRemote != null ? projectGMBSRemote : (gm * 100);
+                // Calcular GMBS real usando TO real del proyecto
+                const realMargins = financialBreakdown ? calculateRealMargins(financialBreakdown) : null;
+                const realGMBS = realMargins ? realMargins.GMBS : (projectGMBSRemote != null ? projectGMBSRemote : (gm * 100));
+                
                 const theoreticalMargins = financialBreakdown ? calculateTheoreticalMargins(financialBreakdown) : null;
                 const theoreticalTO = financialBreakdown ? calculateTheoreticalTO(financialBreakdown) : null;
                 const realTO = operationalRevenue ?? revenue ?? 0;
@@ -458,7 +505,7 @@ const SummaryDocument: React.FC<Props> = ({
                   return (
                     <div 
                       className="margin-comparison"
-                      title={`GMBS Real: ${realGMBS.toFixed(1)}% (TO: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs GMBS Teórico: ${theoreticalMargins.GMBS.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
+                      title={`GMBS Real: ${realGMBS.toFixed(1)}% (TO real: ${realTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}) vs GMBS Teórico: ${theoreticalMargins.GMBS.toFixed(1)}% (TO manual: ${theoreticalTO.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})})`}
                     >
                       <div className="margin-real">{realGMBS.toFixed(1)}%</div>
                       <div className="margin-divider"></div>
@@ -509,7 +556,10 @@ const SummaryDocument: React.FC<Props> = ({
             <span className="summary-card-item-value kpi-value">
               {(() => {
                 const realTO = operationalRevenue ?? revenue ?? 0;
-                const realGmbsPercentage = projectGMBSRemote != null ? projectGMBSRemote : (gm * 100);
+                
+                // Calcular GMBS real usando TO real del proyecto
+                const realMargins = financialBreakdown ? calculateRealMargins(financialBreakdown) : null;
+                const realGmbsPercentage = realMargins ? realMargins.GMBS : (projectGMBSRemote != null ? projectGMBSRemote : (gm * 100));
                 const realGmbsInEuros = realTO * realGmbsPercentage / 100;
                 
                 const theoreticalMargins = financialBreakdown ? calculateTheoreticalMargins(financialBreakdown) : null;

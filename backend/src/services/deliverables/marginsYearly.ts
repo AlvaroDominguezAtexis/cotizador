@@ -102,6 +102,94 @@ export async function calcBulkMargins(params: {
     sampleCosts: stepCosts.length > 0 ? stepCosts[0] : 'No data found'
   });
   
+  // Fetch deliverable quantities for the specified year
+  const deliverableIds = [...new Set(stepCosts.map(sc => sc.deliverable_id))];
+  console.log('🔢 [calcBulkMargins] Fetching quantities for deliverables:', deliverableIds, 'for year:', year);
+  console.log('🔢 [calcBulkMargins] Deliverable IDs type check:', typeof deliverableIds[0], 'Year type check:', typeof year);
+  
+  const quantityQuery = `
+    SELECT 
+      deliverable_id, 
+      quantity,
+      year_number
+    FROM deliverable_yearly_quantities 
+    WHERE deliverable_id = ANY($1::int[]) AND year_number = $2
+  `;
+  
+  console.log('🗄️ [calcBulkMargins] Quantity query:', quantityQuery);
+  console.log('🗄️ [calcBulkMargins] Query parameters:', [deliverableIds, year]);
+  
+  const quantityResult = await db.query<{ deliverable_id: number; quantity: number; year_number: number }>(
+    quantityQuery, 
+    [deliverableIds, year]
+  );
+  
+  console.log('📊 [calcBulkMargins] Raw quantity query result:', quantityResult.rows);
+  
+  // If no quantities found, let's check what data exists for these deliverables
+  if (quantityResult.rows.length === 0) {
+    console.log('🔍 [calcBulkMargins] No quantities found, checking what data exists...');
+    const debugQuery = `
+      SELECT 
+        deliverable_id, 
+        quantity,
+        year_number
+      FROM deliverable_yearly_quantities 
+      WHERE deliverable_id = ANY($1::int[])
+      ORDER BY deliverable_id, year_number
+    `;
+    
+    const debugResult = await db.query(debugQuery, [deliverableIds]);
+    console.log('🔍 [calcBulkMargins] Available quantity data for these deliverables:', debugResult.rows);
+    
+    // Also check if the table has any data at all
+    const tableCheckQuery = `SELECT COUNT(*) as total_records FROM deliverable_yearly_quantities LIMIT 5`;
+    const tableCheckResult = await db.query(tableCheckQuery);
+    console.log('🔍 [calcBulkMargins] Total records in deliverable_yearly_quantities table:', tableCheckResult.rows[0]);
+    
+    // Check for any records with the specified year
+    const yearCheckQuery = `SELECT deliverable_id, quantity, year_number FROM deliverable_yearly_quantities WHERE year_number = $1 LIMIT 5`;
+    const yearCheckResult = await db.query(yearCheckQuery, [year]);
+    console.log('🔍 [calcBulkMargins] Any records for year', year, ':', yearCheckResult.rows);
+  }
+  
+  // Create a map for quick quantity lookup
+  const quantityMap = new Map<number, number>();
+  
+  // If no quantities found for the specific year, try to get any available quantities
+  let finalQuantityRows = quantityResult.rows;
+  
+  if (quantityResult.rows.length === 0 && deliverableIds.length > 0) {
+    console.log('🔄 [calcBulkMargins] No quantities for specific year, trying to get any available quantities...');
+    const fallbackQuantityQuery = `
+      SELECT DISTINCT ON (deliverable_id)
+        deliverable_id, 
+        quantity,
+        year_number
+      FROM deliverable_yearly_quantities 
+      WHERE deliverable_id = ANY($1::int[])
+      ORDER BY deliverable_id, year_number DESC
+    `;
+    
+    const fallbackQuantityResult = await db.query<{ deliverable_id: number; quantity: number; year_number: number }>(
+      fallbackQuantityQuery, 
+      [deliverableIds]
+    );
+    
+    console.log('🔄 [calcBulkMargins] Fallback quantity result:', fallbackQuantityResult.rows);
+    finalQuantityRows = fallbackQuantityResult.rows;
+  }
+  
+  finalQuantityRows.forEach(row => {
+    quantityMap.set(row.deliverable_id, row.quantity || 1); // Default to 1 if no quantity
+  });
+  
+  console.log('📊 [calcBulkMargins] Quantities retrieved:', {
+    deliverables: deliverableIds.length,
+    quantitiesFound: finalQuantityRows.length,
+    quantityMap: Object.fromEntries(quantityMap)
+  });
+  
   if (stepCosts.length === 0) {
     console.log('⚠️ [calcBulkMargins] No cost data found for specified year, trying fallback...');
     // Try to find data for any year as a fallback
@@ -137,15 +225,44 @@ export async function calcBulkMargins(params: {
       });
       const stepCostsFallback = fallbackResult.rows;
       
+      // Fetch deliverable quantities for fallback (try the requested year first, then any year)
+      const fallbackDeliverableIds = [...new Set(stepCostsFallback.map(sc => sc.deliverable_id))];
+      console.log('🔢 [calcBulkMargins] FALLBACK: Fetching quantities for deliverables:', fallbackDeliverableIds);
+      
+      let fallbackQuantityResult = await db.query<{ deliverable_id: number; quantity: number }>(
+        `SELECT deliverable_id, quantity FROM deliverable_yearly_quantities WHERE deliverable_id = ANY($1::int[]) AND year_number = $2`, 
+        [fallbackDeliverableIds, year]
+      );
+      
+      // If no quantities found for the requested year, try to find any quantity
+      if (fallbackQuantityResult.rows.length === 0) {
+        console.log('🔍 [calcBulkMargins] FALLBACK: No quantities for requested year, trying any year...');
+        fallbackQuantityResult = await db.query<{ deliverable_id: number; quantity: number }>(
+          `SELECT DISTINCT ON (deliverable_id) deliverable_id, quantity FROM deliverable_yearly_quantities WHERE deliverable_id = ANY($1::int[]) ORDER BY deliverable_id, year_number DESC`, 
+          [fallbackDeliverableIds]
+        );
+      }
+      
+      // Create quantity map for fallback
+      const fallbackQuantityMap = new Map<number, number>();
+      fallbackQuantityResult.rows.forEach(row => {
+        fallbackQuantityMap.set(row.deliverable_id, row.quantity || 1);
+      });
+      
+      console.log('📊 [calcBulkMargins] FALLBACK quantities:', Object.fromEntries(fallbackQuantityMap));
+      
       // Use the fallback data
       let totalDmCosts = 0;
       let totalGmbsCosts = 0;
       
       for (const stepCost of stepCostsFallback) {
         const { 
-          salaries_costs, management_costs, npt_costs, it_costs, premises_costs,
+          deliverable_id, salaries_costs, management_costs, npt_costs, it_costs, premises_costs,
           it_recurrent_costs, travel_costs, subco_costs, purchases_costs, activity_rate 
         } = stepCost;
+        
+        // Get quantity for this deliverable (default to 1 if not found)
+        const quantity = fallbackQuantityMap.get(deliverable_id) || 1;
         
         // Ensure all values are numbers to avoid toFixed errors
         const salariesNum = Number(salaries_costs || 0);
@@ -159,15 +276,19 @@ export async function calcBulkMargins(params: {
         const purchasesNum = Number(purchases_costs || 0);
         const activityRateNum = Number(activity_rate || 100);
         
-        const operationalBase = salariesNum + managementNum + nptNum + itNum + premisesNum;
+        // OPERATIONAL COSTS: Multiply base costs by quantity, then apply activity rate
+        const operationalBase = (salariesNum + managementNum + nptNum + itNum + premisesNum) * quantity;
         const adjustedOperational = (operationalBase * activityRateNum) / 100;
+        
+        // NON-OPERATIONAL COSTS: Add directly without multiplying by quantity
         const nonOperational = itRecurrentNum + travelNum + subcoNum + purchasesNum;
         
         const stepDmCosts = adjustedOperational + nonOperational;
         const stepGmbsCosts = operationalBase + nonOperational;
         
-        console.log(`💰 [calcBulkMargins] Step ${stepCost.step_id} costs calculation:`, {
-          operationalBase: operationalBase.toFixed(2),
+        console.log(`💰 [calcBulkMargins] FALLBACK Step ${stepCost.step_id} (Deliverable ${deliverable_id}) costs calculation:`, {
+          quantity: quantity,
+          operationalBaseCosts: `${salariesNum + managementNum + nptNum + itNum + premisesNum} × ${quantity} = ${operationalBase.toFixed(2)}`,
           activity_rate: activityRateNum + '%',
           adjustedOperational: adjustedOperational.toFixed(2),
           nonOperational: nonOperational.toFixed(2),
@@ -235,9 +356,12 @@ export async function calcBulkMargins(params: {
   
   for (const stepCost of stepCosts) {
     const { 
-      salaries_costs, management_costs, npt_costs, it_costs, premises_costs,
+      deliverable_id, salaries_costs, management_costs, npt_costs, it_costs, premises_costs,
       it_recurrent_costs, travel_costs, subco_costs, purchases_costs, activity_rate 
     } = stepCost;
+    
+    // Get quantity for this deliverable (default to 1 if not found)
+    const quantity = quantityMap.get(deliverable_id) || 1;
     
     // Ensure all values are numbers to avoid toFixed errors
     const salariesNum = Number(salaries_costs || 0);
@@ -251,16 +375,19 @@ export async function calcBulkMargins(params: {
     const purchasesNum = Number(purchases_costs || 0);
     const activityRateNum = Number(activity_rate || 100);
     
-    // total_dm_costs = ((salaries_costs + management_costs + npt_costs + it_costs + premises_costs) * activity_rate / 100) + it_recurrent_costs + travel_costs + subco_costs + purchases_costs
-    const operationalBase = salariesNum + managementNum + nptNum + itNum + premisesNum;
+    // OPERATIONAL COSTS: Multiply base costs by quantity, then apply activity rate
+    const operationalBase = (salariesNum + managementNum + nptNum + itNum + premisesNum) * quantity;
     const adjustedOperational = (operationalBase * activityRateNum) / 100;
+    
+    // NON-OPERATIONAL COSTS: Add directly without multiplying by quantity
     const nonOperational = itRecurrentNum + travelNum + subcoNum + purchasesNum;
     
     const stepDmCosts = adjustedOperational + nonOperational;
     const stepGmbsCosts = operationalBase + nonOperational;
     
-    console.log(`💰 [calcBulkMargins] Step ${stepCost.step_id} costs calculation:`, {
-      operationalBase: operationalBase.toFixed(2),
+    console.log(`💰 [calcBulkMargins] Step ${stepCost.step_id} (Deliverable ${deliverable_id}) costs calculation:`, {
+      quantity: quantity,
+      operationalBaseCosts: `${salariesNum + managementNum + nptNum + itNum + premisesNum} × ${quantity} = ${operationalBase.toFixed(2)}`,
       activity_rate: activityRateNum + '%',
       adjustedOperational: adjustedOperational.toFixed(2),
       nonOperational: nonOperational.toFixed(2),

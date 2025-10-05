@@ -389,12 +389,13 @@ export async function calculateStepFTE(params: {
 }): Promise<number> {
   const { stepId, db } = params;
   
-  // Get project and country info for the step
+  // Get project, country info and step unit for the step
   const stepRes = await db.query(
-    `SELECT s.id, s.country_id, wp.project_id
+    `SELECT s.id, s.country_id, s.unit, wp.project_id, pc.hours_per_day
      FROM steps s
      JOIN deliverables d ON d.id = s.deliverable_id
      JOIN workpackages wp ON wp.id = d.workpackage_id
+     LEFT JOIN project_countries pc ON pc.project_id = wp.project_id AND pc.country_id = s.country_id
      WHERE s.id = $1
      LIMIT 1`,
     [stepId]
@@ -405,6 +406,17 @@ export async function calculateStepFTE(params: {
   }
 
   const step = stepRes.rows[0];
+  const stepUnit = String(step.unit || 'Hours').toLowerCase();
+  const hoursPerDay = Number(step.hours_per_day || 8); // Default 8 hours per day
+  
+  // Convert process_time to hours based on unit
+  let processTimeInHours = params.processTime;
+  if (stepUnit === 'days') {
+    processTimeInHours = params.processTime * hoursPerDay;
+    console.log(`🕒 [calculateStepFTE] Step ${stepId} unit conversion: ${params.processTime} days × ${hoursPerDay} hours/day = ${processTimeInHours} hours`);
+  } else {
+    console.log(`🕒 [calculateStepFTE] Step ${stepId} already in hours: ${processTimeInHours} hours`);
+  }
   
   // Calculate annual hours
   const annualHours = await calcAnnualHours({
@@ -414,7 +426,9 @@ export async function calculateStepFTE(params: {
   });
 
   // Calculate FTE
-  const fte = params.processTime / annualHours;
+  const fte = processTimeInHours / annualHours;
+  console.log(`📊 [calculateStepFTE] Step ${stepId} FTE calculation: ${processTimeInHours} hours ÷ ${annualHours} annual hours = ${fte.toFixed(4)} FTE`);
+  
   return fte;
 }
 

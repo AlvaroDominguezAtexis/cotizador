@@ -306,6 +306,32 @@ export const getProjectAllocationsSummary = async (req: Request, res: Response) 
       ORDER BY name
     `;
 
+    const byYearQ = `
+      WITH project_start AS (
+        SELECT EXTRACT(YEAR FROM start_date::date)::integer as start_year
+        FROM projects WHERE id = $1
+      )
+      SELECT 
+        COALESCE(syd.year::text, 'Unknown') AS name,
+        COALESCE(SUM(
+          CASE 
+            WHEN dyq.quantity > 0 THEN syd.fte * dyq.quantity
+            ELSE syd.fte
+          END
+        ), 0) AS fte
+      FROM step_yearly_data syd
+      JOIN steps s ON s.id = syd.step_id
+      JOIN deliverables d ON d.id = s.deliverable_id
+      JOIN workpackages w ON w.id = d.workpackage_id AND w.project_id = $1
+      CROSS JOIN project_start ps
+      LEFT JOIN deliverable_yearly_quantities dyq ON 
+        d.id = dyq.deliverable_id AND 
+        dyq.year_number = (syd.year - ps.start_year + 1)
+      WHERE syd.year IS NOT NULL
+      GROUP BY syd.year
+      ORDER BY syd.year
+    `;
+
     const byWPDeliverableQ = `
       WITH raw_quantities AS (
         SELECT
@@ -352,12 +378,13 @@ export const getProjectAllocationsSummary = async (req: Request, res: Response) 
 
     
     // Execute all queries in parallel
-    const [totalR, wpR, delR, ctryR, profR, wpDelR] = await Promise.all([
+    const [totalR, wpR, delR, ctryR, profR, yearR, wpDelR] = await Promise.all([
       db.query(totalQ, [projectId]),
       db.query(byWPQ, [projectId]),
       db.query(byDeliverableQ, [projectId]),
       db.query(byCountryQ, [projectId]),
       db.query(byProfileQ, [projectId]),
+      db.query(byYearQ, [projectId]),
       db.query(byWPDeliverableQ, [projectId]),
     ]);
 
@@ -384,6 +411,7 @@ export const getProjectAllocationsSummary = async (req: Request, res: Response) 
       byDeliverable: mapRows(delR.rows || []),
       byCountry: mapRows(ctryR.rows || []),
       byProfile: mapRows(profR.rows || []),
+      byYear: mapRows(yearR.rows || []),
       deliverablesByWorkpackage,
     };
 

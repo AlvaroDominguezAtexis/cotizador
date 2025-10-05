@@ -58,6 +58,7 @@ interface AllocationSummary {
   byDeliverable: { name: string; fte: number }[];
   byCountry: { name: string; fte: number }[];
   byProfile: { name: string; fte: number }[];
+  byYear: { name: string; fte: number }[];
 }
 
 async function fetchAllocationSummary(projectId: string | number): Promise<AllocationSummary> {
@@ -117,7 +118,7 @@ const SummaryDocument: React.FC<Props> = ({
   const [financialBreakdown, setFinancialBreakdown] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(!allocations && !!effectiveProjectId);
   const [tab, setTab] = useState<
-    "country" | "profileType" | "deliverable" | "workPackage"
+    "country" | "profileType" | "deliverable" | "workPackage" | "year"
   >("country");
   
   // Estado temporal para los valores del Manual Unit Price mientras el usuario escribe
@@ -399,6 +400,8 @@ const SummaryDocument: React.FC<Props> = ({
           return summary.byDeliverable;
         case "workPackage":
           return summary.byWorkpackage;
+        case "year":
+          return summary.byYear || [];
         default:
           return [];
       }
@@ -912,22 +915,86 @@ const SummaryDocument: React.FC<Props> = ({
           <h3>FTE detailed breakdown</h3>
         </div>
 
+        {/* Pestañas de dimensiones */}
+        <div className="breakdown-tabs">
+          <button 
+            className={`tab ${tab === "country" ? "active" : ""}`}
+            onClick={() => setTab("country")}
+          >
+            País/Ciudad
+          </button>
+          <button 
+            className={`tab ${tab === "profileType" ? "active" : ""}`}
+            onClick={() => setTab("profileType")}
+          >
+            Tipo de Perfil
+          </button>
+          <button 
+            className={`tab ${tab === "workPackage" ? "active" : ""}`}
+            onClick={() => setTab("workPackage")}
+          >
+            Work Package
+          </button>
+          <button 
+            className={`tab ${tab === "deliverable" ? "active" : ""}`}
+            onClick={() => setTab("deliverable")}
+          >
+            Deliverable
+          </button>
+          <button 
+            className={`tab ${tab === "year" ? "active" : ""}`}
+            onClick={() => setTab("year")}
+          >
+            Año del Proyecto
+          </button>
+        </div>
+
         {currentSummaryData.length === 0 ? (
-          <div className="summary-hint empty">Sin datos para esta dimensión.</div>
+          <div className="summary-hint empty">Sin datos para {
+            tab === "country" ? "país/ciudad" :
+            tab === "profileType" ? "tipo de perfil" :
+            tab === "workPackage" ? "work package" :
+            tab === "deliverable" ? "deliverable" :
+            tab === "year" ? "año del proyecto" : "esta dimensión"
+          }.</div>
         ) : (
-          <div className="table-mini">
-            <div className="table-mini-head">
-              <span>Grupo</span>
-              <span>Horas</span>
-              <span>FTE</span>
+          <div className="breakdown-table">
+            <div className="breakdown-table-header">
+              <span className="breakdown-col-name">
+                {tab === "country" ? "País/Ciudad" :
+                 tab === "profileType" ? "Tipo de Perfil" :
+                 tab === "workPackage" ? "Work Package" :
+                 tab === "deliverable" ? "Deliverable" :
+                 tab === "year" ? "Año" : "Grupo"}
+              </span>
+              <span className="breakdown-col-hours">Horas</span>
+              <span className="breakdown-col-fte">FTE</span>
+              <span className="breakdown-col-percentage">% del Total</span>
             </div>
-            {currentSummaryData.map((r: { name: string; hours: number; fte: number }) => (
-              <div className="table-mini-row" key={r.name}>
-                <span title={r.name}>{r.name}</span>
-                <span>{r.hours.toLocaleString("es-ES")}</span>
-                <span>{r.fte.toLocaleString("es-ES", { maximumFractionDigits: 2 })}</span>
-              </div>
-            ))}
+            {currentSummaryData.map((r: { name: string; hours: number; fte: number }) => {
+              const percentage = totalFTEs > 0 ? (r.fte / totalFTEs) * 100 : 0;
+              return (
+                <div className="breakdown-table-row" key={r.name}>
+                  <span className="breakdown-col-name" title={r.name}>
+                    {r.name || "N/D"}
+                  </span>
+                  <span className="breakdown-col-hours">
+                    {r.hours.toLocaleString("es-ES")}
+                  </span>
+                  <span className="breakdown-col-fte">
+                    {r.fte.toLocaleString("es-ES", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                  </span>
+                  <span className="breakdown-col-percentage">
+                    <div className="percentage-bar-container">
+                      <div className="percentage-bar" style={{ width: `${Math.min(percentage, 100)}%` }}></div>
+                      <span className="percentage-text">
+                        {percentage.toLocaleString("es-ES", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}%
+                      </span>
+                    </div>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

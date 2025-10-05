@@ -633,6 +633,224 @@
 .btn.toggle { font-size:16px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(180deg,#f4f8ff,#ffffff); border:1px solid rgba(47,125,217,0.06); }
 .btn.toggle[aria-expanded="true"] { transform: rotate(180deg); }
 
+/* ===== FTE Breakdown Enhanced Table ===== */
+.breakdown-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  padding: 0;
+}
+
+.breakdown-table {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.breakdown-table-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.2fr;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, var(--surface), #fafbfc);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--muted);
+  align-items: center;
+}
+
+.breakdown-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.2fr;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+  transition: background-color 0.2s ease;
+  align-items: center;
+  font-size: 13px;
+}
+
+.breakdown-table-row:hover {
+  background: rgba(47, 125, 217, 0.02);
+}
+
+.breakdown-table-row:last-child {
+  border-bottom: none;
+}
+
+.breakdown-col-name {
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.breakdown-col-hours,
+.breakdown-col-fte {
+  font-weight: 600;
+  color: var(--ink);
+  text-align: right;
+}
+
+.breakdown-col-percentage {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.percentage-bar-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 24px;
+  background: rgba(47, 125, 217, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(47, 125, 217, 0.1);
+}
+
+.percentage-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-2), var(--brand));
+  border-radius: 11px 0 0 11px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.percentage-text {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive para la tabla de breakdown */
+@media (max-width: 1024px) {
+  .breakdown-table-header,
+  .breakdown-table-row {
+    grid-template-columns: 1.8fr 0.9fr 0.9fr 1.1fr;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  
+  .breakdown-tabs .tab {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .breakdown-table-header,
+  .breakdown-table-row {
+    grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  
+  .breakdown-table-header {
+    font-size: 11px;
+  }
+  
+  .breakdown-table-row {
+    font-size: 12px;
+  }
+  
+  .percentage-bar-container {
+    height: 20px;
+  }
+  
+  .percentage-text {
+    font-size: 10px;
+    right: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .breakdown-tabs {
+    gap: 4px;
+  }
+  
+  .breakdown-tabs .tab {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+  
+  .breakdown-table-header,
+  .breakdown-table-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  
+  /* Reorganizar para móvil en tarjetas */
+  .breakdown-table-row {
+    display: block;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  
+  .breakdown-table-row:last-child {
+    margin-bottom: 0;
+  }
+  
+  .breakdown-col-name {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  
+  .breakdown-col-hours,
+  .breakdown-col-fte {
+    display: inline-block;
+    text-align: left;
+    margin-right: 12px;
+    font-size: 12px;
+  }
+  
+  .breakdown-col-hours::before {
+    content: "Horas: ";
+    color: var(--muted);
+    font-weight: normal;
+  }
+  
+  .breakdown-col-fte::before {
+    content: "FTE: ";
+    color: var(--muted);
+    font-weight: normal;
+  }
+  
+  .breakdown-col-percentage {
+    display: block;
+    margin-top: 8px;
+  }
+  
+  .percentage-bar-container {
+    height: 18px;
+  }
+  
+  .percentage-text {
+    font-size: 9px;
+    right: 4px;
+  }
+  
+  .breakdown-table-header {
+    display: none; /* Ocultar header en móvil */
+  }
+}
+
 /* compact chips for small screens */
 @media (max-width: 640px) {
   .wp-kpis .chip { font-size:12px; padding:5px 8px; }

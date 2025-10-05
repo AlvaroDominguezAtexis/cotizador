@@ -7,10 +7,10 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
   const yearParam = (req.query?.year as string) ? Number(req.query.year as string) : undefined;
   if (!projectId) return res.status(400).send('projectId required');
   try {
-    console.log('Getting allocations for project:', projectId);
+
     // Check DB connection
     await db.query('SELECT 1');
-    console.log('Database connection successful');
+
     
   // Join a single salary row per profile-country. If year is provided, filter by it; else pick earliest available year to avoid duplicates.
     const query = `
@@ -76,19 +76,8 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
         ) pps ON true
       )
     `;
-    console.log('Executing query with params:', [projectId, yearParam ?? null]);
+
     const { rows } = await db.query(query + ' SELECT * FROM step_data ORDER BY step_id', [projectId, yearParam ?? null]);
-    console.log('Found allocations:', rows.length);
-    console.log('Allocation details:');
-    rows.forEach((r: any) => {
-      console.log(`Step: ${r.step_name}
-        - Year: ${r.step_year}
-        - Base FTE: ${r.base_fte}
-        - Deliverable: ${r.deliverable_name}
-        - Deliverable Quantity: ${r.deliverable_quantity}
-        - Calculated FTE: ${r.calculated_fte}
-      `);
-    });
     const mapped = rows.map((r: any) => ({
       stepId: r.step_id,
       step: r.step_name,
@@ -109,19 +98,19 @@ export const getProjectAllocations = async (req: Request, res: Response) => {
     }));
     res.json(mapped);
   } catch (e: any) {
-    console.error('getProjectAllocations error', e);
+
     res.status(500).send('Error fetching allocations');
   }
 };
 
 // GET /projects/:projectId/allocations/summary
 export const getProjectAllocationsSummary = async (req: Request, res: Response) => {
-  console.log('=== Starting getProjectAllocationsSummary ===');
+
   const { projectId } = req.params as { projectId: string };
-  console.log('Project ID:', projectId);
+
   if (!projectId) return res.status(400).send('projectId required');
   try {
-    console.log('Attempting to fetch allocation summary...');
+
     const totalQ = `
       WITH raw_quantities AS (
         SELECT
@@ -357,10 +346,10 @@ export const getProjectAllocationsSummary = async (req: Request, res: Response) 
       ORDER BY workpackage, deliverable
     `;
 
-    console.log('Executing allocation summary queries for project:', projectId);
+
 
     // Log the queries before execution
-    console.log('Total FTE Query:', totalQ);
+
     
     // Execute all queries in parallel
     const [totalR, wpR, delR, ctryR, profR, wpDelR] = await Promise.all([
@@ -372,16 +361,7 @@ export const getProjectAllocationsSummary = async (req: Request, res: Response) 
       db.query(byWPDeliverableQ, [projectId]),
     ]);
 
-    console.log('Raw query results:', {
-      total: totalR.rows,
-      byWorkpackage: wpR.rows,
-      byDeliverable: delR.rows,
-      byCountry: ctryR.rows,
-      byProfile: profR.rows
-    });
-
     const totalFTE = Number(totalR.rows?.[0]?.total_fte ?? 0);
-    console.log('Total FTE:', totalFTE);
     
     const mapRows = (rows: any[]) => {
       const mapped = rows.map(r => ({ name: String(r.name), fte: Number(r.fte) || 0 }));
@@ -407,10 +387,8 @@ export const getProjectAllocationsSummary = async (req: Request, res: Response) 
       deliverablesByWorkpackage,
     };
 
-    console.log('Summary response:', JSON.stringify(response, null, 2));
     res.json(response);
   } catch (e: any) {
-    console.error('getProjectAllocationsSummary error', e);
     res.status(500).send('Error computing allocations summary');
   }
 };

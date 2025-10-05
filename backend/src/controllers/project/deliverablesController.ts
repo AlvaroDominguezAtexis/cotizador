@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Pool from '../../db';
-import { recalcDeliverablesYearlyForProject, calcProjectTotalWorkingTime, calcDeliverablesCosts, calcOperationalDMForDeliverables, calcGMBSForDeliverables } from '../../services/deliverables/marginsYearly';
+import { recalcDeliverablesYearlyForProject, calcProjectTotalWorkingTime, calcDeliverableMargins, calcProjectMargins, calcBulkMargins } from '../../services/deliverables/marginsYearly';
 
 // GET /projects/:projectId/operational-revenue
 export const getProjectOperationalRevenue = async (req: Request, res: Response) => {
@@ -11,7 +11,6 @@ export const getProjectOperationalRevenue = async (req: Request, res: Response) 
     const val = r.rows[0] ? Number(r.rows[0].operational_revenue || 0) : 0;
     res.json({ projectId: Number(projectId), operationalRevenue: val });
   } catch (err:any) {
-    console.error('[getProjectOperationalRevenue] error', err);
     res.status(500).json({ error: err?.message || 'Error fetching operational revenue' });
   }
 };
@@ -65,7 +64,6 @@ export const getDeliverables = async (req: Request, res: Response) => {
     const parsed = attachYearly(dRes.rows, yRes.rows, yearCount ? Number(yearCount) : undefined);
     res.json(parsed);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al obtener deliverables' });
   }
 };
@@ -139,7 +137,6 @@ export const deleteDeliverable = async (req: Request, res: Response) => {
     if (dRes.rows.length === 0) return res.status(404).json({ error: 'Deliverable no encontrado' });
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al eliminar deliverable' });
   }
 };
@@ -147,24 +144,43 @@ export const deleteDeliverable = async (req: Request, res: Response) => {
 // POST /projects/:projectId/recalc-margins-yearly
 export const recalcProjectDeliverablesMarginsYearly = async (req: Request, res: Response) => {
   const projectId = (req.params as any).projectId || (req.params as any).id;
+  console.log('\n🔄 [recalcProjectDeliverablesMarginsYearly] Starting recalculation for project:', projectId);
+  
   try {
-    console.log('[recalcProjectDeliverablesMarginsYearly] called for project:', projectId);
     const rows = await recalcDeliverablesYearlyForProject(Number(projectId), Pool as any);
+    
+    console.log('📊 [recalcProjectDeliverablesMarginsYearly] Calculated rows received:', {
+      count: rows.length,
+      sampleRow: rows.length > 0 ? rows[0] : 'No data'
+    });
+    
     await Pool.query('BEGIN');
     let count = 0;
     for (const r of rows) {
       // update existing row
+      console.log(`💾 [recalcProjectDeliverablesMarginsYearly] Processing deliverable ${r.deliverableId} year ${r.year}:`, {
+        TO: r.operationalTo,
+        DM: r.dmRealPct + '%',
+        GMBS: r.gmbsRealPct + '%'
+      });
+      
       const upd = await Pool.query(`UPDATE deliverable_yearly_quantities SET operational_to = $3, dm_real = $4, gmbs_real = $5 WHERE deliverable_id = $1 AND year_number = $2 RETURNING deliverable_id`, [r.deliverableId, r.year, r.operationalTo, r.dmRealPct, r.gmbsRealPct]);
-      if (!upd || upd.rows.length === 0) {
+      
+      if (upd && upd.rows.length > 0) {
+        console.log(`✅ [recalcProjectDeliverablesMarginsYearly] Updated deliverable ${r.deliverableId} year ${r.year}`);
+        count++;
+      } else {
+        console.log(`➕ [recalcProjectDeliverablesMarginsYearly] Inserted new record for deliverable ${r.deliverableId} year ${r.year}`);
         await Pool.query(`INSERT INTO deliverable_yearly_quantities (deliverable_id, year_number, quantity, operational_to, dm_real, gmbs_real) VALUES ($1,$2,$3,$4,$5,$6)`, [r.deliverableId, r.year, r.quantity || 0, r.operationalTo, r.dmRealPct, r.gmbsRealPct]);
+        count++;
       }
-      count++;
     }
     await Pool.query('COMMIT');
+    
+    console.log(`✅ [recalcProjectDeliverablesMarginsYearly] COMPLETED: Updated ${count} records for project ${projectId}`);
     res.json({ projectId: Number(projectId), count, rows });
   } catch (err:any) {
     await Pool.query('ROLLBACK');
-    console.error('[recalcProjectDeliverablesMarginsYearly] error for project:', projectId, err?.message || err);
     res.status(500).json({ error: err?.message || 'Error recalculando márgenes yearly' });
   }
 };
@@ -199,7 +215,7 @@ export const getProjectHourlyPrice = async (req: Request, res: Response) => {
     }
 
     const totalProcessTime = await calcProjectTotalWorkingTime(deliverables, projectStartDate, Pool as any);
-    console.log('[getProjectHourlyPrice] projectId', projectId, { operationalTotal, totalProcessTime, deliverableCount: deliverables.length });
+
 
     const hourlyPrice = totalProcessTime > 0 ? Number((operationalTotal / totalProcessTime).toFixed(2)) : 0;
     res.json({ projectId: Number(projectId), hourlyPrice });
@@ -230,27 +246,24 @@ export const getProjectDeliverablesCosts = async (req: Request, res: Response) =
 
     const deliverablesForCalc = dRes.rows.map(d => ({ id: d.id, yearlyQuantities: byDel[d.id] || [] }));
 
-    const costRows = await calcDeliverablesCosts(deliverablesForCalc, projectStartDate, Pool as any);
-
-    // aggregate totals
-    let totalOpRecurrent = 0;
-    let totalOpNonRecurrent = 0;
-    let totalNop = 0;
-    for (const cr of costRows) {
-      totalOpRecurrent += cr.opRecurrentSum;
-      totalOpNonRecurrent += cr.opNonRecurrentSum;
-      totalNop += cr.nopSum;
+    // TODO: Implement new cost calculation using calcBulkMargins
+    // For now, return basic response
+    const currentYear = new Date().getFullYear();
+    
+    try {
+      const projectMargins = await calcProjectMargins(Number(projectId), currentYear, Pool as any);
+      res.json({ 
+        projectId: Number(projectId), 
+        operationalRevenue: projectMargins.TO,
+        totalDmCosts: projectMargins.total_dm_costs,
+        totalGmbsCosts: projectMargins.total_gmbs_costs,
+        projectDM: projectMargins.DM,
+        projectGMBS: projectMargins.GMBS
+      });
+    } catch (marginError) {
+      res.json({ projectId: Number(projectId), operationalRevenue: 0, projectDM: 0, projectGMBS: 0 });
     }
-
-  const totalCosts = totalOpRecurrent + totalOpNonRecurrent + totalNop;
-
-  // compute operational DM consistently using the deliverablesForCalc we already built
-  const opResult = await calcOperationalDMForDeliverables(deliverablesForCalc, projectStartDate, Pool as any);
-  const gmbsResult = await calcGMBSForDeliverables(deliverablesForCalc, projectStartDate, Pool as any);
-
-  res.json({ projectId: Number(projectId), totalOpRecurrent, totalOpNonRecurrent, totalNop, totalCosts, operationalRevenue: opResult.totalTO, totalOperationalCosts: opResult.totalOperationalCosts, projectDM: opResult.projectDM, projectGMBS: gmbsResult.projectGMBS });
   } catch (err:any) {
-    console.error('[getProjectDeliverablesCosts] error', err);
     res.status(500).json({ error: err?.message || 'Error fetching deliverable costs' });
   }
 };
@@ -280,8 +293,9 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
 
     const deliverablesForCalc = dRes.rows.map(d => ({ id: d.id, workpackage_id: d.workpackage_id, nombre: d.nombre, yearlyQuantities: byDel[d.id] || [] }));
 
-    // per-deliverable cost rows (per year)
-    const costRows = await calcDeliverablesCosts(deliverablesForCalc.map(d=>({ id: d.id, yearlyQuantities: d.yearlyQuantities })), projectStartDate, Pool as any);
+    // TODO: Implement new breakdown calculation using calcBulkMargins
+    // For now, create empty cost rows structure
+    const costRows: any[] = [];
 
     // build quantity map for quick access
     const qtyMap: Record<string, number> = {};
@@ -418,7 +432,128 @@ export const getProjectDeliverablesCostsBreakdown = async (req: Request, res: Re
 
     res.json({ projectId: Number(projectId), workPackages: wpList });
   } catch (err:any) {
-    console.error('[getProjectDeliverablesCostsBreakdown] error', err);
     res.status(500).json({ error: err?.message || 'Error fetching deliverable costs breakdown' });
+  }
+};
+
+// DIAGNOSTIC endpoint to check data availability
+export const diagnoseBulkMarginData = async (req: Request, res: Response) => {
+  const { projectId } = req.params;
+  const { year } = req.query;
+  
+  try {
+    const currentYear = year ? Number(year) : new Date().getFullYear();
+    
+    // 1. Check if project exists and has margin configuration
+    const projectRes = await Pool.query(`SELECT id, margin_type, margin_goal, start_date FROM projects WHERE id = $1`, [projectId]);
+    
+    // 2. Check deliverables
+    const deliverablesRes = await Pool.query(`
+      SELECT d.id, d.codigo, d.nombre
+      FROM deliverables d 
+      JOIN workpackages wp ON d.workpackage_id = wp.id 
+      WHERE wp.project_id = $1
+    `, [projectId]);
+    
+    // 3. Check steps
+    const stepsRes = await Pool.query(`
+      SELECT s.id, s.deliverable_id, s.nombre
+      FROM steps s
+      JOIN deliverables d ON s.deliverable_id = d.id
+      JOIN workpackages wp ON d.workpackage_id = wp.id
+      WHERE wp.project_id = $1
+    `, [projectId]);
+    
+    // 4. Check step_yearly_data
+    const stepYearlyRes = await Pool.query(`
+      SELECT syd.step_id, syd.year, syd.salaries_costs, syd.management_costs, syd.npt_costs, syd.it_costs, syd.premises_costs
+      FROM step_yearly_data syd
+      JOIN steps s ON syd.step_id = s.id
+      JOIN deliverables d ON s.deliverable_id = d.id
+      JOIN workpackages wp ON d.workpackage_id = wp.id
+      WHERE wp.project_id = $1 AND syd.year = $2
+      LIMIT 5
+    `, [projectId, currentYear]);
+    
+    // 5. Check project_countries
+    const countriesRes = await Pool.query(`
+      SELECT pc.country_id, pc.activity_rate
+      FROM project_countries pc
+      WHERE pc.project_id = $1
+    `, [projectId]);
+    
+    // 6. Check deliverable_yearly_quantities
+    const quantitiesRes = await Pool.query(`
+      SELECT dyq.deliverable_id, dyq.year_number, dyq.quantity, dyq.operational_to, dyq.dm_real, dyq.gmbs_real
+      FROM deliverable_yearly_quantities dyq
+      JOIN deliverables d ON dyq.deliverable_id = d.id
+      JOIN workpackages wp ON d.workpackage_id = wp.id
+      WHERE wp.project_id = $1
+    `, [projectId]);
+    
+    res.json({
+      projectId: Number(projectId),
+      year: currentYear,
+      diagnosis: {
+        project: projectRes.rows[0] || null,
+        deliverables: deliverablesRes.rows,
+        stepsCount: stepsRes.rows.length,
+        stepYearlyDataSample: stepYearlyRes.rows,
+        projectCountries: countriesRes.rows,
+        deliverableQuantities: quantitiesRes.rows
+      },
+      message: 'Diagnosis completed'
+    });
+    
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Error diagnosing bulk margin data' });
+  }
+};
+
+// TEST endpoint for new margin calculations
+export const testBulkMarginCalculation = async (req: Request, res: Response) => {
+  const { projectId } = req.params;
+  const { year } = req.query;
+  
+  try {
+    const currentYear = year ? Number(year) : new Date().getFullYear();
+    
+    // Test project-level calculation
+    const projectMargins = await calcProjectMargins(Number(projectId), currentYear, Pool as any);
+    
+    // Test deliverable-level calculations
+    const dRes = await Pool.query<{ id: number }>(`
+      SELECT d.id 
+      FROM deliverables d 
+      JOIN workpackages wp ON d.workpackage_id = wp.id 
+      WHERE wp.project_id = $1
+    `, [projectId]);
+    
+    const deliverableResults = [];
+    for (const d of dRes.rows) {
+      try {
+        const deliverableMargins = await calcDeliverableMargins(d.id, currentYear, Pool as any);
+        deliverableResults.push({
+          deliverableId: d.id,
+          margins: deliverableMargins
+        });
+      } catch (e: any) {
+        deliverableResults.push({
+          deliverableId: d.id,
+          error: e?.message || 'Unknown error'
+        });
+      }
+    }
+    
+    res.json({
+      projectId: Number(projectId),
+      year: currentYear,
+      projectMargins,
+      deliverableResults,
+      message: 'Test completed successfully'
+    });
+    
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Error testing bulk margin calculation' });
   }
 };

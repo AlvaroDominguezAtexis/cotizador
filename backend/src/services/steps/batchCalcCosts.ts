@@ -67,7 +67,7 @@ export async function batchCalcCosts(params: {
         managementCost
       });
     } catch (e) {
-      console.error(`Error calculating costs for step ${stepId} year ${year}:`, e);
+
       // Continue with next step
     }
   }

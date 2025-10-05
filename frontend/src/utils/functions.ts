@@ -2194,6 +2194,142 @@ export const testItCostBackendIntegration = async (projectId: number) => {
   }
 };
 
+// ============================
+// MARGIN CALCULATION DIAGNOSIS
+// ============================
+
+/**
+ * Diagnose bulk margin calculation data
+ */
+export async function diagnoseBulkMarginData(projectId: number, year?: number): Promise<any> {
+  try {
+    const currentYear = year || new Date().getFullYear();
+    const response = await fetch(`/projects/${projectId}/diagnose-margin-data?year=${currentYear}`);
+    const data = await response.json();
+    
+    console.log('🔍 MARGIN DATA DIAGNOSIS');
+    console.log('========================');
+    console.log(`📊 Project: ${projectId} | Year: ${currentYear}`);
+    console.log('');
+    
+    if (data.diagnosis) {
+      console.log('📋 Project Configuration:', data.diagnosis.project);
+      console.log(`📦 Deliverables: ${data.diagnosis.deliverables.length}`);
+      console.log(`🔧 Steps: ${data.diagnosis.stepsCount}`);
+      console.log(`📅 Step Yearly Data: ${data.diagnosis.stepYearlyDataSample.length} records`);
+      console.log(`🌍 Project Countries: ${data.diagnosis.projectCountries.length} records`);
+      console.log(`📈 Deliverable Quantities: ${data.diagnosis.deliverableQuantities.length} records`);
+      
+      if (data.diagnosis.stepYearlyDataSample.length > 0) {
+        console.log('\n💰 Sample Cost Data:');
+        data.diagnosis.stepYearlyDataSample.forEach((sample: any, idx: number) => {
+          console.log(`  Step ${idx + 1}: salaries=${sample.salaries_costs}, mgmt=${sample.management_costs}, it=${sample.it_costs}`);
+        });
+      }
+      
+      if (data.diagnosis.deliverableQuantities.length > 0) {
+        console.log('\n📊 Current Margin Values:');
+        data.diagnosis.deliverableQuantities.forEach((qty: any) => {
+          console.log(`  Deliverable ${qty.deliverable_id} Year ${qty.year_number}: TO=${qty.operational_to}, DM=${qty.dm_real}, GMBS=${qty.gmbs_real}`);
+        });
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Error diagnosing margin data:', error);
+    return { error: error };
+  }
+}
+
+/**
+ * Test bulk margin calculation
+ */
+export async function testBulkMarginCalculation(projectId: number, year?: number): Promise<any> {
+  try {
+    const currentYear = year || new Date().getFullYear();
+    const response = await fetch(`/projects/${projectId}/test-margins?year=${currentYear}`);
+    const data = await response.json();
+    
+    console.log('🧮 MARGIN CALCULATION TEST');
+    console.log('==========================');
+    console.log(`📊 Project: ${projectId} | Year: ${currentYear}`);
+    console.log('');
+    
+    if (data.projectMargins) {
+      console.log('🏢 Project-Level Margins:');
+      console.log(`  TO (Turnover): €${data.projectMargins.TO}`);
+      console.log(`  DM: ${data.projectMargins.DM}%`);
+      console.log(`  GMBS: ${data.projectMargins.GMBS}%`);
+      console.log(`  Total DM Costs: €${data.projectMargins.total_dm_costs}`);
+      console.log(`  Total GMBS Costs: €${data.projectMargins.total_gmbs_costs}`);
+      console.log('');
+    }
+    
+    if (data.deliverableResults && data.deliverableResults.length > 0) {
+      console.log('📦 Deliverable-Level Results:');
+      data.deliverableResults.forEach((result: any) => {
+        if (result.margins) {
+          console.log(`  Deliverable ${result.deliverableId}: TO=${result.margins.TO}, DM=${result.margins.DM}%, GMBS=${result.margins.GMBS}%`);
+        } else {
+          console.log(`  Deliverable ${result.deliverableId}: ERROR - ${result.error}`);
+        }
+      });
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Error testing margin calculation:', error);
+    return { error: error };
+  }
+}
+
+/**
+ * Test complete margin calculation workflow
+ */
+export async function testMarginCalculationWorkflow(projectId: number, year?: number): Promise<any> {
+  console.log('🚀 COMPLETE MARGIN CALCULATION WORKFLOW TEST');
+  console.log('=============================================');
+  
+  try {
+    // Step 1: Diagnose data
+    console.log('Step 1: Diagnosing data availability...');
+    const diagnosis = await diagnoseBulkMarginData(projectId, year);
+    
+    // Step 2: Test calculation
+    console.log('\nStep 2: Testing margin calculations...');
+    const testResults = await testBulkMarginCalculation(projectId, year);
+    
+    // Step 3: Trigger recalculation
+    console.log('\nStep 3: Triggering recalculation...');
+    const recalcResponse = await fetch(`/projects/${projectId}/recalc-margins-yearly`, {
+      method: 'POST'
+    });
+    const recalcData = await recalcResponse.json();
+    
+    console.log('📈 Recalculation Results:');
+    console.log(`  Processed ${recalcData.count} deliverable-year combinations`);
+    
+    if (recalcData.rows && recalcData.rows.length > 0) {
+      console.log('\n📊 Updated Values:');
+      recalcData.rows.forEach((row: any) => {
+        console.log(`  Deliverable ${row.deliverableId} Year ${row.year}: TO=${row.operationalTo}, DM=${row.dmRealPct}%, GMBS=${row.gmbsRealPct}%`);
+      });
+    }
+    
+    console.log('\n✅ Workflow completed successfully!');
+    return {
+      diagnosis,
+      testResults,
+      recalculation: recalcData
+    };
+    
+  } catch (error) {
+    console.error('❌ Workflow failed:', error);
+    return { error: error };
+  }
+}
+
 // Exportar funciones de test al window para debugging en navegador
 if (typeof window !== 'undefined') {
   (window as any).testManagementCosts = testManagementCosts;
@@ -2219,12 +2355,20 @@ if (typeof window !== 'undefined') {
   (window as any).calculateLicensePerUseCost = calculateLicensePerUseCost;
   (window as any).testLicensePerUse = testLicensePerUse;
   
+  // Margin calculation diagnosis functions
+  (window as any).diagnoseBulkMarginData = diagnoseBulkMarginData;
+  (window as any).testBulkMarginCalculation = testBulkMarginCalculation;
+  (window as any).testMarginCalculationWorkflow = testMarginCalculationWorkflow;
+  
   // Mostrar ayuda al cargar
   console.log('🎯 Management Cost Testing is available!');
   console.log('💡 Type window.testManagementCosts({...}) to test calculations');
   console.log('🔧 Type window.testBackendExpectedResult() to see expected backend result');
   console.log('🏢 Type window.testPremisesCost({...}) to test premises cost calculation');
   console.log('🏗️ Type window.testPremisesCostWorkflow({...}) to test complete premises workflow');
+  console.log('📊 Type window.diagnoseBulkMarginData(projectId) to diagnose margin calculation data');
+  console.log('🧮 Type window.testBulkMarginCalculation(projectId) to test new margin calculations');
+  console.log('🚀 Type window.testMarginCalculationWorkflow(projectId) for complete workflow test');
   console.log('� Type window.exampleGetPremisesRate() to see how to get premises rate from DB');
   console.log('�📖 Type window.examplePremisesCostUsage() to see usage examples');
 }

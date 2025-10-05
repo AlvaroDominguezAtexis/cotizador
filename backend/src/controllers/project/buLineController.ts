@@ -7,7 +7,7 @@ export const getBuLines = async (req: Request, res: Response) => {
     const result = await db.query('SELECT id, name FROM bu_line ORDER BY name ASC');
     res.json(result.rows);
   } catch (err) {
-    console.error('Error fetching BU lines:', err);
+
     res.status(500).json({ error: 'Error fetching BU lines' });
   }
 };

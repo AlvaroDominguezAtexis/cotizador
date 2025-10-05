@@ -38,7 +38,6 @@ export const getProjects = async (_req: Request, res: Response) => {
     const normalized = result.rows.map(r => normalizeProjectDates(r));
     res.json(normalized);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al obtener proyectos' });
   }
 };
@@ -65,7 +64,6 @@ export const getProjectById = async (req: Request, res: Response) => {
     }
     res.json(normalizeProjectDates(result.rows[0]));
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al obtener proyecto' });
   }
 };
@@ -188,11 +186,9 @@ export const createProject = async (req: Request, res: Response) => {
     );
 
   const returnedRow = fullProject.rows[0] ?? newProject;
-  if (!fullProject.rows[0]) console.warn('[createProject] final project SELECT returned no rows; falling back to inserted project object');
   res.status(201).json(normalizeProjectDates(returnedRow));
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error(err);
     res.status(500).json({ error: 'Error al crear proyecto' });
   } finally {
     client.release();
@@ -328,7 +324,6 @@ export const updateProject = async (req: Request, res: Response) => {
     res.json(normalizeProjectDates(fullProject.rows[0]));
   } catch (err) {
     await clientConn.query('ROLLBACK');
-    console.error(err);
     res.status(500).json({ error: 'Error al actualizar proyecto' });
   } finally {
     clientConn.release();
@@ -345,7 +340,6 @@ export const deleteProject = async (req: Request, res: Response) => {
     }
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al eliminar proyecto' });
   }
 };
@@ -420,7 +414,6 @@ export const clearProjectWorkPackages = async (req: Request, res: Response) => {
     
   } catch (err) {
     await clientConn.query('ROLLBACK');
-    console.error('Error al limpiar workpackages:', err);
     res.status(500).json({ error: 'Error al eliminar workpackages' });
   } finally {
     clientConn.release();

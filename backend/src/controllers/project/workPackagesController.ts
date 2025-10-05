@@ -17,7 +17,6 @@ export const getWorkPackages = async (req: Request, res: Response) => {
     const result = await Pool.query('SELECT * FROM workpackages WHERE project_id = $1 ORDER BY created_at DESC', [projectId]);
     res.json(result.rows.map(normalize));
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al obtener workpackages' });
   }
 };
@@ -36,7 +35,6 @@ export const createWorkPackage = async (req: Request, res: Response) => {
     );
     res.status(201).json(normalize(result.rows[0]));
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al crear workpackage' });
   }
 };
@@ -53,7 +51,6 @@ export const updateWorkPackage = async (req: Request, res: Response) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Workpackage no encontrado' });
     res.json(normalize(result.rows[0]));
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al actualizar workpackage' });
   }
 };
@@ -66,7 +63,6 @@ export const deleteWorkPackage = async (req: Request, res: Response) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Workpackage no encontrado' });
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Error al eliminar workpackage' });
   }
 };
@@ -147,7 +143,7 @@ export const createTimeAndMaterialWorkPackage = async (req: Request, res: Respon
           }
         }
       } catch (nameError) {
-        console.warn('Error generando nombre del workpackage, usando nombre por defecto:', nameError);
+
         // Mantener el nombre por defecto si hay error
       }
     }
@@ -205,12 +201,12 @@ export const createTimeAndMaterialWorkPackage = async (req: Request, res: Respon
         if (countryDefaultsResult.rows.length > 0) {
           const countryData = countryDefaultsResult.rows[0];
           defaultMng = countryData.mng != null ? Number(countryData.mng) : 0;
-          console.log(`Valores por defecto para país ${row.countryId}:`, { defaultMng, defaultOffice, defaultHardware });
+
         } else {
-          console.warn(`No se encontró configuración de país en project_countries para proyecto ${projectId}, país ${row.countryId}`);
+
         }
       } catch (defaultsError) {
-        console.warn('Error obteniendo valores por defecto del país:', defaultsError);
+
         // Continuar con valores por defecto globales
       }
 
@@ -279,7 +275,7 @@ export const createTimeAndMaterialWorkPackage = async (req: Request, res: Respon
 
   } catch (err: any) {
     await client.query('ROLLBACK');
-    console.error('Error creating Time & Material workpackage:', err);
+
     
     if (err.code === '23505') {
       return res.status(409).json({ error: 'Ya existe un workpackage o deliverable con ese código' });
@@ -298,7 +294,7 @@ export const createTimeAndMaterialWorkPackage = async (req: Request, res: Respon
 export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response) => {
   const { projectId } = req.params;
 
-  console.log(`🔍 GET Time & Material para proyecto ${projectId}`);
+
 
   try {
     // Nueva lógica: Obtener TODOS los steps de Time & Material del proyecto,
@@ -321,7 +317,7 @@ export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response)
       ORDER BY w.created_at DESC, s.id, syd.year
     `, [projectId]);
 
-    console.log(`📊 Encontrados ${allStepsResult.rows.length} registros con steps`);
+
 
     if (allStepsResult.rows.length === 0) {
       // No hay steps, buscar el workpackage más reciente que sea Time & Material por código
@@ -331,10 +327,10 @@ export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response)
         ORDER BY created_at DESC LIMIT 1
       `, [projectId]);
 
-      console.log(`🏗️ Buscando workpackages sin steps: ${wpResult.rows.length} encontrados`);
+
 
       if (wpResult.rows.length === 0) {
-        console.log('❌ No se encontraron workpackages Time & Material');
+
         return res.json({
           workpackage: null,
           deliverable: null,
@@ -343,7 +339,7 @@ export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response)
       }
 
       const workpackage = wpResult.rows[0];
-      console.log('Sin steps existentes, usando workpackage más reciente:', workpackage.id);
+
 
       // Buscar el deliverable "profiles" asociado
       const deliverableResult = await Pool.query(`
@@ -352,7 +348,7 @@ export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response)
         LIMIT 1
       `, [workpackage.id]);
 
-      console.log(`📦 Deliverable encontrado: ${deliverableResult.rows.length > 0 ? 'Sí' : 'No'}`);
+
 
       return res.json({
         workpackage: normalize(workpackage),
@@ -385,7 +381,7 @@ export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response)
       margin_goal: firstRow.margin_goal
     };
 
-    console.log('Steps encontrados distribuidos en Time & Material, usando workpackage principal:', workpackage.id);
+
 
     // Agrupar steps y sus datos anuales (pueden venir de múltiples workpackages)
     const stepsMap = new Map();
@@ -431,18 +427,7 @@ export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response)
 
     const steps = Array.from(stepsMap.values());
     
-    console.log('✅ GetTimeAndMaterialWorkPackage - Resultado final:', {
-      workpackageId: workpackage?.id,
-      workpackageName: workpackage?.nombre,
-      deliverableId: deliverable?.id,
-      stepsCount: steps.length,
-      steps: steps.map(s => ({ 
-        stepId: s.id, 
-        stepName: s.stepName,
-        profileId: s.profileId,
-        countryId: s.countryId
-      }))
-    });
+
 
     res.json({
       workpackage: normalize(workpackage),
@@ -457,7 +442,7 @@ export const getTimeAndMaterialWorkPackage = async (req: Request, res: Response)
     });
 
   } catch (err: any) {
-    console.error('Error fetching Time & Material workpackage:', err);
+
     res.status(500).json({ 
       error: 'Error al obtener workpackage Time & Material',
       details: err.message
@@ -535,12 +520,12 @@ export const updateTimeAndMaterialStep = async (req: Request, res: Response) => 
       if (countryDefaultsResult.rows.length > 0) {
         const countryData = countryDefaultsResult.rows[0];
         defaultMng = countryData.mng != null ? Number(countryData.mng) : 0;
-        console.log(`Valores por defecto para país ${countryId} en actualización:`, { defaultMng, defaultOffice, defaultHardware });
+
       } else {
-        console.warn(`No se encontró configuración de país en project_countries para proyecto ${projectId}, país ${countryId}`);
+
       }
     } catch (defaultsError) {
-      console.warn('Error obteniendo valores por defecto del país en actualización:', defaultsError);
+
       // Continuar con valores por defecto globales
     }
 
@@ -615,7 +600,7 @@ export const updateTimeAndMaterialStep = async (req: Request, res: Response) => 
 
   } catch (err: any) {
     await client.query('ROLLBACK');
-    console.error('Error updating Time & Material step:', err);
+
     res.status(500).json({ 
       error: 'Error al actualizar perfil Time & Material',
       details: err.message
@@ -629,7 +614,7 @@ export const updateTimeAndMaterialStep = async (req: Request, res: Response) => 
 export const deleteStep = async (req: Request, res: Response) => {
   const { projectId, workpackageId, stepId } = req.params;
   
-  console.log('Eliminando perfil Time & Material:', { projectId, workpackageId, stepId });
+
   
   const client = await Pool.connect();
   try {
@@ -645,18 +630,14 @@ export const deleteStep = async (req: Request, res: Response) => {
     `, [stepId, projectId]);
 
     if (stepCheck.rows.length === 0) {
-      console.log('Step no encontrado en el proyecto');
+
       return res.status(404).json({ error: 'Step no encontrado o no pertenece al proyecto' });
     }
 
     const step = stepCheck.rows[0];
     const realWorkpackageId = step.workpackage_id;
     
-    console.log('Eliminando workpackage completo:', {
-      workpackageId: realWorkpackageId,
-      workpackageName: step.workpackage_name,
-      stepId: stepId
-    });
+
 
     // 2. Eliminar el workpackage completo - CASCADE se encargará del resto
     // Esto eliminará automáticamente:
@@ -675,7 +656,7 @@ export const deleteStep = async (req: Request, res: Response) => {
 
     await client.query('COMMIT');
 
-    console.log('✅ Workpackage Time & Material eliminado completamente con CASCADE');
+
 
     res.json({ 
       success: true,
@@ -687,7 +668,7 @@ export const deleteStep = async (req: Request, res: Response) => {
 
   } catch (err: any) {
     await client.query('ROLLBACK');
-    console.error('Error eliminando perfil Time & Material:', err);
+
     res.status(500).json({ 
       error: 'Error al eliminar perfil Time & Material',
       details: err.message

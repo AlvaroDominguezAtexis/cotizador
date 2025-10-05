@@ -39,7 +39,7 @@ export const switchProjectProfile = async (req: Request, res: Response) => {
       // Unique violation, ya existe project_id + to_profile_id
       return res.status(409).json({ error: 'This profile is already existing in this project' });
     }
-    console.error('Error al cambiar project_profile:', err);
+
     return res.status(500).json({ error: 'Error al cambiar project_profile', details: err });
   }
 };
@@ -104,7 +104,7 @@ export const deleteProjectProfile = async (req: Request, res: Response) => {
   res.status(200).json({ success: true, stepsDeleted: force ? stepsCount : 0 });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error al eliminar relación project_profile:', err);
+
     return res.status(500).json({ error: 'Error al eliminar relación project_profile', details: err });
   } finally {
     client.release();
@@ -203,7 +203,7 @@ export const addProjectProfile = async (req: Request, res: Response) => {
     return res.status(201).json({ id: projectProfileId });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error addProjectProfile:', err);
+
     return res.status(500).json({ error: 'Error creando relación project_profile' });
   } finally {
     client.release();
@@ -222,11 +222,11 @@ export const getProjectProfiles = async (req: Request, res: Response) => {
       [project_id]
     );
     
-    console.log('Project Profiles:', result.rows);
+
     
     res.json(result.rows);
   } catch (err) {
-    console.error('Error al obtener perfiles del proyecto:', err);
+
     res.status(500).json({ error: 'Error al obtener perfiles del proyecto', details: err });
   }
 };

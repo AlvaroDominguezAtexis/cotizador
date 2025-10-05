@@ -70,7 +70,7 @@ app.use('/projects/:projectId/countries-hours-per-day', projectCountriesHoursPer
 app.use('/projects/:projectId/countries-holidays', projectCountriesHolidaysRouter);
 app.use('/projects/:projectId/countries-total-days', projectCountriesTotalDaysRouter);
 // Debug route registration
-console.log('Registering management salary routes at /projects/:projectId/countries-management');
+
 app.use('/projects/:projectId/countries-management', projectCountriesManagementRouter);
 app.use('/projects/:projectId/countries-mng', projectCountriesMngRouter);
 app.use('/projects/:projectId/countries-markup', projectCountriesMarkupRouter);

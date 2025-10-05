@@ -175,7 +175,7 @@ export async function calcStepManagementCost(params: {
 }> {
   const { stepId, db, year } = params;
 
-  console.log(`\n🚀 STARTING calcStepManagementCost for Step ID: ${stepId}, Year: ${year || 'auto'}`);
+
 
   // 1) Load step with project and country info
   const stepRes = await db.query(

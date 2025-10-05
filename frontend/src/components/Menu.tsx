@@ -207,8 +207,8 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
                 <td>{quote.client || '-'}</td>
                 <td>{new Date(quote.createdAt).toLocaleDateString()}</td>
                 <td>{quote.status || 'Borrador'}</td>
-                <td>{quote.totalAmount ? `$${quote.totalAmount.toLocaleString()}` : '-'}</td>
-                <td>{quote.DM || 'Borrador'}</td>
+                <td>{quote.totalAmount ? `${Number(quote.totalAmount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}</td>
+                <td>{quote.DM != null ? `${Number(quote.DM).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : 'Borrador'}</td>
                 <td className="action-cell">
                   <Button
                     variant="danger"

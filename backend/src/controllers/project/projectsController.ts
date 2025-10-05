@@ -25,19 +25,76 @@ export const getProjects = async (_req: Request, res: Response) => {
   try {
     const query = `
       SELECT p.*,
-             COALESCE(pc.countries, '[]') AS countries
+             COALESCE(c.name, p.client) AS client,
+             COALESCE(pc.countries, '[]') AS countries,
+             COALESCE(oper.operational_to, 0)::numeric AS to
       FROM projects p
+      LEFT JOIN clients c ON c.id = p.client::integer
       LEFT JOIN (
         SELECT project_id, json_agg(country_id ORDER BY country_id) AS countries
         FROM project_countries
         GROUP BY project_id
       ) pc ON pc.project_id = p.id
+      LEFT JOIN (
+        SELECT wp.project_id,
+               COALESCE(SUM(dyq.operational_to), 0) AS operational_to
+        FROM workpackages wp
+        LEFT JOIN deliverables d ON d.workpackage_id = wp.id
+        LEFT JOIN deliverable_yearly_quantities dyq ON dyq.deliverable_id = d.id
+        GROUP BY wp.project_id
+      ) oper ON oper.project_id = p.id
       ORDER BY p.created_at DESC;
     `;
     const result = await Pool.query(query);
-    const normalized = result.rows.map(r => normalizeProjectDates(r));
-    res.json(normalized);
+    
+    // Calculate DM for each project (simplified approach)
+    const projectsWithDM = await Promise.all(
+      result.rows.map(async (row) => {
+        const normalizedProject = normalizeProjectDates(row);
+        
+        try {
+          // Use the same logic as Summary Detail: call the deliverables-costs-breakdown endpoint
+          if (normalizedProject.to && normalizedProject.to > 0) {
+            // Import and use the same function that Summary Detail uses
+            const { getProjectDeliverablesCostsBreakdown } = require('./deliverablesController');
+            
+            // Create a mock request/response to call the function
+            const mockReq = { params: { projectId: normalizedProject.id } } as any;
+            let totalDmCosts = 0;
+            
+            const mockRes = {
+              json: (data: any) => {
+                // Extract totalCosts from workPackages just like Summary Detail does
+                if (data.workPackages && Array.isArray(data.workPackages)) {
+                  totalDmCosts = data.workPackages.reduce((sum: number, wp: any) => {
+                    return sum + (wp.totals?.totalCosts || 0);
+                  }, 0);
+                }
+              },
+              status: () => mockRes,
+            } as any;
+            
+            await getProjectDeliverablesCostsBreakdown(mockReq, mockRes);
+            
+            const to = Number(normalizedProject.to);
+            
+            // Calculate DM using the same formula as Summary Detail: (TO - DM_costs) / TO * 100
+            normalizedProject.dm = to > 0 && totalDmCosts >= 0 ? ((to - totalDmCosts) / to) * 100 : null;
+          } else {
+            normalizedProject.dm = null;
+          }
+        } catch (err) {
+          console.error(`Error calculating DM for project ${normalizedProject.id}:`, err);
+          normalizedProject.dm = null;
+        }
+        
+        return normalizedProject;
+      })
+    );
+    
+    res.json(projectsWithDM);
   } catch (err) {
+    console.error('Error in getProjects:', err);
     res.status(500).json({ error: 'Error al obtener proyectos' });
   }
 };

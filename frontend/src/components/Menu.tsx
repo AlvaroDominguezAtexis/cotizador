@@ -44,23 +44,28 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
     const fetchProjects = async () => {
       setLoading(true);
       try {
-        const response = await fetch('/projects');
+        const response = await fetch('http://localhost:4000/api/projects', {
+          credentials: 'include'
+        });
         if (!response.ok) throw new Error('Error fetching projects');
         const data = await response.json();
+        
         // Guardamos el objeto completo para poder mapearlo después correctamente
         setQuotes(
-          data.map((project: any) => ({
-            // Campos para la tabla
-            id: project.id,
-            name: project.title,
-            client: project.client,
-            createdAt: project.created_at,
-            status: project.status,
-            totalAmount: project.to,
-            DM: project.dm,
-            // Guardamos todos los datos originales para abrir el proyecto correctamente
-            ...project
-          }))
+          data.map((project: any) => {
+            return {
+              // Guardamos todos los datos originales para abrir el proyecto correctamente
+              ...project,
+              // Campos para la tabla (DESPUÉS del spread para sobrescribir)
+              id: project.id,
+              name: project.title,
+              client: project.client_name, // Usar client_name del backend
+              createdAt: project.created_at,
+              status: project.status,
+              totalAmount: project.to,
+              DM: project.dm
+            };
+          })
         );
       } catch (error) {
         console.error('Error fetching projects', error);
@@ -217,7 +222,10 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
                     onClick={e => {
                       e.stopPropagation();
                       if (window.confirm('¿Seguro que deseas eliminar este proyecto?')) {
-                        fetch(`/projects/${quote.id}`, { method: 'DELETE' })
+                        fetch(`http://localhost:4000/api/projects/${quote.id}`, { 
+                          method: 'DELETE', 
+                          credentials: 'include' 
+                        })
                           .then(() => {
                             setQuotes(prev => prev.filter(q => q.id !== quote.id));
                           });

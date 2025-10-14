@@ -30,7 +30,9 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/countries');
+        const res = await fetch('http://localhost:4000/api/countries', {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('Error fetching countries');
         const data = await res.json();
         setAvailableCountries(data);

@@ -19,8 +19,6 @@ import {
 	getProjectCountriesTotalDays,
 	upsertProjectCountryTotalDays,
 	addProjectCountry,
-	getProjectCountriesManagementSalary,
-	upsertProjectCountryManagementSalary,
 	getProjectCountriesMng,
 	getProjectCountriesMarkup,
 	upsertProjectCountryMarkup,
@@ -66,18 +64,6 @@ projectCountriesHolidaysRouter.put('/:countryId', upsertProjectCountryHolidays);
 export const projectCountriesTotalDaysRouter = express.Router({ mergeParams: true });
 projectCountriesTotalDaysRouter.get('/', getProjectCountriesTotalDays);
 projectCountriesTotalDaysRouter.put('/:countryId', upsertProjectCountryTotalDays);
-
-export const projectCountriesManagementRouter = express.Router({ mergeParams: true });
-
-// Add a test route
-projectCountriesManagementRouter.get('/test', (req, res) => {
-  console.log('Test route hit');
-  console.log('Params:', req.params);
-  res.json({ message: 'Management salary router is working', params: req.params });
-});
-
-projectCountriesManagementRouter.get('/', getProjectCountriesManagementSalary);
-projectCountriesManagementRouter.put('/:countryId', upsertProjectCountryManagementSalary);
 
 export const projectCountriesMngRouter = express.Router({ mergeParams: true });
 projectCountriesMngRouter.get('/', getProjectCountriesMng);

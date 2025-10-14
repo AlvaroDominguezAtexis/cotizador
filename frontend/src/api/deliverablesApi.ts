@@ -1,6 +1,6 @@
 import { Deliverable } from '../types/workPackages';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+import { apiConfig } from '../utils/apiConfig';
 
 export interface DeliverablePayload {
   codigo: string;
@@ -24,16 +24,16 @@ const mapFromBackend = (d: any): Deliverable => ({
 });
 
 export const fetchDeliverables = async (projectId: number, workPackageId: number, yearCount?: number): Promise<Deliverable[]> => {
-  let url = `${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables`;
+  let url = `/api/projects/${projectId}/workpackages/${workPackageId}/deliverables`;
   if (yearCount) url += `?yearCount=${yearCount}`;
-  const res = await fetch(url);
+  const res = await fetch(apiConfig.url(url));
   if (!res.ok) throw new Error('Error fetching deliverables');
   const data = await res.json();
   return data.map(mapFromBackend);
 };
 
 export const createDeliverableApi = async (projectId: number, workPackageId: number, payload: DeliverablePayload): Promise<Deliverable> => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables`, {
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables`), {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
   if (!res.ok) {
@@ -44,7 +44,7 @@ export const createDeliverableApi = async (projectId: number, workPackageId: num
 };
 
 export const updateDeliverableApi = async (projectId: number, workPackageId: number, id: number, payload: Partial<DeliverablePayload>): Promise<Deliverable> => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables/${id}`, {
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${id}`), {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   });
   if (!res.ok) {
@@ -55,12 +55,12 @@ export const updateDeliverableApi = async (projectId: number, workPackageId: num
 };
 
 export const deleteDeliverableApi = async (projectId: number, workPackageId: number, id: number): Promise<void> => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${workPackageId}/deliverables/${id}`, { method: 'DELETE' });
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${id}`), { method: 'DELETE' });
   if (!res.ok) throw new Error('Error eliminando deliverable');
 };
 
 export const recalcProjectMarginsYearlyApi = async (projectId: number) => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/recalc-margins-yearly`, { method: 'POST' });
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/recalc-margins-yearly`), { method: 'POST' });
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`Error recalculando deliverables yearly: ${res.status} ${txt}`);

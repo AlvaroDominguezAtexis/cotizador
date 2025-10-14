@@ -3,6 +3,8 @@ import { getProjectCountriesManagementSalary, updateProjectCountriesManagementSa
 
 const router = Router();
 
+
+
 router.get('/projects/:projectId/countries-management-salary', getProjectCountriesManagementSalary);
 router.put('/projects/:projectId/countries-management-salary', updateProjectCountriesManagementSalary);
 

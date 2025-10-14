@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { fetchTimeAndMaterialWorkPackage, updateTimeAndMaterialProfile } from '../../api/timeAndMaterialApi';
+import { apiConfig } from '../../utils/apiConfig';
 import './TimeAndMaterial.css';
 
 interface ProfileRow {
@@ -52,8 +53,6 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
   
   // Estado para manejar ciudades por país
   const [citiesByCountry, setCitiesByCountry] = useState<Record<string, Array<{id: number; name: string}>>>({});
-  
-  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
   /**
    * Función para calcular días laborales entre dos fechas (lunes a viernes)
@@ -498,7 +497,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     if (!countryId || citiesByCountry[countryId]) return;
     
     try {
-      const res = await fetch(`${API_BASE}/countries/${countryId}/cities`);
+      const res = await fetch(apiConfig.url(`/api/countries/${countryId}/cities`));
       if (!res.ok) throw new Error('Error fetching cities');
       const cities = await res.json();
       setCitiesByCountry(prev => ({
@@ -682,7 +681,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
   // Función para crear un nuevo perfil
   const createProfile = async (rowData: any) => {
     try {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/workpackages/time-and-material`, {
+      const response = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/time-and-material`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -766,7 +765,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     });
 
     try {
-      const url = `${API_BASE}/projects/${projectId}/workpackages/${workpackageIdToUse}/steps/${stepId}`;
+      const url = apiConfig.url(`/api/projects/${projectId}/workpackages/${workpackageIdToUse}/steps/${stepId}`);
       console.log('URL de eliminación:', url);
 
       const response = await fetch(url, {

@@ -2,63 +2,6 @@ import { Request, Response } from 'express';
 import db from '../../db';
 
 // Functions for managing project countries
-export const getProjectCountriesManagementSalary = async (req: Request, res: Response) => {
-  console.log('getProjectCountriesManagementSalary called');
-  console.log('Request params:', req.params);
-  const { projectId } = req.params as { projectId: string };
-  if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
-  try {
-    console.log('Executing query for projectId:', projectId);
-    const q = `
-      SELECT pc.country_id, c.name AS country_name, pc.management_yearly_salary
-      FROM project_countries pc
-      JOIN countries c ON c.id = pc.country_id
-      WHERE pc.project_id = $1
-      ORDER BY c.name ASC
-    `;
-    const { rows } = await db.query(q, [projectId]);
-    console.log('Query results:', rows);
-    res.json(rows);
-  } catch (e) {
-    console.error('getProjectCountriesManagementSalary error:', e);
-    console.error('Error stack:', (e as Error).stack);
-    res.status(500).json({ error: 'Error al obtener salarios de Project Manager por país' });
-  }
-};
-
-export const upsertProjectCountryManagementSalary = async (req: Request, res: Response) => {
-  console.log('upsertProjectCountryManagementSalary called');
-  console.log('Request params:', req.params);
-  console.log('Request body:', req.body);
-  
-  const { projectId, countryId } = req.params as { projectId: string; countryId: string };
-  const { management_yearly_salary } = req.body as { management_yearly_salary?: number | string | null };
-  
-  if (!projectId || !countryId) return res.status(400).json({ error: 'projectId y countryId requeridos' });
-  if (management_yearly_salary == null || isNaN(Number(management_yearly_salary))) {
-    return res.status(400).json({ error: 'management_yearly_salary numérico requerido' });
-  }
-  
-  const salary = Number(management_yearly_salary);
-  if (salary < 0) return res.status(400).json({ error: 'management_yearly_salary debe ser >= 0' });
-  
-  try {
-    const q = `
-      UPDATE project_countries 
-      SET management_yearly_salary = $1
-      WHERE project_id = $2 AND country_id = $3
-      RETURNING project_id, country_id, management_yearly_salary
-    `;
-    const { rows } = await db.query(q, [salary, projectId, countryId]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'País no encontrado en el proyecto' });
-    }
-    res.json(rows[0]);
-  } catch (e) {
-    console.error('upsertProjectCountryManagementSalary error', e);
-    res.status(500).json({ error: 'Error al actualizar salario de Project Manager' });
-  }
-};
 
 // GET /projects/:projectId/countries-cpi
 export const getProjectCountriesCpi = async (req: Request, res: Response) => {

@@ -15,6 +15,7 @@ import { NonOperationalCost } from './types/nonOperationalCost';
 import './App.css';
 import { useCountryNames } from './hooks/useCountryNames';
 import { mapProjectFromBackend } from './utils/projectMapper';
+import { useAuth } from './hooks/useAuth';
 
 // mapper moved to ./utils/projectMapper
 
@@ -22,44 +23,7 @@ interface ExtendedProjectData extends ProjectData {
   [key: string]: any;
 }
 
-// 🔹 Hook de autenticación
-const useAuth = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<string | null>(null);
-
-  useEffect(() => {
-    const savedSession = localStorage.getItem('isLoggedIn');
-    const savedUser = localStorage.getItem('user');
-    if (savedSession === 'true' && savedUser) {
-      setIsLoggedIn(true);
-      setUser(savedUser);
-    }
-  }, []);
-
-  const login = async (username: string, password: string): Promise<boolean> => {
-    if (username === 'admin' && password === 'admin') {
-      setIsLoggedIn(true);
-      setUser(username);
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('user', username);
-      return true;
-    }
-    return false;
-  };
-
-  const logout = () => {
-    setIsLoggedIn(false);
-    setUser(null);
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('user');
-  };
-
-  return { isLoggedIn, user, login, logout };
-};
-
-
 const App: React.FC = () => {
-
   const { isLoggedIn, user, login, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabName>('project-data');
   // Guarda el proyecto (sin salir necesariamente al menú)
@@ -73,9 +37,10 @@ const App: React.FC = () => {
       let response, responseText;
       let mappedProject: ProjectData | null = null;
       if (!projectFormData.id) {
-        response = await fetch('/projects', {
+        response = await fetch('http://localhost:4000/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify(backendData),
         });
         responseText = await response.text();
@@ -85,9 +50,10 @@ const App: React.FC = () => {
   setSelectedProject(mappedProject);
   setProjectFormData(mappedProject);
       } else {
-        response = await fetch(`/projects/${projectFormData.id}`, {
+        response = await fetch(`http://localhost:4000/api/projects/${projectFormData.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify(backendData),
         });
         responseText = await response.text();
@@ -188,7 +154,7 @@ const App: React.FC = () => {
   };
 
   const handleLoginSubmit = async (credentials: { username: string; password: string }): Promise<boolean> => {
-    const success = await login(credentials.username, credentials.password);
+    const success = await login(credentials);
     return success;
   };
 
@@ -204,7 +170,7 @@ const App: React.FC = () => {
       ...(data.id ? { id: data.id } : {}),
       title: data.title?.trim() || '',
       crm_code: data.crmCode?.trim() || '',
-      client: data.client?.trim() || '',
+      client: data.client || '', // No hacer trim aquí ya que puede ser ID (número)
       activity: data.activity?.trim() || '',
       start_date: formatDateLocal(data.startDate),
       end_date: formatDateLocal(data.endDate),
@@ -230,7 +196,9 @@ const App: React.FC = () => {
     const pid = explicitProjectId ?? projectFormData?.id;
     if (pid) {
       try {
-        const res = await fetch(`/project-profiles/${pid}`);
+        const res = await fetch(`http://localhost:4000/api/project-profiles/${pid}`, {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('No se pudieron cargar los perfiles del proyecto');
         const data = await res.json();
         const mapped = (data || []).map((p: any) => ({
@@ -319,7 +287,7 @@ const App: React.FC = () => {
     return (
       <div className="app">
         <Menu
-          user={user as string}
+          user={user?.name || 'Usuario'}
           onGoToProjectDataTab={() => {
             setShowMainApp(true);
             setSelectedProject(null);
@@ -346,7 +314,7 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <Layout
-        user={user}
+        user={user?.name || 'Usuario'}
         onLogout={() => {
           logout();
           setShowMainApp(false);

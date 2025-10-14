@@ -62,14 +62,18 @@ interface AllocationSummary {
 }
 
 async function fetchAllocationSummary(projectId: string | number): Promise<AllocationSummary> {
-  const res = await fetch(`/projects/${projectId}/allocations/summary`);
+  const res = await fetch(`http://localhost:4000/api/projects/${projectId}/allocations/summary`, {
+    credentials: 'include'
+  });
   if (!res.ok) throw new Error(`No se pudo cargar el resumen de allocations (${res.status})`);
   return await res.json();
 }
 
 async function fetchAllocations(projectId: string | number): Promise<Allocation[]> {
   // Usa el proxy del frontend hacia el backend: /projects/:id/allocations
-  const res = await fetch(`/projects/${projectId}/allocations`);
+  const res = await fetch(`http://localhost:4000/api/projects/${projectId}/allocations`, {
+    credentials: 'include'
+  });
   if (!res.ok) throw new Error(`No se pudo cargar allocations (${res.status})`);
   const raw = await res.json();
   return (raw as any[]).map((r) => ({
@@ -248,7 +252,9 @@ const SummaryDocument: React.FC<Props> = ({
           setSummary(summaryData);
           // fetch operational revenue (sum of operational_to in deliverable_yearly_quantities)
           try {
-            const rr = await fetch(`/projects/${effectiveProjectId}/operational-revenue`);
+            const rr = await fetch(`http://localhost:4000/api/projects/${effectiveProjectId}/operational-revenue`, {
+              credentials: 'include'
+            });
             if (rr.ok) {
               const j = await rr.json();
               setOperationalRevenue(Number(j.operationalRevenue || 0));
@@ -262,7 +268,9 @@ const SummaryDocument: React.FC<Props> = ({
           }
           // fetch hourly price
           try {
-            const hp = await fetch(`/projects/${effectiveProjectId}/hourly-price`);
+            const hp = await fetch(`http://localhost:4000/api/projects/${effectiveProjectId}/hourly-price`, {
+              credentials: 'include'
+            });
             if (hp.ok) {
               const hj = await hp.json();
               setHourlyPriceRemote(Number(hj.hourlyPrice || 0));
@@ -276,7 +284,9 @@ const SummaryDocument: React.FC<Props> = ({
           }
           // fetch deliverables costs -> to compute Hourly Costs = totalCosts / totalHours
           try {
-            const cc = await fetch(`/projects/${effectiveProjectId}/deliverables-costs`);
+            const cc = await fetch(`http://localhost:4000/api/projects/${effectiveProjectId}/deliverables-costs`, {
+              credentials: 'include'
+            });
             if (cc.ok) {
               const cj = await cc.json();
               const totalCosts = Number(cj.totalCosts || 0);
@@ -300,7 +310,9 @@ const SummaryDocument: React.FC<Props> = ({
 
             // fetch financial breakdown per workpackage/deliverable
             try {
-              const fb = await fetch(`/projects/${effectiveProjectId}/deliverables-costs-breakdown`);
+              const fb = await fetch(`http://localhost:4000/api/projects/${effectiveProjectId}/deliverables-costs-breakdown`, {
+                credentials: 'include'
+              });
               if (fb.ok) {
                 const fj = await fb.json();
                 const rawWorkPackages = Array.isArray(fj.workPackages) ? fj.workPackages : (fj.workPackages || []);
@@ -327,7 +339,9 @@ const SummaryDocument: React.FC<Props> = ({
 
             // fetch customer unit prices existentes para poblar placeholders
             try {
-              const cup = await fetch(`/projects/${effectiveProjectId}/customer-unit-prices`);
+              const cup = await fetch(`http://localhost:4000/api/projects/${effectiveProjectId}/customer-unit-prices`, {
+                credentials: 'include'
+              });
               if (cup.ok) {
                 const cupj = await cup.json();
                 const prices = cupj.customerUnitPrices || {};
@@ -789,11 +803,12 @@ const SummaryDocument: React.FC<Props> = ({
                             }
                             
                             try {
-                              const response = await fetch(`/deliverables/${deliverable.id}/customer-unit-price`, {
+                              const response = await fetch(`http://localhost:4000/api/deliverables/${deliverable.id}/customer-unit-price`, {
                                 method: 'PUT',
                                 headers: {
                                   'Content-Type': 'application/json',
                                 },
+                                credentials: 'include',
                                 body: JSON.stringify({ customer_unit_price: newValue })
                               });
                               

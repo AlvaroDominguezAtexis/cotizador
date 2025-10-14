@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiConfig } from '../utils/apiConfig';
 
 export interface OfficialProfile {
   id: string;
@@ -13,7 +14,9 @@ export function useOfficialProfiles() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch('/profiles?official=true')
+    fetch(apiConfig.url('/api/profiles?official=true'), {
+      credentials: 'include'
+    })
       .then(res => res.json())
       .then((data: OfficialProfile[]) => {
         setProfiles(data);

@@ -4,8 +4,22 @@ import db from '../../db';
 // GET /projects/:projectId/countries-management-salary
 export const getProjectCountriesManagementSalary = async (req: Request, res: Response) => {
   const { projectId } = req.params as { projectId: string };
+  const user = (req as any).user;
+  
   if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  if (!user) return res.status(401).json({ error: 'Usuario no autenticado' });
+  
   try {
+    // Verify project ownership
+    const projectCheck = await db.query(
+      'SELECT id FROM projects WHERE id = $1 AND created_by = $2',
+      [projectId, user.id]
+    );
+    
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Proyecto no encontrado o sin permisos' });
+    }
+    
     const q = `
       SELECT pc.country_id, c.name AS country_name, pc.management_yearly_salary
       FROM project_countries pc
@@ -25,11 +39,23 @@ export const getProjectCountriesManagementSalary = async (req: Request, res: Res
 export const updateProjectCountriesManagementSalary = async (req: Request, res: Response) => {
   const { projectId } = req.params as { projectId: string };
   const updates = req.body as Array<{ country_id: string; management_yearly_salary: number | null }>;
+  const user = (req as any).user;
   
   if (!projectId) return res.status(400).json({ error: 'projectId requerido' });
+  if (!user) return res.status(401).json({ error: 'Usuario no autenticado' });
   if (!Array.isArray(updates)) return res.status(400).json({ error: 'Body debe ser un array' });
   
   try {
+    // Verify project ownership
+    const projectCheck = await db.query(
+      'SELECT id FROM projects WHERE id = $1 AND created_by = $2',
+      [projectId, user.id]
+    );
+    
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Proyecto no encontrado o sin permisos' });
+    }
+    
     await db.query('BEGIN');
     
     for (const update of updates) {

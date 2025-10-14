@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiConfig } from '../utils/apiConfig';
 
 export interface Country {
   id: string;
@@ -17,7 +18,9 @@ export function useCountryNames(ids: string[] = []) {
     }
     setLoading(true);
     setError(null);
-    fetch('/countries')
+    fetch(apiConfig.url('/api/countries'), {
+      credentials: 'include'
+    })
       .then(res => res.json())
       .then((all: Country[]) => {
         // Mantener el orden de ids

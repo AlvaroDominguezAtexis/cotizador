@@ -4,7 +4,8 @@ import { Button } from '../ui/Button';
 import StepsTable from './StepsTable';
 import './WorkPackages.css';
 import { createDeliverableApi, updateDeliverableApi, deleteDeliverableApi, fetchDeliverables } from '../../api/deliverablesApi';
-import { fetchSteps, createStepApi, updateStepApi, deleteStepApi, API_BASE } from '../../api/stepsApi';
+import { fetchSteps, createStepApi, updateStepApi, deleteStepApi } from '../../api/stepsApi';
+import { apiConfig } from '../../utils/apiConfig';
 
 interface Props {
   deliverables: Deliverable[]; // initial fallback list (will be overridden by backend fetch)
@@ -80,7 +81,7 @@ const DeliverablesTable: React.FC<Props> = ({
           const cacheKey = String(countryId);
           if (!cityCache[cacheKey]) {
             try {
-              const res = await fetch(`${API_BASE}/countries/${countryId}/cities`);
+              const res = await fetch(apiConfig.url(`/api/countries/${countryId}/cities`));
               if (res.ok) cityCache[cacheKey] = await res.json(); else cityCache[cacheKey] = [];
             } catch { cityCache[cacheKey] = []; }
           }
@@ -125,7 +126,7 @@ const DeliverablesTable: React.FC<Props> = ({
             const cityCache: Record<string, Array<{id:any;name:string}>> = {};
             for (const cid of Array.from(countryIdsToFetch)) {
               try {
-                const res = await fetch(`${API_BASE}/countries/${cid}/cities`);
+                const res = await fetch(apiConfig.url(`/api/countries/${cid}/cities`));
                 cityCache[cid] = res.ok ? await res.json() : [];
               } catch { cityCache[cid] = []; }
             }
@@ -171,7 +172,7 @@ const DeliverablesTable: React.FC<Props> = ({
         const base = { yearlyQuantities: new Array(projectYears.length).fill(1) } as any;
         try {
           if (projectId) {
-            const res = await fetch(`${API_BASE}/projects/${projectId}`);
+            const res = await fetch(apiConfig.url(`/projects/${projectId}`));
             if (res.ok) {
               const pj = await res.json();
               // project stores margin_goal in snake_case

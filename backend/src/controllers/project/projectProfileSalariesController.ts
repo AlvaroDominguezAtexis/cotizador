@@ -53,8 +53,6 @@ export const updateProjectProfileSalary = async (req: Request, res: Response) =>
   const { id } = req.params;
   const { project_profile_id, country_id, salary, year } = req.body;
 
-  console.log('🔹 PUT /project-profile-salaries/:id', id, req.body);
-
   if (!id) return res.status(400).json({ error: 'ID requerido' });
   if (salary === undefined) return res.status(400).json({ error: 'Salary requerido' });
 

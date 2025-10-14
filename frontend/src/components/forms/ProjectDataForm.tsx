@@ -19,7 +19,9 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
   useEffect(() => {
     const fetchBusinessUnits = async () => {
       try {
-        const res = await fetch('/business-units');
+        const res = await fetch('http://localhost:4000/api/business-units', {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('Error fetching business units');
         const data = await res.json();
         setBusinessUnits(data);
@@ -37,7 +39,9 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const res = await fetch('/clients');
+        const res = await fetch('http://localhost:4000/api/clients', {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('Error fetching clients');
         const data = await res.json();
         setClients(data);
@@ -51,7 +55,9 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
   useEffect(() => {
     const fetchBuLines = async () => {
       try {
-        const res = await fetch('/bu-lines');
+        const res = await fetch('http://localhost:4000/api/bu-lines', {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('Error fetching BU lines');
         const data = await res.json();
         setBuLines(data);
@@ -65,7 +71,9 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
   useEffect(() => {
     const fetchOpsDomains = async () => {
       try {
-        const res = await fetch('/ops-domains');
+        const res = await fetch('http://localhost:4000/api/ops-domains', {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('Error fetching ops domains');
         const data = await res.json();
         setOpsDomains(data);
@@ -158,11 +166,12 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     setIsClearing(true);
     try {
       // Llamar al endpoint para limpiar workpackages
-      const response = await fetch(`/api/projects/${initialValues.id}/clear-workpackages`, {
+      const response = await fetch(`http://localhost:4000/api/projects/${initialValues.id}/clear-workpackages`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
       
       if (!response.ok) {

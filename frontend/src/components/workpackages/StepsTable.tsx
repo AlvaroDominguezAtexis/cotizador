@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE } from '../../api/stepsApi';
 import { Step } from '../../types/workPackages';
 import { Button } from '../ui/Button';
 import './WorkPackages.css';
 import { fetchStepAnnualData, upsertStepAnnualData, deleteStepAnnualData, AnnualData } from '../../api/stepsApi';
+import { apiConfig } from '../../utils/apiConfig';
 
 interface Props {
   projectId: number;
@@ -89,7 +89,7 @@ const StepsTable: React.FC<Props> = ({
     // Fetch cities
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/countries/${countryId}/cities`);
+        const res = await fetch(apiConfig.url(`/api/countries/${countryId}/cities`));
         if (!res.ok) throw new Error('Error');
         const data = await res.json();
         setCitiesForCountry(data || []);

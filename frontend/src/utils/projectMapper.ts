@@ -19,7 +19,7 @@ export const mapProjectFromBackend = (data: any): ProjectData => {
     id: safeData.id,
     title: safeData.title ?? '',
     crmCode: safeData.crm_code ?? safeData.crmCode ?? '',
-    client: safeData.client ?? '',
+    client: safeData.client_id ?? safeData.client ?? '', // Para el select necesitamos el client_id
     activity: safeData.activity ?? '',
     startDate: safeFormatDate(safeData.start_date ?? safeData.startDate),
     endDate: safeFormatDate(safeData.end_date ?? safeData.endDate),

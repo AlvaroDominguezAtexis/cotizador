@@ -4,6 +4,7 @@ import { useOfficialProfiles } from '../../hooks/useOfficialProfiles';
 import { Table } from '../ui/Table';
 import { Button } from '../ui/Button';
 import { round } from '../../utils/functions';
+import { apiConfig } from '../../utils/apiConfig';
 
 import { Profile } from '../../types/profile';
 // import { COUNTRIES } from '../../types/common';
@@ -21,10 +22,10 @@ interface ProfilesManagementProps {
 function useOfficialProfileSalaries() {
   const [salaries, setSalaries] = useState<{ [profileId: string]: { [countryId: string]: number } }>({});
   useEffect(() => {
-    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/officialprofile-salaries`);
+        const res = await fetch(apiConfig.url(`/officialprofile-salaries`));
         if (!res.ok) {
           const text = await res.text().catch(() => '<no body>');
           console.error('[useOfficialProfileSalaries] non-ok response', res.status, text);
@@ -137,7 +138,7 @@ const ProfileNameAutocomplete: React.FC<{
 };
 
 export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles, onChange, countries = [], loadingCountries = false, projectId }) => {
-  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+
   const { profiles: officialProfiles, loading: loadingProfiles } = useOfficialProfiles();
   const officialSalaries = useOfficialProfileSalaries();
   const [nameInput, setNameInput] = useState('');
@@ -159,7 +160,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch(`/projects/${projectId}`);
+        const res = await fetch(apiConfig.url(`/api/projects/${projectId}`), {
+          ...apiConfig.defaultOptions
+        });
         if (!res.ok) throw new Error('No se pudo obtener el proyecto');
         const p = await res.json();
         const sy = p?.start_date ? parseInt(String(p.start_date).slice(0,4), 10) : NaN;
@@ -203,7 +206,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   // Helper para recargar salarios desde el backend
   const reloadSalaries = useCallback(async () => {
     try {
-      const resProfiles = await fetch(`/project-profiles/${projectId}`);
+      const resProfiles = await fetch(apiConfig.url(`/api/project-profiles/${projectId}`), {
+        ...apiConfig.defaultOptions
+      });
       if (!resProfiles.ok) throw new Error('No se pudieron obtener los perfiles del proyecto');
       const projectProfiles: Array<{ id: number; project_profile_id?: number }> = await resProfiles.json();
 
@@ -212,7 +217,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
           const ppId = p.project_profile_id;
           if (!ppId) return { profileId: p.id, salaries: {} as Record<string, number> };
 
-          const res = await fetch(`/project-profile-salaries?project_profile_id=${ppId}&ts=${Date.now()}`);
+          const res = await fetch(apiConfig.url(`/api/project-profile-salaries?project_profile_id=${ppId}&ts=${Date.now()}`), {
+            ...apiConfig.defaultOptions
+          });
           if (!res.ok) return { profileId: p.id, salaries: {} as Record<string, number> };
 
           const list: Array<{ country_id: number | string; salary: number; year?: number }> = await res.json();
@@ -254,7 +261,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       if (!projectId) return;
       setLoadingProjectCountryMgmt(true);
       try {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/countries-management-salary`);
+        const res = await fetch(apiConfig.url(`/api/projects/${projectId}/countries-management-salary`), {
+          ...apiConfig.defaultOptions
+        });
         if (!res.ok) throw new Error('Could not load project country management salaries');
         const data: Array<{ country_id: number | string; country_name?: string; management_yearly_salary: number | null }> = await res.json();
         if (!mounted) return;
@@ -275,9 +284,11 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   const saveProjectManagerSalary = useCallback(async (countryId: number | string, value: number | null) => {
     if (!projectId) { alert('Save requires a saved project'); return; }
     try {
-  const body = { management_yearly_salary: value == null ? null : Number(value) };
-  const res = await fetch(`${API_BASE}/projects/${projectId}/countries-management-salary/${countryId}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      const body = { management_yearly_salary: value == null ? null : Number(value) };
+      const res = await fetch(apiConfig.url(`/api/projects/${projectId}/countries-management-salary/${countryId}`), {
+        ...apiConfig.defaultOptions,
+        method: 'PUT',
+        body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error(await res.text());
       const updated = await res.json();
@@ -306,11 +317,12 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
     const currentProjectId = projectId;
 
     try {
-      console.log('🔹 Guardando perfil editado:', editingProfile);
 
       // 1️⃣ Obtener project_profiles iniciales
       const getProjectProfiles = async () => {
-        const resp = await fetch(`/project-profiles/${currentProjectId}`);
+        const resp = await fetch(apiConfig.url(`/api/project-profiles/${currentProjectId}`), {
+          ...apiConfig.defaultOptions
+        });
         if (!resp.ok) throw new Error('No se pudieron obtener los perfiles del proyecto');
         return resp.json() as Promise<Array<{ id: number; project_profile_id: number }>>;
       };
@@ -324,9 +336,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
 
       // 2️⃣ Lógica de edición de perfil
       if (!originalIsOfficial && !newIsOfficial) {
-        await fetch(`/profiles/${editingProfile.id}`, {
+        await fetch(apiConfig.url(`/api/profiles/${editingProfile.id}`), {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({
             name: editingProfile.name,
             salaries: editingProfile.salaries,
@@ -336,9 +348,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       } else if (originalIsOfficial && !newIsOfficial) {
         if (!originalProfile) return alert('No se encontró el perfil original.');
         // Crear nuevo perfil no oficial
-        const res = await fetch('/profiles', {
+        const res = await fetch(apiConfig.url('/api/profiles'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({
             name: editingProfile.name,
             salaries: editingProfile.salaries,
@@ -348,9 +360,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         if (!res.ok) throw new Error((await res.text()) || 'No se pudo crear el perfil');
         const { id: newProfileId } = await res.json();
         // Cambiar la relación project_profile al nuevo profile_id preservando salarios/años
-        const switchRes = await fetch('/project-profiles/switch', {
+        const switchRes = await fetch(apiConfig.url('/api/project-profiles/switch'), {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({ project_id: currentProjectId, from_profile_id: originalProfile.id, to_profile_id: newProfileId })
         });
         if (switchRes.status === 409) {
@@ -362,9 +374,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       } else if (!originalIsOfficial && newIsOfficial && officialProfile) {
         if (!originalProfile) return alert('No se encontró el perfil original.');
         // Cambiar relación al perfil oficial preservando salarios/años
-        const switchRes = await fetch('/project-profiles/switch', {
+        const switchRes = await fetch(apiConfig.url('/api/project-profiles/switch'), {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({ project_id: currentProjectId, from_profile_id: originalProfile.id, to_profile_id: Number(officialProfile.id) })
         });
         if (switchRes.status === 409) {
@@ -380,9 +392,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         originalProfile.name !== editingProfile.name
       ) {
         // Cambiar entre perfiles oficiales preservando salarios/años
-        const switchRes = await fetch('/project-profiles/switch', {
+        const switchRes = await fetch(apiConfig.url('/api/project-profiles/switch'), {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({ project_id: currentProjectId, from_profile_id: originalProfile.id, to_profile_id: Number(officialProfile.id) })
         });
         if (switchRes.status === 409) {
@@ -413,13 +425,17 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         const editsForProfile = yearSalaryEdits[String(editingProfile.id || '')] || {};
         const ops: Promise<Response>[] = [];
         // We need project_profile_id to resolve create/update per row
-        const resProfiles = await fetch(`/project-profiles/${currentProjectId}`);
+        const resProfiles = await fetch(apiConfig.url(`/api/project-profiles/${currentProjectId}`), {
+          ...apiConfig.defaultOptions
+        });
         const pps: Array<{ id: number; project_profile_id: number }> = await resProfiles.json();
         const pp = pps.find(p => Number(p.id) === Number(editingProfile.id));
         if (!pp) throw new Error('No project_profile_id found');
 
         // Fetch existing rows to know which composite keys already exist
-        const resExisting = await fetch(`/project-profile-salaries?project_profile_id=${pp.project_profile_id}`);
+        const resExisting = await fetch(apiConfig.url(`/api/project-profile-salaries?project_profile_id=${pp.project_profile_id}`), {
+          ...apiConfig.defaultOptions
+        });
         const existingList: Array<{ id: number; country_id: number; year: number; salary: number }>
           = resExisting.ok ? await resExisting.json() : [];
         const existingIndex = new Map<string, { id: number; salary: number }>();
@@ -434,18 +450,23 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
             const { id, salary } = existingIndex.get(key)!;
             if (Number(salary) !== Number(newVal)) {
               ops.push(
-                fetch(`/project-profile-salaries/${id}`, {
+                fetch(apiConfig.url(`/api/project-profile-salaries/${id}`), {
+                  ...apiConfig.defaultOptions,
                   method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ salary: Number(newVal) })
+                  body: JSON.stringify({ 
+                    salary: Number(newVal),
+                    year: yy,
+                    country_id: cid,
+                    project_profile_id: pp.project_profile_id
+                  })
                 })
               );
             }
           } else {
             ops.push(
-              fetch(`/project-profile-salaries`, {
+              fetch(apiConfig.url(`/api/project-profile-salaries`), {
+                ...apiConfig.defaultOptions,
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   project_profile_id: pp.project_profile_id,
                   country_id: cid,
@@ -459,13 +480,11 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         if (ops.length > 0) await Promise.all(ops);
       } else {
         const existingSalariesRes = await fetch(
-          `/project-profile-salaries?project_profile_id=${projectProfileId}`
+          apiConfig.url(`/api/project-profile-salaries?project_profile_id=${projectProfileId}`), 
+          { ...apiConfig.defaultOptions }
         );
         const existingSalaries: Array<{ id: number; country_id: string | number; salary: string }> =
           existingSalariesRes.ok ? await existingSalariesRes.json() : [];
-
-        console.log('🔹 Salarios existentes:', existingSalaries);
-        console.log('🔹 Salarios nuevos:', editingProfile.salaries);
 
         const salaryPromises: Promise<Response>[] = [];
         for (const [countryId, salary] of Object.entries(editingProfile.salaries || {})) {
@@ -476,42 +495,49 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
           if (existingSalary) {
             const existingSalaryNum = Number(existingSalary.salary);
             if (existingSalaryNum !== newSalaryNum) {
-              console.log(`🔸 PUT Salary país ${countryId}: ${existingSalaryNum} → ${newSalaryNum}`);
+              const firstYear = projectYears.length > 0 ? projectYears[0] : new Date().getFullYear();
               salaryPromises.push(
-                fetch(`/project-profile-salaries/${existingSalary.id}`, {
+                fetch(apiConfig.url(`/api/project-profile-salaries/${existingSalary.id}`), {
+                  ...apiConfig.defaultOptions,
                   method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     project_profile_id: projectProfileId,
                     country_id: countryId,
-                    salary: newSalaryNum
+                    salary: newSalaryNum,
+                    year: firstYear
                   }),
                 })
               );
             }
           } else if (newSalaryNum > 0) {
-            console.log(`🟢 POST Salary país ${countryId}: ${newSalaryNum}`);
+            // Para proyectos de un solo año, usar el primer año del proyecto
+            const firstYear = projectYears.length > 0 ? projectYears[0] : new Date().getFullYear();
             salaryPromises.push(
-              fetch(`/project-profile-salaries`, {
+              fetch(apiConfig.url(`/api/project-profile-salaries`), {
+                ...apiConfig.defaultOptions,
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   project_profile_id: projectProfileId,
                   country_id: countryId,
                   salary: newSalaryNum,
+                  year: firstYear,
                 }),
               })
             );
           }
         }
-  await Promise.all(salaryPromises);
+        if (salaryPromises.length > 0) {
+          await Promise.all(salaryPromises);
+        }
       }
 
-  // Recargar salarios después de Edit
+      // Recargar salarios después de Edit
       await reloadSalaries();
 
       // 6️⃣ Refrescar tabla
-      const resProfiles = await fetch(`/project-profiles/${currentProjectId}`);
+      const resProfiles = await fetch(apiConfig.url(`/api/project-profiles/${currentProjectId}`), {
+        ...apiConfig.defaultOptions
+      });
       if (resProfiles.ok) {
         const profiles = await resProfiles.json();
         setTableData(profiles);
@@ -525,7 +551,7 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         return copy;
       });
 
-      console.log('✅ Edición guardada con éxito');
+
   // Signal accordions to reload their year data
   setProfilesRefreshKey((k) => k + 1);
       setEditingProfile(null);
@@ -562,7 +588,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       const profileId = profile.id;
 
       // 1️⃣ Obtener project_profiles del proyecto
-      const projectProfilesResponse = await fetch(`/project-profiles/${currentProjectId}`);
+      const projectProfilesResponse = await fetch(apiConfig.url(`/api/project-profiles/${currentProjectId}`), {
+        ...apiConfig.defaultOptions
+      });
       if (!projectProfilesResponse.ok) {
         throw new Error('No se pudieron obtener los perfiles del proyecto');
       }
@@ -587,7 +615,8 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
 
       // 3️⃣ Obtener salarios actuales para ese project_profile_id
       const salariesResponse = await fetch(
-        `/project-profile-salaries?project_profile_id=${projectProfileId}`
+        apiConfig.url(`/api/project-profile-salaries?project_profile_id=${projectProfileId}`),
+        { ...apiConfig.defaultOptions }
       );
       if (!salariesResponse.ok) {
         throw new Error('No se pudieron obtener los salarios de este perfil en el proyecto');
@@ -654,7 +683,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
           }
 
           // Fallback: fetch per-profile official salaries if hook had no data
-          fetch(`/project-profiles/${officialProfile.id}/salaries`)
+          fetch(apiConfig.url(`/api/project-profiles/${officialProfile.id}/salaries`), {
+            ...apiConfig.defaultOptions
+          })
             .then(res => res.json())
             .then((data: Array<{ country_id: string | number; salary: number }>) => {
               setEditingProfile((current: Partial<Profile> | null): Partial<Profile> | null => {
@@ -693,9 +724,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   // Asociar perfil a proyecto
   const addProfileToProject = async (projectId: number, profileId: number) => {
     try {
-      await fetch('/project-profiles', {
+      await fetch(apiConfig.url('/api/project-profiles'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        ...apiConfig.defaultOptions,
         body: JSON.stringify({ project_id: projectId, profile_id: profileId })
       });
     } catch (e) {
@@ -716,9 +747,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
     try {
       let profileId;
       if (officialProfile) {
-        const resProjectProfile = await fetch('/project-profiles', {
+        const resProjectProfile = await fetch(apiConfig.url('/api/project-profiles'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({
             project_id: projectId,
             profile_id: officialProfile.id,
@@ -735,18 +766,18 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
         profileId = officialProfile.id;
       } else {
         // Crear perfil (o reutilizado si backend lo devuelve reused)
-        const res = await fetch('/profiles', {
+        const res = await fetch(apiConfig.url('/api/profiles'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({ name: editingProfile.name, is_official: false })
         });
         if (!res.ok) throw new Error((await res.text()) || 'Error creating profile');
         const created = await res.json();
         profileId = created.id;
 
-        const resProjectProfile = await fetch('/project-profiles', {
+        const resProjectProfile = await fetch(apiConfig.url('/api/project-profiles'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          ...apiConfig.defaultOptions,
           body: JSON.stringify({
             project_id: projectId,
             profile_id: profileId,
@@ -763,7 +794,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
       }
 
       // Refrescar la tabla de perfiles tras guardar
-      const resProfiles = await fetch(`/project-profiles/${projectId}`);
+      const resProfiles = await fetch(apiConfig.url(`/api/project-profiles/${projectId}`), {
+        ...apiConfig.defaultOptions
+      });
       if (resProfiles.ok) {
         const profiles = await resProfiles.json();
         setTableData(profiles);
@@ -911,9 +944,9 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
                   size="sm"
                   onClick={async () => {
                     try {
-                      const delRes = await fetch('/project-profiles', {
+                      const delRes = await fetch(apiConfig.url('/api/project-profiles'), {
                         method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
+                        ...apiConfig.defaultOptions,
                         body: JSON.stringify({ project_id: projectId, profile_id: profile.id }),
                       });
                       if (!delRes.ok) {
@@ -1042,17 +1075,23 @@ const ProfileYearSalaries: React.FC<{ profile: Profile; projectId: number; count
       try {
         setLoading(true);
         // Need project_profile_id for this profile
-        const resProfiles = await fetch(`/project-profiles/${projectId}`);
+        const resProfiles = await fetch(apiConfig.url(`/api/project-profiles/${projectId}`), {
+          ...apiConfig.defaultOptions
+        });
         if (!resProfiles.ok) throw new Error('No se pudieron obtener los perfiles del proyecto');
         const pps: Array<{ id: number; project_profile_id: number }> = await resProfiles.json();
         const pp = pps.find(p => Number(p.id) === Number(profile.id));
         if (!pp) { setYearsData([]); return; }
-  const res = await fetch(`/project-profile-salaries?project_profile_id=${pp.project_profile_id}`);
+        const res = await fetch(apiConfig.url(`/api/project-profile-salaries?project_profile_id=${pp.project_profile_id}`), {
+          ...apiConfig.defaultOptions
+        });
         if (!res.ok) throw new Error('No se pudieron obtener salarios por año');
-  const list: Array<{ id: number; country_id: number; year: number; salary: number }> = await res.json();
+        const list: Array<{ id: number; country_id: number; year: number; salary: number }> = await res.json();
         if (mounted) setYearsData(list);
         // Fetch CPI per project country
-        const resCpi = await fetch(`/projects/${projectId}/countries-cpi`);
+        const resCpi = await fetch(apiConfig.url(`/api/projects/${projectId}/countries-cpi`), {
+          ...apiConfig.defaultOptions
+        });
         if (resCpi.ok) {
           const cpidata = await resCpi.json();
           // Try to parse as array of objects with country_id and cpi or similar

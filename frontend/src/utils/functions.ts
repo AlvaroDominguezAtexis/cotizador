@@ -1211,9 +1211,9 @@ export const fetchAnnualHoursForCountry = async (projectId: number, countryId: n
   try {
     // Hacer las tres consultas necesarias
     const [wdRes, hpdRes, arRes] = await Promise.all([
-      fetch(`/projects/${projectId}/countries-working-days`),
-      fetch(`/projects/${projectId}/countries-hours-per-day`),
-      fetch(`/projects/${projectId}/countries-activity-rate`)
+      fetch(`http://localhost:4000/api/projects/${projectId}/countries-working-days`, { credentials: 'include' }),
+      fetch(`http://localhost:4000/api/projects/${projectId}/countries-hours-per-day`, { credentials: 'include' }),
+      fetch(`http://localhost:4000/api/projects/${projectId}/countries-activity-rate`, { credentials: 'include' })
     ]);
 
     if (!wdRes.ok || !hpdRes.ok || !arRes.ok) {
@@ -1660,7 +1660,9 @@ export const exampleGetPremisesRate = () => {
   console.log('');
   console.log('📋 Frontend API Call Example:');
   console.log(`
-  const response = await fetch('/projects/\${projectId}/countries/\${countryId}');
+  const response = await fetch('http://localhost:4000/api/projects/\${projectId}/countries/\${countryId}', {
+    credentials: 'include'
+  });
   const countryData = await response.json();
   const premisesRate = countryData.premises_rate;
   `);
@@ -2204,7 +2206,9 @@ export const testItCostBackendIntegration = async (projectId: number) => {
 export async function diagnoseBulkMarginData(projectId: number, year?: number): Promise<any> {
   try {
     const currentYear = year || new Date().getFullYear();
-    const response = await fetch(`/projects/${projectId}/diagnose-margin-data?year=${currentYear}`);
+    const response = await fetch(`http://localhost:4000/api/projects/${projectId}/diagnose-margin-data?year=${currentYear}`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     console.log('🔍 MARGIN DATA DIAGNOSIS');
@@ -2248,7 +2252,9 @@ export async function diagnoseBulkMarginData(projectId: number, year?: number): 
 export async function testBulkMarginCalculation(projectId: number, year?: number): Promise<any> {
   try {
     const currentYear = year || new Date().getFullYear();
-    const response = await fetch(`/projects/${projectId}/test-margins?year=${currentYear}`);
+    const response = await fetch(`http://localhost:4000/api/projects/${projectId}/test-margins?year=${currentYear}`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     console.log('🧮 MARGIN CALCULATION TEST');
@@ -2302,8 +2308,9 @@ export async function testMarginCalculationWorkflow(projectId: number, year?: nu
     
     // Step 3: Trigger recalculation
     console.log('\nStep 3: Triggering recalculation...');
-    const recalcResponse = await fetch(`/projects/${projectId}/recalc-margins-yearly`, {
-      method: 'POST'
+    const recalcResponse = await fetch(`http://localhost:4000/api/projects/${projectId}/recalc-margins-yearly`, {
+      method: 'POST',
+      credentials: 'include'
     });
     const recalcData = await recalcResponse.json();
     

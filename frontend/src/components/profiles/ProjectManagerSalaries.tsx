@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '../ui/Button';
+import { apiConfig } from '../../utils/apiConfig';
 import './ProjectManagerSalaries.css';
 
 interface ProjectManagerSalariesProps {
@@ -16,13 +17,14 @@ export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ 
 
   // Load existing PM salaries
   useEffect(() => {
+
+
     const loadSalaries = async () => {
       try {
-        const response = await fetch(`/api/projects/${projectId}/countries-management`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
+        console.log('Loading PM salaries for project:', projectId);
+        
+        const response = await fetch(apiConfig.url(`/api/projects/${projectId}/countries-management-salary`), {
+          ...apiConfig.defaultOptions
         });
 
         if (!response.ok) {
@@ -64,45 +66,24 @@ export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ 
 
   const handleSave = async () => {
     try {
-      // Save each country salary individually
+      // Prepare updates array for all edited salaries
       console.log('Saving salaries for project:', projectId);
-      const savePromises = Object.entries(editedSalaries).map(async ([countryId, salary]) => {
-        console.log(`Saving salary for country ${countryId}:`, salary);
-        const response = await fetch(`/api/projects/${projectId}/countries-management/${countryId}`, {
-          method: 'PUT',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            management_yearly_salary: salary ? Number(salary) : 0
-          }),
-        });
+      const updates = Object.entries(editedSalaries).map(([countryId, salary]) => ({
+        country_id: countryId,
+        management_yearly_salary: salary ? Number(salary) : 0
+      }));
 
-        if (!response.ok) {
-          const text = await response.text();
-          console.error(`Error response for country ${countryId}:`, text);
-          throw new Error(`Failed to update salary for country ${countryId}`);
-        }
-
-        return response;
+      console.log('Sending updates:', updates);
+      const response = await fetch(apiConfig.url(`/api/projects/${projectId}/countries-management-salary`), {
+        ...apiConfig.defaultOptions,
+        method: 'PUT',
+        body: JSON.stringify(updates),
       });
 
-      const responses = await Promise.all(savePromises);
-
-      // Check for failed requests and collect error messages
-      const errors: string[] = [];
-      await Promise.all(
-        responses.map(async (response, index) => {
-          if (!response.ok) {
-            const errorData = await response.json();
-            errors.push(errorData.error || 'Error updating salary');
-          }
-        })
-      );
-
-      if (errors.length > 0) {
-        throw new Error(`Failed to update salaries: ${errors.join(', ')}`);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Error response:', text);
+        throw new Error(`Failed to update salaries: ${response.status} ${response.statusText}`);
       }
 
       // Update local state with new values
@@ -112,6 +93,7 @@ export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ 
       });
       setSalaries(newSalaries);
       setIsEditing(false);
+      setEditedSalaries({});
       
       // Reload data to ensure we have the latest values
       loadSalaries();
@@ -123,7 +105,9 @@ export const ProjectManagerSalaries: React.FC<ProjectManagerSalariesProps> = ({ 
 
   const loadSalaries = async () => {
     try {
-      const response = await fetch(`/api/projects/${projectId}/countries-management`);
+      const response = await fetch(apiConfig.url(`/api/projects/${projectId}/countries-management-salary`), {
+        ...apiConfig.defaultOptions
+      });
       if (!response.ok) throw new Error('Failed to fetch PM salaries');
       const data = await response.json();
       const salariesMap: Record<string, number> = {};

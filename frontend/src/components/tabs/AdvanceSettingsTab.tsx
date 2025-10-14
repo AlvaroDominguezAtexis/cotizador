@@ -47,17 +47,17 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
       try {
         setLoading(true);
         const [cpiRes, arRes, nptRes, itRes, premisesRes, holidaysRes, totalDaysRes, wdRes, hpdRes, mkRes, scrRes] = await Promise.all([
-          fetch(`/projects/${projectId}/countries-cpi`),
-          fetch(`/projects/${projectId}/countries-activity-rate`),
-          fetch(`/projects/${projectId}/countries-npt-rate`),
-          fetch(`/projects/${projectId}/countries-it-cost`),
-          fetch(`/projects/${projectId}/countries-premises-rate`),
-          fetch(`/projects/${projectId}/countries-holidays`),
-          fetch(`/projects/${projectId}/countries-total-days`),
-          fetch(`/projects/${projectId}/countries-working-days`),
-          fetch(`/projects/${projectId}/countries-hours-per-day`),
-          fetch(`/projects/${projectId}/countries-markup`),
-          fetch(`/projects/${projectId}/countries-social-contribution-rate`),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-cpi`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-activity-rate`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-npt-rate`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-it-cost`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-premises-rate`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-holidays`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-total-days`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-working-days`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-hours-per-day`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-markup`, { credentials: 'include' }),
+          fetch(`http://localhost:4000/api/projects/${projectId}/countries-social-contribution-rate`, { credentials: 'include' }),
         ]);
         if (!cpiRes.ok) throw new Error('Error cargando CPI del proyecto');
         if (!arRes.ok) throw new Error('Error cargando Activity Rate del proyecto');
@@ -225,61 +225,61 @@ export const AdvanceSettingsTab: React.FC<Props> = ({ projectId, countries }) =>
       // Fire only the necessary requests
       const calls: Promise<Response>[] = [];
       if (changes.cpi !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-cpi/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cpi: changes.cpi }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-cpi/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ cpi: changes.cpi }),
         }));
       }
       if (changes.activity_rate !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-activity-rate/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activity_rate: changes.activity_rate }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-activity-rate/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ activity_rate: changes.activity_rate }),
         }));
       }
       if (changes.npt_rate !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-npt-rate/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ npt_rate: changes.npt_rate }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-npt-rate/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ npt_rate: changes.npt_rate }),
         }));
       }
       if (changes.it_cost !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-it-cost/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ it_cost: changes.it_cost }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-it-cost/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ it_cost: changes.it_cost }),
         }));
       }
       if (changes.premises_rate !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-premises-rate/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ premises_rate: changes.premises_rate }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-premises-rate/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ premises_rate: changes.premises_rate }),
         }));
       }
       if (changes.holidays !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-holidays/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ holidays: changes.holidays }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-holidays/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ holidays: changes.holidays }),
         }));
       }
       if (changes.total_days !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-total-days/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ total_days: changes.total_days }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-total-days/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ total_days: changes.total_days }),
         }));
       }
   // premises_cost is now managed at city level; no country-level API call
 
       if (changes.working_days !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-working-days/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ working_days: changes.working_days }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-working-days/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ working_days: changes.working_days }),
         }));
       }
       if (changes.hours_per_day !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-hours-per-day/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hours_per_day: changes.hours_per_day }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-hours-per-day/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ hours_per_day: changes.hours_per_day }),
         }));
       }
   // mng editing removed from Advance Settings
       if (changes.markup !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-markup/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ markup: changes.markup }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-markup/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ markup: changes.markup }),
         }));
       }
       if (changes.social_contribution_rate !== undefined) {
-        calls.push(fetch(`/projects/${projectId}/countries-social-contribution-rate/${countryId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ social_contribution_rate: changes.social_contribution_rate }),
+        calls.push(fetch(`http://localhost:4000/api/projects/${projectId}/countries-social-contribution-rate/${countryId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ social_contribution_rate: changes.social_contribution_rate }),
         }));
       }
 

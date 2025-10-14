@@ -1,6 +1,5 @@
 import { WorkPackage } from '../types/workPackages';
-
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+import { apiConfig } from '../utils/apiConfig';
 
 export interface WorkPackagePayload {
   codigo: string;
@@ -8,7 +7,7 @@ export interface WorkPackagePayload {
 }
 
 export const fetchWorkPackages = async (projectId: number): Promise<WorkPackage[]> => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages`);
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages`));
   if (!res.ok) throw new Error('Error fetching workpackages');
   const data = await res.json();
   // Adapt backend fields (codigo -> code, nombre -> name, dm -> DM, deliverables empty for now)
@@ -23,7 +22,7 @@ export const fetchWorkPackages = async (projectId: number): Promise<WorkPackage[
 };
 
 export const createWorkPackageApi = async (projectId: number, payload: WorkPackagePayload): Promise<WorkPackage> => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages`, {
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -34,7 +33,7 @@ export const createWorkPackageApi = async (projectId: number, payload: WorkPacka
 };
 
 export const updateWorkPackageApi = async (projectId: number, id: number, payload: Partial<WorkPackagePayload>): Promise<WorkPackage> => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${id}`, {
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${id}`), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -45,6 +44,6 @@ export const updateWorkPackageApi = async (projectId: number, id: number, payloa
 };
 
 export const deleteWorkPackageApi = async (projectId: number, id: number): Promise<void> => {
-  const res = await fetch(`${API_BASE}/projects/${projectId}/workpackages/${id}`, { method: 'DELETE' });
+  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${id}`), { method: 'DELETE' });
   if (!res.ok) throw new Error('Error eliminando workpackage');
 };

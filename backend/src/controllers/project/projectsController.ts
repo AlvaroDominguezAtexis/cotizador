@@ -20,82 +20,55 @@ const normalizeProjectDates = (project: any) => {
   };
 };
 
-// 🔹 Obtener todos los proyectos (incluye países asociados desde project_countries)
-export const getProjects = async (_req: Request, res: Response) => {
+// 🔹 Obtener proyectos del usuario actual (incluye países asociados desde project_countries)
+export const getProjects = async (req: Request, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    console.log('Getting projects for user:', req.user.id);
+
+    // Query con JOIN completo incluyendo países
     const query = `
-      SELECT p.*,
-             COALESCE(c.name, p.client) AS client,
+      SELECT p.*, 
+             c.name AS client_name,
+             p.client AS client_id,
              COALESCE(pc.countries, '[]') AS countries,
-             COALESCE(oper.operational_to, 0)::numeric AS to
+             0 AS to,
+             NULL AS dm
       FROM projects p
-      LEFT JOIN clients c ON c.id = p.client::integer
+      LEFT JOIN clients c ON p.client = c.id
       LEFT JOIN (
         SELECT project_id, json_agg(country_id ORDER BY country_id) AS countries
         FROM project_countries
         GROUP BY project_id
       ) pc ON pc.project_id = p.id
-      LEFT JOIN (
-        SELECT wp.project_id,
-               COALESCE(SUM(dyq.operational_to), 0) AS operational_to
-        FROM workpackages wp
-        LEFT JOIN deliverables d ON d.workpackage_id = wp.id
-        LEFT JOIN deliverable_yearly_quantities dyq ON dyq.deliverable_id = d.id
-        GROUP BY wp.project_id
-      ) oper ON oper.project_id = p.id
-      ORDER BY p.created_at DESC;
+      WHERE p.created_by = $1
+      ORDER BY p.created_at DESC
     `;
-    const result = await Pool.query(query);
+
+    console.log('Executing query with client join...');
+    const result = await Pool.query(query, [req.user.id]);
+    console.log('Query result rows:', result.rows.length);
     
-    // Calculate DM for each project (simplified approach)
-    const projectsWithDM = await Promise.all(
-      result.rows.map(async (row) => {
-        const normalizedProject = normalizeProjectDates(row);
-        
-        try {
-          // Use the same logic as Summary Detail: call the deliverables-costs-breakdown endpoint
-          if (normalizedProject.to && normalizedProject.to > 0) {
-            // Import and use the same function that Summary Detail uses
-            const { getProjectDeliverablesCostsBreakdown } = require('./deliverablesController');
-            
-            // Create a mock request/response to call the function
-            const mockReq = { params: { projectId: normalizedProject.id } } as any;
-            let totalDmCosts = 0;
-            
-            const mockRes = {
-              json: (data: any) => {
-                // Extract totalCosts from workPackages just like Summary Detail does
-                if (data.workPackages && Array.isArray(data.workPackages)) {
-                  totalDmCosts = data.workPackages.reduce((sum: number, wp: any) => {
-                    return sum + (wp.totals?.totalCosts || 0);
-                  }, 0);
-                }
-              },
-              status: () => mockRes,
-            } as any;
-            
-            await getProjectDeliverablesCostsBreakdown(mockReq, mockRes);
-            
-            const to = Number(normalizedProject.to);
-            
-            // Calculate DM using the same formula as Summary Detail: (TO - DM_costs) / TO * 100
-            normalizedProject.dm = to > 0 && totalDmCosts >= 0 ? ((to - totalDmCosts) / to) * 100 : null;
-          } else {
-            normalizedProject.dm = null;
-          }
-        } catch (err) {
-          console.error(`Error calculating DM for project ${normalizedProject.id}:`, err);
-          normalizedProject.dm = null;
-        }
-        
-        return normalizedProject;
-      })
-    );
+
+
+    const normalizedProjects = result.rows.map(row => normalizeProjectDates(row));
+    res.json(normalizedProjects);
     
-    res.json(projectsWithDM);
+    /* TODO: Restaurar query completo cuando funcione el simple */
   } catch (err) {
     console.error('Error in getProjects:', err);
-    res.status(500).json({ error: 'Error al obtener proyectos' });
+    console.error('Error details:', {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      stack: err instanceof Error ? err.stack : 'No stack trace',
+      userId: req.user?.id
+    });
+    res.status(500).json({ 
+      error: 'Error al obtener proyectos',
+      details: err instanceof Error ? err.message : 'Unknown error'
+    });
   }
 };
 
@@ -105,8 +78,11 @@ export const getProjectById = async (req: Request, res: Response) => {
   try {
     const query = `
       SELECT p.*,
+             c.name AS client_name,
+             p.client AS client_id,
              COALESCE(pc.countries, '[]') AS countries
       FROM projects p
+      LEFT JOIN clients c ON p.client = c.id
       LEFT JOIN (
         SELECT project_id, json_agg(country_id ORDER BY country_id) AS countries
         FROM project_countries
@@ -129,6 +105,10 @@ export const getProjectById = async (req: Request, res: Response) => {
 export const createProject = async (req: Request, res: Response) => {
   const client = await Pool.connect();
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     await client.query('BEGIN');
     const {
       title,
@@ -164,12 +144,38 @@ export const createProject = async (req: Request, res: Response) => {
       });
     }
 
+    // 🔹 Resolver cliente: manejar ID o nombre
+    let clientId = null;
+    if (clientName != null && clientName !== '') {
+      // Convertir a string de forma segura
+      const clientValue = String(clientName);
+      
+      // Si es un número, usar como ID directamente
+      if (/^\d+$/.test(clientValue)) {
+        clientId = parseInt(clientValue);
+      } else {
+        // Si es texto, buscar por nombre o crear
+        const trimmedClientName = clientValue.trim();
+        const existingClientQuery = 'SELECT id FROM clients WHERE LOWER(name) = LOWER($1)';
+        const existingClientResult = await client.query(existingClientQuery, [trimmedClientName]);
+        
+        if (existingClientResult.rows.length > 0) {
+          clientId = existingClientResult.rows[0].id;
+        } else {
+          // Cliente no existe, crearlo
+          const createClientQuery = 'INSERT INTO clients (name) VALUES ($1) RETURNING id';
+          const newClientResult = await client.query(createClientQuery, [trimmedClientName]);
+          clientId = newClientResult.rows[0].id;
+        }
+      }
+    }
+
     const insertProjectQuery = `
     INSERT INTO projects
   (title, crm_code, client, activity, start_date, end_date,
    business_manager, business_unit, bu_line, ops_domain,
-   iqp, margin_type, margin_goal, segmentation, description)
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+   iqp, margin_type, margin_goal, segmentation, description, created_by)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *;
     `;
     // Normalize margin fields
@@ -179,19 +185,20 @@ export const createProject = async (req: Request, res: Response) => {
     const projectValues = [
       title || null,
       crm_code || null,
-      clientName || null,
+      clientId, // Ahora guardamos el ID del cliente
       activity || null,
       start_date || null,
       end_date || null,
       business_manager || null,
       business_unit || null,
-  bu_line || null,
+      bu_line || null,
       ops_domain || null,
       iqp || null,
       marginTypeVal,
       marginGoalVal,
       segmentation || null,
       description || null,
+      req.user.id
     ];
 
     const projectResult = await client.query(insertProjectQuery, projectValues);
@@ -230,11 +237,14 @@ export const createProject = async (req: Request, res: Response) => {
 
     await client.query('COMMIT');
 
-    // Recuperar proyecto con países agregados
+    // Recuperar proyecto con países agregados y nombre del cliente
     const fullProject = await client.query(
       `SELECT p.*,
+              c.name AS client_name,
+              p.client AS client_id,
               COALESCE(pc.countries, '[]') AS countries
        FROM projects p
+       LEFT JOIN clients c ON p.client = c.id
        LEFT JOIN (
          SELECT project_id, json_agg(country_id ORDER BY country_id) AS countries
          FROM project_countries WHERE project_id = $1 GROUP BY project_id
@@ -277,6 +287,32 @@ export const updateProject = async (req: Request, res: Response) => {
       description
     } = req.body;
 
+    // 🔹 Resolver cliente: manejar ID o nombre
+    let clientId = null;
+    if (clientName != null && clientName !== '') {
+      // Convertir a string de forma segura
+      const clientValue = String(clientName);
+      
+      // Si es un número, usar como ID directamente
+      if (/^\d+$/.test(clientValue)) {
+        clientId = parseInt(clientValue);
+      } else {
+        // Si es texto, buscar por nombre o crear
+        const trimmedClientName = clientValue.trim();
+        const existingClientQuery = 'SELECT id FROM clients WHERE LOWER(name) = LOWER($1)';
+        const existingClientResult = await clientConn.query(existingClientQuery, [trimmedClientName]);
+        
+        if (existingClientResult.rows.length > 0) {
+          clientId = existingClientResult.rows[0].id;
+        } else {
+          // Cliente no existe, crearlo
+          const createClientQuery = 'INSERT INTO clients (name) VALUES ($1) RETURNING id';
+          const newClientResult = await clientConn.query(createClientQuery, [trimmedClientName]);
+          clientId = newClientResult.rows[0].id;
+        }
+      }
+    }
+
     const updateQuery = `
       UPDATE projects
     SET title=$1, crm_code=$2, client=$3, activity=$4,
@@ -294,7 +330,7 @@ export const updateProject = async (req: Request, res: Response) => {
     const updateValues = [
       title || null,
       crm_code || null,
-      clientName || null,
+      clientId, // Ahora guardamos el ID del cliente
       activity || null,
       start_date || null,
       end_date || null,
@@ -369,8 +405,11 @@ export const updateProject = async (req: Request, res: Response) => {
 
     const fullProject = await clientConn.query(
       `SELECT p.*,
+              c.name AS client_name,
+              p.client AS client_id,
               COALESCE(pc.countries, '[]') AS countries
        FROM projects p
+       LEFT JOIN clients c ON p.client = c.id
        LEFT JOIN (
          SELECT project_id, json_agg(country_id ORDER BY country_id) AS countries
          FROM project_countries WHERE project_id = $1 GROUP BY project_id

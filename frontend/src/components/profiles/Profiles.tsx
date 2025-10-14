@@ -25,7 +25,7 @@ function useOfficialProfileSalaries() {
 
     (async () => {
       try {
-        const res = await fetch(apiConfig.url(`/officialprofile-salaries`));
+        const res = await fetch(apiConfig.url(`/api/officialprofile-salaries`));
         if (!res.ok) {
           const text = await res.text().catch(() => '<no body>');
           console.error('[useOfficialProfileSalaries] non-ok response', res.status, text);

@@ -11,6 +11,7 @@ import buLinesRoutes from './routes/Project/buLinesRoutes';
 import clientsRoutes from './routes/Project/clientsRoutes';
 import projectProfilesRoutes from './routes/Project/projectProfilesRoutes';
 import projectProfileSalariesRoutes from './routes/Project/projectProfileSalariesRoutes';
+import officialProfileSalariesRoutes from './routes/Project/officialProfileSalariesRoutes';
 import projectCountriesRoutes, {
 	projectCountriesActivityRouter,
 	projectCountriesNptRouter,
@@ -64,6 +65,7 @@ app.use('/api/bu-lines', requireAuth, buLinesRoutes);
 app.use('/api/clients', requireAuth, clientsRoutes);
 app.use('/api/project-profile-salaries', requireAuth, projectProfileSalariesRoutes);
 app.use('/api/project-profiles', requireAuth, projectProfilesRoutes);
+app.use('/api/officialprofile-salaries', requireAuth, officialProfileSalariesRoutes);
 // Non operational costs endpoints mounted without extra prefix so they match /api/projects/:projectId/non-operational-costs
 app.use('/api', requireAuth, nonOperationalCostsRoutes);
 // Project-wide steps routes (like recalc)

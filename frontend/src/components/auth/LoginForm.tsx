@@ -159,7 +159,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
         <div className="login-footer">
           <p className="login-demo-info">
-            <strong>Demo:</strong> Usuario: <code>admin</code> | Contraseña: <code>admin</code>
           </p>
         </div>
       </div>

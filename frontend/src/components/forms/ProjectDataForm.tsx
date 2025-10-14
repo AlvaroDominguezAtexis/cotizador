@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import CountrySelector from './CountrySelector';
 import { ProjectData } from '../../types/project';
 import './ProjectDataForm.css';
@@ -159,6 +159,10 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  const handleCountriesChange = useCallback((countries: string[]) => {
+    setFormData((prev) => ({ ...prev, countries }));
+  }, []);
 
   const handleConfirmIqpChange = async () => {
     if (!initialValues?.id || pendingIqpValue === null) return;
@@ -379,9 +383,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
           <label>País(es) *</label>
           <CountrySelector
             selectedCountries={formData.countries || []}
-            onChange={(countries) => {
-              setFormData((prev) => ({ ...prev, countries }));
-            }}
+            onChange={handleCountriesChange}
             max={10}
           />
         </div>

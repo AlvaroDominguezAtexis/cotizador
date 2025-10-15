@@ -48,5 +48,27 @@ export async function recomputeItCosts(projectId: number, year: number): Promise
     method: 'POST',
     body: JSON.stringify({ year })
   });
-  if (!res.ok) throw new Error('Error recomputing IT costs');
+  
+  if (!res.ok) {
+    let errorMessage = 'Error recomputing IT costs';
+    let errorDetails: any = { status: res.status };
+    
+    try {
+      const errorData = await res.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+      if (errorData.retryAfterSeconds) {
+        errorDetails.retryAfterSeconds = errorData.retryAfterSeconds;
+      }
+      errorDetails.serverResponse = errorData;
+    } catch (parseError) {
+      console.warn('Could not parse error response body');
+    }
+    
+    const error = new Error(errorMessage) as any;
+    error.status = res.status;
+    error.details = errorDetails;
+    throw error;
+  }
 }

@@ -20,87 +20,51 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
   const [loading, setLoading] = React.useState(false);
   const [recalcId, setRecalcId] = React.useState<number>(0);
   const [isRecalculating, setIsRecalculating] = React.useState(false);
+  const [currentProgress, setCurrentProgress] = React.useState<string>('');
 
-  // Recalculate costs when loading summary
-  React.useEffect(() => {
-    const recalcCosts = async () => {
-      if (!project?.id || isRecalculating) return;
+  // Manual recalculation function - efficient and user-controlled
+  const handleRecalcCosts = async () => {
+      if (!project?.id || loading) return;
       
+      setLoading(true);
       setIsRecalculating(true);
+      setCurrentProgress('Starting cost recalculation...');
       
       try {
-        setLoading(true);
-        const res = await recalcProjectStepsCosts(project.id);
-        // After salaries/management are recalculated, recompute IT costs per project year
-        // derive years from project start/end if available, otherwise fallback to years present in res or current year
-        let years: number[] = [];
-        if (project?.startDate && project?.endDate) {
-          const sy = new Date(project.startDate).getFullYear();
-          const ey = new Date(project.endDate).getFullYear();
-          if (!isNaN(sy) && !isNaN(ey) && ey >= sy) {
-            for (let y = sy; y <= ey; y++) years.push(y);
-          }
-        }
-        if (years.length === 0 && Array.isArray(res?.costs) && res.costs.length) {
-          years = Array.from(new Set(res.costs.map((c: any) => Number(c.year)).filter((n: number) => !Number.isNaN(n))));
-        }
-        if (years.length === 0) years = [new Date().getFullYear()];
-
-        // Recompute IT costs for each year with proper error handling and retry logic
-        for (let i = 0; i < years.length; i++) {
-          const y = years[i];
-          let retryCount = 0;
-          const maxRetries = 2;
-          
-          while (retryCount <= maxRetries) {
-            try {
-              if (i > 0 || retryCount > 0) {
-                // Add delay between requests to avoid rate limiting
-                const delay = retryCount === 0 ? 1000 : 2000 * retryCount;
-                await new Promise(resolve => setTimeout(resolve, delay));
-              }
-              
-              await recomputeItCosts(project.id, y);
-              console.log(`✅ IT costs recomputed successfully for year ${y}`);
-              break; // Success, exit retry loop
-              
-            } catch (e: any) {
-              if (e?.status === 429 || (e?.response?.status === 429)) {
-                if (retryCount < maxRetries) {
-                  console.warn(`⏱️ Rate limited for year ${y}, retrying in ${2000 * (retryCount + 1)}ms... (attempt ${retryCount + 1}/${maxRetries})`);
-                  retryCount++;
-                } else {
-                  console.warn(`⏱️ Rate limited for year ${y}, max retries reached, skipping...`);
-                  break;
-                }
-              } else if (e?.status === 409 || (e?.response?.status === 409)) {
-                console.warn(`🔄 Recompute already in progress for year ${y}, skipping...`);
-                break;
-              } else {
-                console.error('Error recomputing IT costs for year', y, e);
-                break;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error recalculating project costs:', e);
+        // Step 1: Recalculate project step costs
+        setCurrentProgress('Recalculating project step costs...');
+        await recalcProjectStepsCosts(project.id);
+        
+        // Step 2: Add delay to respect server rate limiting  
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Step 3: Recompute IT costs for current year
+        setCurrentProgress('Recalculating IT costs...');
+        
+        // Get the current year or project year
+        const currentYear = project?.startDate ? new Date(project.startDate).getFullYear() : new Date().getFullYear();
+        await recomputeItCosts(project.id, currentYear);
+        
+        // Step 4: Add another delay before margins calculation
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Step 5: Recalculate yearly margins
+        setCurrentProgress('Recalculating project margins...');
+        await recalcProjectMarginsYearlyApi(project.id);
+        
+        setCurrentProgress('Calculations completed successfully!');
+        
+      } catch (error: any) {
+        console.error('Error during cost recalculation:', error);
+        setCurrentProgress(`Error: ${error.message || 'Unknown error occurred'}`);
       } finally {
         setLoading(false);
         setIsRecalculating(false);
-        // mark that a recalc has completed so SummaryDocument remounts and fetches fresh data
-        // trigger yearly margins recalc (persist operational_to, dm_real, gmbs_real) and then remount SummaryDocument
-        try {
-          await recalcProjectMarginsYearlyApi(project.id);
-        } catch (e) {
-          console.error('Error recalculating yearly deliverable margins', e);
-        }
         setRecalcId(Date.now());
+        // Clear progress message after a delay
+        setTimeout(() => setCurrentProgress(''), 3000);
       }
     };
-
-    recalcCosts();
-  }, [project?.id]);
 
   const handleExport = () => {
     const summaryData = {
@@ -127,12 +91,30 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
     <div className="tab-container">
       <div className="tab-header">
         <h1>Project Summary</h1>
-        {loading && <span style={{ marginLeft: 10, color: '#666' }}>
-          Recalculating costs...
-          {isRecalculating && <span style={{ display: 'block', fontSize: '0.9em', fontStyle: 'italic' }}>
-            Processing IT costs by year...
-          </span>}
-        </span>}
+        
+        {/* Manual recalculation button - only show when not loading */}
+        {!loading && (
+          <Button 
+            variant="secondary"
+            onClick={handleRecalcCosts}
+            style={{ marginLeft: '10px' }}
+          >
+            Recalculate Costs
+          </Button>
+        )}
+        
+        {/* Show loading status */}
+        {loading && (
+          <span style={{ marginLeft: 10, color: '#666' }}>
+            Recalculating costs...
+            {currentProgress && (
+              <span style={{ display: 'block', fontSize: '0.9em', fontStyle: 'italic', color: '#666', marginTop: '4px' }}>
+                {currentProgress}
+              </span>
+            )}
+          </span>
+        )}
+        
         <div className="tab-actions">
           <Button 
             variant="secondary"
@@ -152,10 +134,14 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
       <div >
         <div className="summary-main-content" style={{ width: '100%' }}>
           <Card>
-            {/* Render SummaryDocument after a recalc has run so the backend calculations are fresh */}
-            {recalcId !== 0 && (
-              <SummaryDocument key={recalcId} project={project} workPackages={workPackages} profiles={profiles} costs={costs} />
-            )}
+            {/* Always render SummaryDocument, remount after recalculation for fresh data */}
+            <SummaryDocument 
+              key={recalcId || 'initial'} 
+              project={project} 
+              workPackages={workPackages} 
+              profiles={profiles} 
+              costs={costs} 
+            />
           </Card>
         </div>
       </div>

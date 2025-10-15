@@ -273,7 +273,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     return (
       <div className="auth-guard-loading">
         <LoadingSpinner size="large" />
-        <p className="auth-guard-loading-text">Verificando autenticación...</p>
+        <p className="auth-guard-loading-text">Authenticating...</p>
       </div>
     );
   }
@@ -289,14 +289,14 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
         {error && (
           <div className="auth-guard-error">
             <div className="auth-guard-error-content">
-              <h3>Error de Autenticación</h3>
+              <h3>Authentication Error</h3>
               <p>{error.message}</p>
               {error.code === 'SESSION_EXPIRED' && (
                 <button 
                   className="auth-guard-retry-btn"
                   onClick={() => window.location.reload()}
                 >
-                  Recargar Página
+                  Reload Page
                 </button>
               )}
             </div>
@@ -317,19 +317,19 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
             </svg>
           </div>
-          
-          <h2 className="auth-guard-access-denied-title">Acceso Denegado</h2>
+
+          <h2 className="auth-guard-access-denied-title">Access Denied</h2>
           <p className="auth-guard-access-denied-message">{accessDeniedMessage}</p>
           
           <div className="auth-guard-access-denied-details">
             {requiredRoles.length > 0 && (
-              <p><strong>Roles requeridos:</strong> {requiredRoles.join(', ')}</p>
+              <p><strong>Required Roles:</strong> {requiredRoles.join(', ')}</p>
             )}
             {requiredPermissions.length > 0 && (
-              <p><strong>Permisos requeridos:</strong> {requiredPermissions.join(', ')}</p>
+              <p><strong>Required Permissions:</strong> {requiredPermissions.join(', ')}</p>
             )}
-            <p><strong>Su usuario:</strong> {user?.user}</p>
-            <p><strong>Sus permisos:</strong> {user?.permissions?.join(', ') || 'Ninguno'}</p>
+            <p><strong>Your User:</strong> {user?.user}</p>
+            <p><strong>Your Permissions:</strong> {user?.permissions?.join(', ') || 'None'}</p>
           </div>
           
           <div className="auth-guard-access-denied-actions">
@@ -337,13 +337,13 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
               className="btn btn-secondary"
               onClick={() => window.history.back()}
             >
-              Volver Atrás
+              Go Back
             </button>
             <button 
               className="btn btn-danger"
               onClick={handleLogout}
             >
-              Cerrar Sesión
+              Logout
             </button>
           </div>
         </div>

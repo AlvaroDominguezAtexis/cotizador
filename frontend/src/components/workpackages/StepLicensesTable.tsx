@@ -45,10 +45,10 @@ const StepLicensesTable: React.FC<Props> = ({ licenses, onUpdate }) => {
     <table className="table licenses-table">
       <thead>
         <tr>
-          <th>Nombre</th>
-          <th>Coste (€)</th>
-          <th>Asignada</th>
-          <th>Acciones</th>
+          <th>Name</th>
+          <th>Cost (€)</th>
+          <th>Assigned</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -100,19 +100,19 @@ const StepLicensesTable: React.FC<Props> = ({ licenses, onUpdate }) => {
               {editingLicense?.id === license.id ? (
                 <>
                   <Button variant="success" size="sm" onClick={handleSave}>
-                    Guardar
+                    Save
                   </Button>
                   <Button variant="secondary" size="sm" onClick={handleCancel}>
-                    Cancelar
+                    Cancel
                   </Button>
                 </>
               ) : (
                 <>
                   <Button variant="primary" size="sm" onClick={() => setEditingLicense({ ...license })}>
-                    Editar
+                    Edit
                   </Button>
                   <Button variant="danger" size="sm" onClick={() => handleDelete(license.id)}>
-                    Eliminar
+                    Delete
                   </Button>
                 </>
               )}
@@ -124,7 +124,7 @@ const StepLicensesTable: React.FC<Props> = ({ licenses, onUpdate }) => {
           <tr className="new-row">
             <td colSpan={4}>
               <Button variant="secondary" size="sm" onClick={() => setEditingLicense({})}>
-                + Añadir Licencia
+                + Add License
               </Button>
             </td>
           </tr>

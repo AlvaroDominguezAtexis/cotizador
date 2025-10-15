@@ -221,12 +221,12 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
   return (
     <div>
       <form className="project-data-form">
-      <h2 className="form-title">Información del Proyecto</h2>
+      <h2 className="form-title">Project Information</h2>
 
       {/* Grid principal */}
       <div className="project-form-grid">
         <div className="form-group">
-          <label>Título *</label>
+          <label>Project Name *</label>
           <input
             type="text"
             name="title"
@@ -237,7 +237,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Código CRM</label>
+          <label>CRM code</label>
           <input
             type="text"
             name="crmCode"
@@ -247,13 +247,13 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Cliente</label>
+          <label>Client</label>
           <select
             name="client"
             value={formData.client}
             onChange={handleInputChange}
           >
-            <option value="">Selecciona un cliente</option>
+            <option value="">Select a client</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -261,7 +261,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Fecha de Inicio *</label>
+          <label>Start Date *</label>
           <input
             type="date"
             name="startDate"
@@ -272,7 +272,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Fecha de Fin *</label>
+          <label>End Date *</label>
           <input
             type="date"
             name="endDate"
@@ -283,7 +283,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Manager del Negocio</label>
+          <label>Business Manager</label>
           <input
             type="text"
             name="businessManager"
@@ -293,13 +293,13 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Unidad de Negocio</label>
+          <label>Business Unit</label>
           <select
             name="businessUnit"
             value={formData.businessUnit}
             onChange={handleInputChange}
           >
-            <option value="">Seleccione una unidad</option>
+            <option value="">Select a unit</option>
             {businessUnits.map((unit) => (
               <option key={unit.id} value={unit.name}>{unit.name}</option>
             ))}
@@ -308,13 +308,13 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
 
         <div className="form-group">
-          <label>Dominio Operativo</label>
+          <label>Operational Domain</label>
           <select
             name="opsDomain"
             value={formData.opsDomain}
             onChange={handleInputChange}
           >
-            <option value="">Seleccione un dominio</option>
+            <option value="">Select a domain</option>
             {opsDomains.map((domain) => (
               <option key={domain.id} value={domain.name}>{domain.name}</option>
             ))}
@@ -338,7 +338,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Actividad</label>
+          <label>Activity</label>
           <input
             type="text"
             name="activity"
@@ -359,7 +359,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
             onChange={handleInputChange}
             required
           >
-            <option value="">Seleccione IQP</option>
+            <option value="">Select IQP</option>
             {[1,2,3,4,5].map(val => (
               <option key={val} value={val}>{val}</option>
             ))}
@@ -367,7 +367,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Segmentación</label>
+          <label>Segmentation</label>
           <select
             name="segmentation"
             value={formData.segmentation}
@@ -380,7 +380,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
         {/* Last three: Countries, Margin Type, Margin Goal */}
         <div className="form-group">
-          <label>País(es) *</label>
+          <label>Countries *</label>
           <CountrySelector
             selectedCountries={formData.countries || []}
             onChange={handleCountriesChange}
@@ -389,20 +389,20 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
         </div>
 
         <div className="form-group">
-          <label>Tipo de Margen</label>
+          <label>Margin Type</label>
           <select
             name="marginType"
             value={formData.marginType || ''}
             onChange={handleInputChange}
           >
-            <option value="">Seleccione</option>
+            <option value="">Select a type</option>
             <option value="DM">DM</option>
             <option value="GMBS">GMBS</option>
           </select>
         </div>
 
         <div className="form-group">
-          <label>Objetivo de Margen</label>
+          <label>Margin Goal</label>
           <input
             type="number"
             step="0.01"
@@ -417,7 +417,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
 
       {/* Descripción ocupa todo el ancho */}
       <div className="form-group full-width">
-        <label>Descripción</label>
+        <label>Description</label>
         <textarea
           name="description"
           value={formData.description}
@@ -433,12 +433,12 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
     {showIqpWarning && (
       <div className="modal-overlay">
         <div className="modal-content">
-          <h3>Cambio de IQP</h3>
+          <h3>IQP change</h3>
           <p>
-            Al cambiar el IQP de una categoría a otra (IQP 1-2 ↔ IQP 3-5), 
-            todos los workpackages existentes serán eliminados.
+            When changing the IQP from one category to another (IQP 1-2 ↔ IQP 3-5),
+            all existing workpackages will be deleted.
           </p>
-          <p><strong>¿Está seguro de que desea continuar?</strong></p>
+          <p><strong>Are you sure you want to continue?</strong></p>
           <div className="modal-actions">
             <button 
               type="button" 
@@ -446,7 +446,7 @@ const ProjectDataForm: React.FC<Props> = ({ onChange, initialValues }) => {
               className="btn-secondary"
               disabled={isClearing}
             >
-              Cancelar
+              Cancel
             </button>
             <button 
               type="button" 

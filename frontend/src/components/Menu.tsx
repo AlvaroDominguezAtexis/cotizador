@@ -26,10 +26,10 @@ interface MenuProps {
 }
 
 const sortOptions = [
-  { value: 'createdAt', label: 'Fecha de creación' },
-  { value: 'name', label: 'Nombre' },
-  { value: 'client', label: 'Cliente' },
-  { value: 'status', label: 'Estado' },
+  { value: 'createdAt', label: 'Creation Date' },
+  { value: 'name', label: 'Name' },
+  { value: 'client', label: 'Client' },
+  { value: 'status', label: 'Status' },
 ];
 
 export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenProject, onLogout }) => {
@@ -118,7 +118,7 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
         activeTab="project-data"
         onTabChange={() => {}}
       >
-        <div>Cargando proyectos...</div>
+        <div>Loading projects...</div>
       </Layout>
     );
   }
@@ -132,19 +132,19 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
     >
       <div className="menu-container">
         <header className="menu-header">
-          <h1>Mis Proyectos</h1>
+          <h1>My Projects</h1>
           <div className="menu-actions">
             <Button
               variant="secondary"
               onClick={() => {}}
             >
-              Comparar Cotizaciones
+              Compare Quotes
             </Button>
             <Button
               variant="primary"
               onClick={onGoToProjectDataTab}
             >
-              Crear nuevo proyecto
+              Create New Project
             </Button>
           </div>
         </header>
@@ -153,7 +153,7 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
           <input
             className="filter-input"
             type="text"
-            placeholder="Filtrar por nombre o cliente..."
+            placeholder="Filter by name or client..."
             value={filter}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilter(e.target.value)}
           />
@@ -171,7 +171,7 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
           <Button
             variant="secondary"
             onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-            title={sortDir === 'asc' ? 'Ascendente' : 'Descendente'}
+            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
           >
             {sortDir === 'asc' ? '↑' : '↓'}
           </Button>
@@ -180,20 +180,20 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
         <table className="quotes-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Cliente</th>
-              <th>Fecha de creación</th>
-              <th>Estado</th>
+              <th>Name</th>
+              <th>Client</th>
+              <th>Creation Date</th>
+              <th>Status</th>
               <th>TO</th>
               <th>DM</th>
-              <th className="action-cell">Acciones</th>
+              <th className="action-cell">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredQuotes.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', color: '#888' }}>
-                  No hay proyectos.
+                  No projects available.
                 </td>
               </tr>
             ) : filteredQuotes.map((quote) => (
@@ -211,17 +211,17 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
                 <td>{quote.name}</td>
                 <td>{quote.client || '-'}</td>
                 <td>{new Date(quote.createdAt).toLocaleDateString()}</td>
-                <td>{quote.status || 'Borrador'}</td>
-                <td>{quote.totalAmount ? `${Number(quote.totalAmount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}</td>
-                <td>{quote.DM != null ? `${Number(quote.DM).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : 'Borrador'}</td>
+                <td>{quote.status || 'Draft'}</td>
+                <td>{quote.totalAmount ? `${Number(quote.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}</td>
+                <td>{quote.DM != null ? `${Number(quote.DM).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : 'Draft'}</td>
                 <td className="action-cell">
                   <Button
                     variant="danger"
                     size="sm"
-                    title="Eliminar proyecto"
+                    title="Delete project"
                     onClick={e => {
                       e.stopPropagation();
-                      if (window.confirm('¿Seguro que deseas eliminar este proyecto?')) {
+                      if (window.confirm('Are you sure you want to delete this project?')) {
                         fetch(`http://localhost:4000/api/projects/${quote.id}`, { 
                           method: 'DELETE', 
                           credentials: 'include' 
@@ -232,7 +232,7 @@ export const Menu: React.FC<MenuProps> = ({ user, onGoToProjectDataTab, onOpenPr
                       }
                     }}
                   >
-                    Borrar
+                    Delete
                   </Button>
                 </td>
               </tr>

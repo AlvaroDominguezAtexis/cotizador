@@ -993,7 +993,7 @@ export const ProfilesManagement: React.FC<ProfilesManagementProps> = ({ profiles
   const headerActions = useMemo(
     () => (
       <Button variant="success" size="sm" onClick={handleAddNewProfile}>
-        Añadir Perfil
+        Add profile
       </Button>
     ),
     [handleAddNewProfile]
@@ -1116,8 +1116,8 @@ const ProfileYearSalaries: React.FC<{ profile: Profile; projectId: number; count
     return () => { mounted = false; };
   }, [profile.id, projectId, reloadSignal]);
 
-  if (loading) return <div style={{ padding: 12 }}>Cargando salarios por año…</div>;
-  if (!yearsData.length) return <div style={{ padding: 12 }}>Sin salarios por año.</div>;
+  if (loading) return <div style={{ padding: 12 }}>Loading salaries by year…</div>;
+  if (!yearsData.length) return <div style={{ padding: 12 }}>No salaries by year.</div>;
 
   const countryName = (id: number) => countries.find(c => Number(c.id) === Number(id))?.name || String(id);
   const filtered = yearsData.filter(r => projectCountryIds.includes(Number(r.country_id)));
@@ -1174,7 +1174,7 @@ const ProfileYearSalaries: React.FC<{ profile: Profile; projectId: number; count
         <div className="profile-ys-title">
           {editing && Object.keys(yearEdits || {}).length > 0 && (
             <span className="profile-ys-pending" title="Cambios sin guardar en esta tabla">
-              {Object.keys(yearEdits).length} cambios sin guardar
+              {Object.keys(yearEdits).length} changes pending
             </span>
           )}
         </div>

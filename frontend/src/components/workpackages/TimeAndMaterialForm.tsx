@@ -91,18 +91,18 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
   // Helper function para encontrar el nombre del perfil
   const getProfileName = (profileId: number): string => {
     const profile = profileOptions.find(p => p.id === profileId);
-    return profile?.name || 'Sin seleccionar';
+    return profile?.name || 'Not selected';
   };
 
   // Helper function para encontrar el nombre del país
   const getCountryName = (countryId: string | number): string => {
-    if (!countryId && countryId !== 0) return 'Sin seleccionar';
+    if (!countryId && countryId !== 0) return 'Not selected';
     
     // Convertir ambos valores a string para comparación consistente
     const searchId = String(countryId);
     const country = countryOptions.find(c => String(c.id) === searchId);
     
-    return country?.name || 'Sin seleccionar';
+    return country?.name || 'Not selected';
   };
 
   // Función para obtener todas las combinaciones perfil-ciudad ya utilizadas
@@ -408,7 +408,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     // Verificar que haya perfiles disponibles
     const availableProfiles = getAvailableProfiles();
     if (availableProfiles.length === 0) {
-      setError('No hay perfiles disponibles para crear nuevas combinaciones.');
+      setError('No profiles available to create new combinations.');
       return;
     }
 
@@ -808,8 +808,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     return (
       <div className="time-material-form">
         <div className="form-header">
-          <h2>Time & Material - Configuración Simplificada</h2>
-          <p className="form-description">Cargando datos existentes...</p>
+          <p className="form-description">Loading existing data...</p>
         </div>
       </div>
     );
@@ -818,10 +817,6 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
   return (
     <div className="time-material-form">
       <div className="form-header">
-        <h2>Time & Material - Configuración Simplificada</h2>
-        <p className="form-description">
-          Para proyectos IQP 1-2, configure directamente los perfiles y recursos necesarios.
-        </p>
         {rows.length > 0 && (
           <div className="profile-counter">
             📊 {rows.length} perfil(es) • {rows.filter(r => r.stepId).length} guardado(s) • {rows.filter(r => !r.stepId).length} pendiente(s) 
@@ -833,8 +828,8 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
         {rows.length === 0 ? (
           <div className="empty-profiles-message">
             <div className="empty-state-icon">📋</div>
-            <h3>No hay perfiles configurados</h3>
-            <p>Haz clic en "Añadir Perfil" para comenzar a configurar los perfiles y países para tu proyecto Time & Material.</p>
+            <h3>No profiles configured</h3>
+            <p>Click "Add Consultant" to start configuring profiles and countries for your Time & Material project.</p>
           </div>
         ) : (
           rows.map((row, index) => (
@@ -847,7 +842,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                   onChange={(e) => updateRow(row.id, { profileId: Number(e.target.value) })}
                   required
                 >
-                  <option value="">Seleccionar perfil</option>
+                  <option value="">Select profile</option>
                   {getAvailableProfiles(row.id).map(profile => (
                     <option key={profile.id} value={profile.id}>
                       {profile.name}
@@ -863,7 +858,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                   size="sm"
                   onClick={() => toggleRowExpansion(row.id)}
                 >
-                  {row.expanded ? '▲' : '▼'} Detalles anuales
+                  {row.expanded ? '▲' : '▼'} Annual Details
                 </Button>
                 
                 {row.isEditing ? (
@@ -874,7 +869,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                       onClick={() => saveRow(row.id)}
                       disabled={loading}
                     >
-                      {loading ? 'Guardando...' : 'Guardar'}
+                      {loading ? 'Saving...' : 'Save'}
                     </Button>
                     <Button
                       variant="secondary"
@@ -882,7 +877,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                       onClick={() => cancelRowEdit(row.id)}
                       disabled={loading}
                     >
-                      Cancelar
+                      Cancel
                     </Button>
                   </>
                 ) : (
@@ -891,7 +886,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                     size="sm"
                     onClick={() => toggleRowEdit(row.id)}
                   >
-                    Editar
+                    Edit
                   </Button>
                 )}
                 
@@ -902,8 +897,8 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                     const profileName = getProfileName(row.profileId);
                     const countryName = getCountryName(row.countryId);
                     const confirmMessage = rows.length === 1 && row.stepId
-                      ? `¿Estás seguro de que quieres eliminar la relación ${profileName}-${countryName}? Esto eliminará todo el workpackage Time & Material ya que es el único perfil.`
-                      : `¿Estás seguro de que quieres eliminar la relación ${profileName}-${countryName} de este proyecto?`;
+                      ? `Are you sure you want to delete the ${profileName}-${countryName} relationship? This will delete the entire Time & Material workpackage since it's the only profile.`
+                      : `Are you sure you want to delete the ${profileName}-${countryName} relationship from this project?`;
                     
                     if (window.confirm(confirmMessage)) {
                       removeRow(row.id);
@@ -917,7 +912,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                       : ""
                   }
                 >
-                  🗑️ Eliminar
+                  🗑️ Delete
                 </Button>
               </div>
             </div>
@@ -943,14 +938,14 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                 </div>
 
                 <div className="field-group">
-                  <label>País</label>
+                  <label>Country</label>
                   {row.isEditing ? (
                     <select
                       value={row.countryId}
                       onChange={(e) => updateRow(row.id, { countryId: e.target.value })}
                       required
                     >
-                      <option value="">Seleccionar país</option>
+                      <option value="">Select country</option>
                       {countryOptions.map(country => (
                         <option key={country.id} value={country.id}>
                           {country.name}
@@ -965,14 +960,14 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                 </div>
 
                 <div className="field-group">
-                  <label>Ciudad</label>
+                  <label>City</label>
                   {row.isEditing ? (
                     <select
                       value={row.cityId || ''}
                       onChange={(e) => updateRow(row.id, { cityId: e.target.value ? Number(e.target.value) : undefined })}
                       required
                     >
-                      <option value="">Seleccionar ciudad</option>
+                      <option value="">Select city</option>
                       {row.countryId && getAvailableCitiesForProfile(row.profileId, row.countryId, row.id).map(city => (
                         <option key={city.id} value={city.id}>
                           {city.name}
@@ -987,7 +982,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                 </div>
 
                 <div className="field-group">
-                  <label>Process Time (días)</label>
+                  <label>Process Time (days)</label>
                   {row.isEditing ? (
                     <input
                       type="number"
@@ -999,7 +994,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                     />
                   ) : (
                     <div className="readonly-field">
-                      {row.processTime} días
+                      {row.processTime} days
                     </div>
                   )}
                 </div>
@@ -1035,10 +1030,10 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
 
               {row.expanded && (
                 <div className="expanded-details">
-                  <h4>Configuración Detallada por Año</h4>
+                  <h4>Detailed Configuration by Year</h4>
                   
                   <div className="detail-section">
-                    <h5>Process Time por Año</h5>
+                    <h5>Process Time by Year</h5>
                     <div className="year-fields">
                       {projectYears.map((year, yearIndex) => (
                         <div key={`pt-${year}`} className="field-group">
@@ -1095,7 +1090,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                   </div>
 
                   <div className="detail-section">
-                    <h5>Office por Año</h5>
+                    <h5>Office by Year</h5>
                     <div className="year-fields">
                       {projectYears.map((year, yearIndex) => (
                         <div key={`office-${year}`} className="field-group">
@@ -1123,7 +1118,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                   </div>
 
                   <div className="detail-section">
-                    <h5>Hardware por Año</h5>
+                    <h5>Hardware by Year</h5>
                     <div className="year-fields">
                       {projectYears.map((year, yearIndex) => (
                         <div key={`hw-${year}`} className="field-group">
@@ -1163,7 +1158,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
           disabled={!canAddNewProfile()}
           title={!canAddNewProfile() ? 'No hay perfiles disponibles' : 'Añadir nuevo perfil'}
         >
-          + Añadir Perfil
+          + Add Consultant
         </Button>
       </div>
 

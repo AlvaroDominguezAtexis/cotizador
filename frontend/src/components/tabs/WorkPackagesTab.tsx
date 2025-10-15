@@ -50,10 +50,7 @@ export const WorkPackagesTab: React.FC<WorkPackagesTabProps> = ({
     return (
       <div className="tab-container">
         <div className="tab-header">
-          <h1>Configuración Time & Material (IQP {iqp})</h1>
-          <div className="tab-description">
-            <p>Para proyectos IQP 1-2, configure directamente los perfiles sin estructuras de workpackages complejas.</p>
-          </div>
+          <h1>Time & Material Configuration (IQP {iqp})</h1>
         </div>
 
         <div className="tab-content">

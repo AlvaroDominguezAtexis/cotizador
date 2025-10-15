@@ -126,11 +126,11 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
   return (
     <div className="tab-container">
       <div className="tab-header">
-        <h1>Resumen del Proyecto</h1>
+        <h1>Project Summary</h1>
         {loading && <span style={{ marginLeft: 10, color: '#666' }}>
-          Recalculando costes...
+          Recalculating costs...
           {isRecalculating && <span style={{ display: 'block', fontSize: '0.9em', fontStyle: 'italic' }}>
-            Procesando costes IT por años...
+            Processing IT costs by year...
           </span>}
         </span>}
         <div className="tab-actions">
@@ -138,13 +138,13 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({ project, profiles, workP
             variant="secondary"
             onClick={handlePrint}
           >
-            Imprimir Resumen
+            Print Summary
           </Button>
           <Button 
             variant="primary"
             onClick={handleExport}
           >
-            Exportar Resumen
+            Export Summary
           </Button>
         </div>
       </div>

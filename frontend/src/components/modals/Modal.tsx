@@ -53,7 +53,7 @@ const Modal: React.FC<ModalComponentProps> = ({
                 variant="secondary" 
                 onClick={onClose}
               >
-                Cerrar
+                Close
               </Button>
             )}
           </div>

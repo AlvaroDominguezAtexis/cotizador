@@ -36,7 +36,7 @@ const MultiyearFields: React.FC<MultiyearFieldsProps> = ({
     <div className="multiyear-fields">
       <div className="multiyear-year-selector">
         <div className="year-input-group">
-          <label htmlFor="startYear">Año de Inicio</label>
+          <label htmlFor="startYear">Starting Year</label>
           <select
             id="startYear"
             value={startYear || ''}
@@ -46,7 +46,7 @@ const MultiyearFields: React.FC<MultiyearFieldsProps> = ({
             }}
             className="year-select"
           >
-            <option value="" disabled>Seleccionar año</option>
+            <option value="" disabled>Select Year</option>
             {yearOptions.map((year) => (
               <option key={year} value={year}>
                 {year}
@@ -56,7 +56,7 @@ const MultiyearFields: React.FC<MultiyearFieldsProps> = ({
         </div>
 
         <div className="year-input-group">
-          <label htmlFor="endYear">Año de Fin</label>
+          <label htmlFor="endYear">Ending Year</label>
           <select
             id="endYear"
             value={endYear || ''}
@@ -67,7 +67,7 @@ const MultiyearFields: React.FC<MultiyearFieldsProps> = ({
             className="year-select"
             disabled={!startYear}
           >
-            <option value="" disabled>Seleccionar año</option>
+            <option value="" disabled>Select Year</option>
             {yearOptions
               .filter((year) => !startYear || year >= startYear)
               .map((year) => (
@@ -83,15 +83,15 @@ const MultiyearFields: React.FC<MultiyearFieldsProps> = ({
       {/* Mensaje de validación */}
       {startYear && endYear && !isValidYearRange() && (
         <div className="year-range-error">
-          El año de inicio debe ser menor o igual al año de fin
+          The starting year must be less than or equal to the ending year
         </div>
       )}
 
       {/* Información adicional */}
       <div className="multiyear-info">
         <p>
-          <strong>Información:</strong> Un proyecto multianual permite 
-          distribuir recursos y planificación a lo largo de varios años.
+          <strong>Information:</strong> A multiyear project allows for the 
+          distribution of resources and planning over several years.
         </p>
       </div>
     </div>

@@ -57,9 +57,9 @@ const WorkPackagesManagement: React.FC<WorkPackagesManagementProps> = ({ workPac
           onClick={() => setCreatingNew(true)}
           disabled={creatingNew || !effectiveProjectId}
         >
-          Añadir Paquete de Trabajo
+          Add Work Package
         </Button>
-        {loading && <span style={{ marginLeft: '1rem', fontSize: '.8rem' }}>Cargando...</span>}
+        {loading && <span style={{ marginLeft: '1rem', fontSize: '.8rem' }}>Loading...</span>}
         {error && <span style={{ marginLeft: '1rem', color: 'red', fontSize: '.8rem' }}>{error}</span>}
       </div>
       <WorkPackagesTable

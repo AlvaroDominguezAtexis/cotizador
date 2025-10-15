@@ -25,7 +25,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   user,
   onLogout,
-  title = 'Sistema de Cotizaciones',
+  title = 'QS Tool',
   projectInfo,
   actions,
   className = ''

@@ -56,19 +56,19 @@ export const ProfilesTab: React.FC<ProfilesTabProps> = ({ profiles, onChange, ad
   return (
     <div className="tab-container">
       <div className="tab-header">
-        <h1>Gestión de perfiles</h1>
+        <h1>Profiles Management</h1>
         <div className="tab-actions">
           <Button 
             variant="secondary"
             onClick={handleImport}
           >
-            Importar Perfiles
+            Import profiles
           </Button>
           <Button 
             variant="primary"
             onClick={handleExport}
           >
-            Exportar Perfiles
+            Export profiles
           </Button>
         </div>
       </div>

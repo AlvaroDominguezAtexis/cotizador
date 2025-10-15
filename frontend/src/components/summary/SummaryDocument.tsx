@@ -936,13 +936,13 @@ const SummaryDocument: React.FC<Props> = ({
             className={`tab ${tab === "country" ? "active" : ""}`}
             onClick={() => setTab("country")}
           >
-            País/Ciudad
+            Country/City
           </button>
           <button 
             className={`tab ${tab === "profileType" ? "active" : ""}`}
             onClick={() => setTab("profileType")}
           >
-            Tipo de Perfil
+            Profile Type
           </button>
           <button 
             className={`tab ${tab === "workPackage" ? "active" : ""}`}
@@ -960,12 +960,12 @@ const SummaryDocument: React.FC<Props> = ({
             className={`tab ${tab === "year" ? "active" : ""}`}
             onClick={() => setTab("year")}
           >
-            Año del Proyecto
+            Project Year
           </button>
         </div>
 
         {currentSummaryData.length === 0 ? (
-          <div className="summary-hint empty">Sin datos para {
+          <div className="summary-hint empty">No data for {
             tab === "country" ? "país/ciudad" :
             tab === "profileType" ? "tipo de perfil" :
             tab === "workPackage" ? "work package" :
@@ -982,9 +982,9 @@ const SummaryDocument: React.FC<Props> = ({
                  tab === "deliverable" ? "Deliverable" :
                  tab === "year" ? "Año" : "Grupo"}
               </span>
-              <span className="breakdown-col-hours">Horas</span>
+              <span className="breakdown-col-hours">Hours</span>
               <span className="breakdown-col-fte">FTE</span>
-              <span className="breakdown-col-percentage">% del Total</span>
+              <span className="breakdown-col-percentage">% of Total</span>
             </div>
             {currentSummaryData.map((r: { name: string; hours: number; fte: number }) => {
               const percentage = totalFTEs > 0 ? (r.fte / totalFTEs) * 100 : 0;

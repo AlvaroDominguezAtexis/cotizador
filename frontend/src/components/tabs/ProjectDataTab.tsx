@@ -18,7 +18,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ project, onChang
   return (
     <div className="tab-container">
       <div className="tab-header">
-        <h1>Información Básica del Proyecto</h1>
+        <h1>Basic project information</h1>
       </div>
       <div className="tab-content">
         <ProjectDataForm key={project?.id || 'new'} initialValues={project || undefined} onChange={onChange} />

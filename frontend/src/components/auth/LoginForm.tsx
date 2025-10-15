@@ -93,8 +93,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     <div className="login-overlay">
       <div className="login-container">
         <div className="login-header">
-          <h1 className="login-title">Sistema de Cotizaciones</h1>
-          <p className="login-subtitle">Ingrese sus credenciales para acceder</p>
+          <h1 className="login-title">QS Tool</h1>
+          <p className="login-subtitle">Enter your credentials to access</p>
         </div>
         
         <form className="login-form" onSubmit={handleSubmit} noValidate>

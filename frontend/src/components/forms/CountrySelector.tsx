@@ -124,11 +124,11 @@ const CountrySelector: React.FC<CountrySelectorProps> = ({
       </div>
 
       {/* Mensajes de estado */}
-      {loading && <div className="country-selector-hint">Cargando países...</div>}
+      {loading && <div className="country-selector-hint">Loading countries...</div>}
       {error && <div className="country-selector-max-warning">{error}</div>}
       {countries.length >= max && !loading && (
         <div className="country-selector-max-warning">
-          Se ha alcanzado el número máximo de países ({max})
+          The maximum number of countries has been reached ({max})
         </div>
       )}
     </div>

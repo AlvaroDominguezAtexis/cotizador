@@ -251,16 +251,16 @@ const DeliverablesTable: React.FC<Props> = ({
         </colgroup>
         <thead>
           <tr>
-            <th>Código</th>
-            <th>Nombre</th>
+            <th>Code</th>
+            <th>Name</th>
             <th>Margin Goal</th>
-            <th>Cantidades anuales</th>
-            <th>Acciones</th>
+            <th>Yearly Quantities</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {loading && (
-            <tr><td colSpan={5} style={{ textAlign:'center', fontSize:'.8rem' }}>Cargando deliverables...</td></tr>
+            <tr><td colSpan={5} style={{ textAlign:'center', fontSize:'.8rem' }}>Loading deliverables...</td></tr>
           )}
           {error && (
             <tr><td colSpan={5} style={{ textAlign:'center', color:'red', fontSize:'.8rem' }}>{error}</td></tr>

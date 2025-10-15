@@ -32,8 +32,8 @@ interface TabNavigationProps {
 const defaultTabs: Tab[] = [
   {
     id: 'project-data',
-    label: 'Datos del Proyecto',
-    description: 'Información básica y configuración del proyecto',
+    label: 'Project Data',
+    description: 'Basic information and project configuration',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -47,7 +47,7 @@ const defaultTabs: Tab[] = [
   {
     id: 'profiles',
     label: 'Profiles',
-    description: 'Gestión de perfiles del proyecto',
+    description: 'Project profiles management',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -58,7 +58,7 @@ const defaultTabs: Tab[] = [
   {
     id: 'work-packages',
     label: 'Work Packages',
-    description: 'Definición de entregables y tareas del proyecto',
+    description: 'Definition of deliverables and project tasks',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -69,8 +69,8 @@ const defaultTabs: Tab[] = [
   },
   {
     id: 'non-operational-costs',
-    label: 'Costes No Operacionales',
-    description: 'Gestión de gastos adicionales y costes externos',
+    label: 'Non-Operational Costs',
+    description: 'Management of additional expenses and external costs',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <line x1="12" y1="1" x2="12" y2="23"/>
@@ -81,8 +81,8 @@ const defaultTabs: Tab[] = [
   },
   {
     id: 'summary',
-    label: 'Resumen',
-    description: 'Vista general y métricas del proyecto',
+    label: 'Summary',
+    description: 'General overview and project metrics',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M9 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-4"/>
@@ -94,8 +94,8 @@ const defaultTabs: Tab[] = [
   },
   {
     id: 'advance-settings',
-    label: 'Advance Setting',
-    description: 'Variables del proyecto (p.ej., CPI por país)',
+    label: 'Advanced Settings',
+    description: 'Project variables (e.g., CPI by country)',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <circle cx="12" cy="12" r="3"/>

@@ -66,7 +66,7 @@ const App: React.FC = () => {
       return { ok: true, project: mappedProject || undefined };
     } catch (error) {
       console.error('Full Error saving project:', error);
-      alert(`No se pudo guardar el proyecto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      alert(`Could not save the project: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return { ok: false };
     }
   };
@@ -337,7 +337,7 @@ const App: React.FC = () => {
             }}
             onClick={handleBackToMenu}
           >
-            Guardar y salir
+            Save and exit
           </button>
         </div>
         {renderTabContent()}

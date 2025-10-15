@@ -64,7 +64,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="layout-container">
           <div className="layout-footer-content">
             <p className="layout-footer-text">
-              © 2024 Sistema de Cotizaciones - Versión 1.0.0
+              © 2024 Quotation System - Version 1.0.0
             </p>
             <div className="layout-footer-links">
               <button 
@@ -72,21 +72,21 @@ export const Layout: React.FC<LayoutProps> = ({
                 className="layout-footer-link"
                 onClick={() => window.open('/help', '_blank')}
               >
-                Ayuda
+                Help
               </button>
               <button 
                 type="button" 
                 className="layout-footer-link"
                 onClick={() => window.open('/docs', '_blank')}
               >
-                Documentación
+                Documentation
               </button>
               <button 
                 type="button" 
                 className="layout-footer-link"
                 onClick={() => window.open('/support', '_blank')}
               >
-                Soporte
+                Support
               </button>
             </div>
           </div>

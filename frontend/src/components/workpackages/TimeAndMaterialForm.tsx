@@ -1,5 +1,6 @@
 // src/components/workpackages/TimeAndMaterialForm.tsx
 import React, { useState, useEffect } from 'react';
+import { fetchProjectCountriesWorkingDays, ProjectCountryWorkingDays } from '../../api/projectCountriesApi';
 import { Button } from '../ui/Button';
 import { fetchTimeAndMaterialWorkPackage, updateTimeAndMaterialProfile } from '../../api/timeAndMaterialApi';
 import { apiConfig } from '../../utils/apiConfig';
@@ -54,6 +55,27 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
   // Estado para manejar ciudades por país
   const [citiesByCountry, setCitiesByCountry] = useState<Record<string, Array<{id: number; name: string}>>>({});
 
+  // Estado para manejar working_days por país del proyecto
+  const [workingDaysByCountry, setWorkingDaysByCountry] = useState<Record<string, number>>({});
+
+  // Cargar working_days de todos los países del proyecto al montar
+  useEffect(() => {
+    if (!projectId) return;
+    fetchProjectCountriesWorkingDays(projectId)
+      .then((data: ProjectCountryWorkingDays[]) => {
+        const map: Record<string, number> = {};
+        data.forEach(row => {
+          if (row.country_id != null && row.working_days != null) {
+            map[String(row.country_id)] = Number(row.working_days);
+          }
+        });
+        setWorkingDaysByCountry(map);
+      })
+      .catch((err) => {
+        console.error('Error fetching project countries working_days:', err);
+      });
+  }, [projectId]);
+
   /**
    * Función para calcular días laborales entre dos fechas (lunes a viernes)
    * Este valor se usa como valor por defecto para el campo "process time" en nuevos perfiles
@@ -61,32 +83,74 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
    * @param endDate - Fecha de fin del proyecto en formato YYYY-MM-DD
    * @returns Número de días laborales entre las fechas
    */
-  const calculateWorkingDays = (startDate: string, endDate: string): number => {
-    if (!startDate || !endDate) return 0;
-    
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    // Verificar que las fechas sean válidas
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
-    
+
+  // Calcula días laborales entre dos fechas (lunes a viernes)
+  const calculateWorkingDaysBetween = (startDate: Date, endDate: Date): number => {
     let workingDays = 0;
-    const currentDate = new Date(start);
-    
-    while (currentDate <= end) {
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
       const dayOfWeek = currentDate.getDay();
-      // 1 = lunes, 2 = martes, ..., 5 = viernes
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        workingDays++;
-      }
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) workingDays++;
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
     return workingDays;
   };
 
-  // Calcular días laborales por defecto para process time
-  const defaultProcessTime = calculateWorkingDays(projectStartDate || '', projectEndDate || '');
+  // Calcula días laborales por año para proyectos multianuales IQP 1-2
+  // workingDaysPerYear: número máximo de días laborales por año (por país)
+  const calculateWorkingDaysPerYear = (
+    startDateStr: string,
+    endDateStr: string,
+    workingDaysPerYear: number = 220
+  ): number[] => {
+    if (!startDateStr || !endDateStr) return [];
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return [];
+
+    const years: number[] = [];
+    for (let y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) years.push(y);
+    const result: number[] = [];
+    for (let i = 0; i < years.length; i++) {
+      let yearStart = new Date(years[i], 0, 1);
+      let yearEnd = new Date(years[i], 11, 31);
+      if (i === 0) yearStart = startDate;
+      if (i === years.length - 1) yearEnd = endDate;
+      const days = calculateWorkingDaysBetween(yearStart, yearEnd);
+      // Si hay menos días laborables reales que el máximo, usar el real; si hay más, usar el máximo
+      result.push(Math.min(days, workingDaysPerYear));
+    }
+    return result;
+  };
+
+
+  // Obtener working_days del país seleccionado (proyecto específico)
+  const getWorkingDaysForCountry = (countryId: string): number => {
+    if (workingDaysByCountry && workingDaysByCountry[String(countryId)] != null) {
+      return Number(workingDaysByCountry[String(countryId)]);
+    }
+    return 220;
+  };
+
+  // Calcula el array de días laborales por año para el row actual
+  const getProcessTimePerYear = (row: ProfileRow): number[] => {
+    const workingDays = getWorkingDaysForCountry(row.countryId);
+    return calculateWorkingDaysPerYear(projectStartDate || '', projectEndDate || '', workingDays);
+  };
+
+  // Calcular días laborales por defecto para process time (suma de todos los años)
+  const defaultProcessTime = (() => {
+    // Usar el working_days del primer país del proyecto si existe, si no 220
+    let workingDays = 220;
+    if (countryOptions.length > 0) {
+      const firstCountryId = String(countryOptions[0].id);
+      if (workingDaysByCountry && workingDaysByCountry[firstCountryId] != null) {
+        workingDays = Number(workingDaysByCountry[firstCountryId]);
+      }
+    }
+    const arr = calculateWorkingDaysPerYear(projectStartDate || '', projectEndDate || '', workingDays);
+    return arr.reduce((a, b) => a + b, 0);
+  })();
 
   // Helper function para encontrar el nombre del perfil
   const getProfileName = (profileId: number): string => {
@@ -350,9 +414,18 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
             marginGoal: deliverablesById[step.deliverable_id]?.marginGoal || result.deliverable?.marginGoal || defaultMarginGoal,
             countryId: String(step.countryId), // Asegurar que sea string
             cityId: step.cityId || undefined,
-            processTime: sortedYearlyData[0]?.processTime || 0,
-            yearlyQuantities,
-            processTimePerYear,
+              // El processTime general es la suma de los días laborales por año
+              processTime: getProcessTimePerYear({
+                ...step,
+                countryId: step.countryId || '',
+                // ...otros campos si necesitas
+              }).reduce((a, b) => a + b, 0),
+              yearlyQuantities,
+              // El detalle anual muestra los días laborales correctos por año
+              processTimePerYear: getProcessTimePerYear({
+                ...step,
+                countryId: step.countryId || '',
+              }),
             mngPerYear,
             officePerYear,
             hardwarePerYear,
@@ -1047,20 +1120,9 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
 
                 <div className="field-group">
                   <label>Process Time (days)</label>
-                  {row.isEditing ? (
-                    <input
-                      type="number"
-                      value={row.processTime}
-                      onChange={(e) => updateRow(row.id, { processTime: Number(e.target.value) })}
-                      min="0"
-                      step="0.1"
-                      required
-                    />
-                  ) : (
-                    <div className="readonly-field">
-                      {row.processTime} days
-                    </div>
-                  )}
+                  <div className="readonly-field">
+                    {(row.processTimePerYear ? row.processTimePerYear.reduce((a, b) => a + b, 0) : 0)} days
+                  </div>
                 </div>
               </div>
 

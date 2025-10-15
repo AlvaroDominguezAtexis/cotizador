@@ -121,7 +121,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     if (!profileId || !countryId) return [];
 
     const usedCombinations = getUsedProfileCityCombinations();
-    
+
     // Si estamos editando una fila existente, excluir su combinación actual
     if (excludeRowId !== undefined) {
       const currentRow = rows.find(row => row.id === excludeRowId);
@@ -136,7 +136,24 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     );
   };
 
-  // Función para obtener perfiles disponibles (que no han usado todas las ciudades)
+  // ✅ NUEVA FUNCIÓN: Obtener países disponibles para un perfil específico
+  const getAvailableCountriesForProfile = (profileId: number, excludeRowId?: number): typeof countryOptions => {
+    if (!profileId) return countryOptions;
+
+    return countryOptions.filter(country => {
+      const citiesForThisCountry = citiesByCountry[country.id];
+      
+      // Si las ciudades para este país no están cargadas aún, permitir el país
+      // (las ciudades se cargarán cuando se seleccione)
+      if (!citiesForThisCountry) {
+        return true;
+      }
+      
+      // Si las ciudades están cargadas, verificar si hay ciudades disponibles
+      const availableCities = getAvailableCitiesForProfile(profileId, country.id, excludeRowId);
+      return availableCities.length > 0;
+    });
+  };  // Función para obtener perfiles disponibles (que no han usado todas las ciudades)
   const getAvailableProfiles = (excludeRowId?: number): typeof profileOptions => {
     const usedCombinations = getUsedProfileCityCombinations();
     
@@ -154,16 +171,30 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
         .filter((combination: string) => combination.startsWith(`${profile.id}-`))
         .length;
       
-      // Calcular el total de ciudades disponibles
-      const totalCities = Object.values(citiesByCountry).reduce((total, cities) => total + cities.length, 0);
+      // ✅ ARREGLO: Calcular el total de ciudades basándose en TODOS los países del proyecto
+      // no solo los que ya tienen ciudades cargadas
+      let totalCitiesInProject = 0;
       
-      // Si no hay ciudades cargadas aún, permitir todos los perfiles
-      if (totalCities === 0) {
+      // Contar ciudades para cada país del proyecto
+      for (const country of countryOptions) {
+        const citiesForThisCountry = citiesByCountry[country.id];
+        if (citiesForThisCountry) {
+          // Si ya tenemos las ciudades cargadas, usarlas
+          totalCitiesInProject += citiesForThisCountry.length;
+        } else {
+          // Si no tenemos las ciudades cargadas aún, asumir que hay al menos 1 ciudad por país
+          // Esto permite que se puedan añadir perfiles incluso cuando se añaden nuevos países
+          totalCitiesInProject += 1;
+        }
+      }
+      
+      // Si no hay países definidos, permitir todos los perfiles
+      if (totalCitiesInProject === 0) {
         return true;
       }
       
-      // El perfil está disponible si no ha usado todas las ciudades
-      return citiesUsedByProfile < totalCities;
+      // El perfil está disponible si no ha usado todas las ciudades del proyecto
+      return citiesUsedByProfile < totalCitiesInProject;
     });
   };
 
@@ -274,12 +305,23 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
       if (result && result.steps && Array.isArray(result.steps) && result.steps.length > 0 && result.workpackage) {
         console.log(`✅ Workpackage encontrado: ${result.workpackage.id} - ${result.workpackage.name}`);
         console.log(`📊 Steps encontrados: ${result.steps.length}`);
-        
+
+        // Mapear deliverables por id para acceso rápido
+        const deliverablesById: Record<number, any> = {};
+        if (Array.isArray(result.deliverables)) {
+          for (const d of result.deliverables) {
+            deliverablesById[d.id] = d;
+          }
+        } else if (result.deliverable) {
+          // Soporte legacy: si solo hay uno
+          deliverablesById[result.deliverable.id] = result.deliverable;
+        }
+
         // Convertir los datos del backend al formato de ProfileRow
         const loadedRows: ProfileRow[] = result.steps.map((step: any) => {
           // Organizar datos anuales en arrays por año
           const sortedYearlyData = step.yearlyData?.sort((a: any, b: any) => a.year - b.year) || [];
-          
+
           const processTimePerYear = new Array(projectYears.length).fill(0);
           const mngPerYear = new Array(projectYears.length).fill(0);
           const officePerYear = new Array(projectYears.length).fill(false);
@@ -294,16 +336,22 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
             }
           });
 
+          // Obtener yearlyQuantities del deliverable asociado a este step
+          let yearlyQuantities: number[] = new Array(projectYears.length).fill(1);
+          if (step.deliverable_id && deliverablesById[step.deliverable_id]?.yearlyQuantities) {
+            yearlyQuantities = deliverablesById[step.deliverable_id].yearlyQuantities;
+          } else if (result.deliverable?.yearlyQuantities) {
+            yearlyQuantities = result.deliverable.yearlyQuantities;
+          }
+
           return {
             id: Date.now() + Math.random() + step.id, // ID único para el frontend
             profileId: step.profileId,
-            marginGoal: result.deliverable?.marginGoal || defaultMarginGoal,
+            marginGoal: deliverablesById[step.deliverable_id]?.marginGoal || result.deliverable?.marginGoal || defaultMarginGoal,
             countryId: String(step.countryId), // Asegurar que sea string
             cityId: step.cityId || undefined,
             processTime: sortedYearlyData[0]?.processTime || 0,
-            yearlyQuantities: result.deliverable?.yearlyQuantities && result.deliverable.yearlyQuantities.length > 0 
-              ? result.deliverable.yearlyQuantities 
-              : new Array(projectYears.length).fill(1),
+            yearlyQuantities,
             processTimePerYear,
             mngPerYear,
             officePerYear,
@@ -323,7 +371,8 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
             id: r.id, 
             profileId: r.profileId, 
             countryId: r.countryId, 
-            stepId: r.stepId 
+            stepId: r.stepId,
+            stepWorkpackageId: r.stepWorkpackageId // ✅ Agregar para debugging
           }))
         });
         setRows(loadedRows);
@@ -603,6 +652,14 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     const row = rows.find(r => r.id === rowId);
     if (!row) return;
 
+    console.log('💾 SaveRow - Información de IDs:', {
+      rowId,
+      stepId: row.stepId,
+      stepWorkpackageId: row.stepWorkpackageId,
+      currentWorkpackageId,
+      profileId: row.profileId
+    });
+
     // Validar datos del perfil
     if (!row.profileId || !row.countryId || !row.cityId || row.processTime <= 0) {
       setError('Por favor completa todos los campos obligatorios');
@@ -631,8 +688,8 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
       let stepId = row.stepId;
       
       if (row.stepId) {
-        // Actualizar perfil existente
-        await updateProfile(row.stepId, rowData);
+        // Actualizar perfil existente - usar el stepWorkpackageId específico del row
+        await updateProfile(row.stepId, rowData, row.stepWorkpackageId);
         console.log('✅ Perfil actualizado correctamente');
       } else {
         // Crear nuevo perfil - por ahora simplificado
@@ -702,10 +759,20 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
   };
 
   // Función para actualizar un perfil existente  
-  const updateProfile = async (stepId: number, rowData: any) => {
-    if (!currentWorkpackageId) {
+  const updateProfile = async (stepId: number, rowData: any, stepWorkpackageId?: number) => {
+    // Usar el stepWorkpackageId específico si está disponible, sino usar currentWorkpackageId como fallback
+    const workpackageIdToUse = stepWorkpackageId || currentWorkpackageId;
+    
+    if (!workpackageIdToUse) {
       throw new Error('No se puede actualizar el perfil: workpackage no identificado');
     }
+
+    console.log('UpdateProfile - Usando workpackageId:', {
+      stepWorkpackageId,
+      currentWorkpackageId,
+      workpackageIdToUse,
+      stepId
+    });
 
     try {
       const updateData = {
@@ -723,7 +790,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
 
       const result = await updateTimeAndMaterialProfile(
         projectId,
-        currentWorkpackageId,
+        workpackageIdToUse,
         stepId,
         updateData
       );
@@ -943,7 +1010,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
                       required
                     >
                       <option value="">Select country</option>
-                      {countryOptions.map(country => (
+                      {getAvailableCountriesForProfile(row.profileId, row.id).map(country => (
                         <option key={country.id} value={country.id}>
                           {country.name}
                         </option>

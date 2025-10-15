@@ -239,15 +239,14 @@ export const createTimeAndMaterialWorkPackage = async (req: Request, res: Respon
       if (row.yearlyQuantities && Array.isArray(row.yearlyQuantities)) {
         for (let yearIndex = 0; yearIndex < row.yearlyQuantities.length; yearIndex++) {
           const quantity = row.yearlyQuantities[yearIndex] || 0;
-          if (quantity > 0) {
-            await client.query(
-              `INSERT INTO deliverable_yearly_quantities (deliverable_id, year_number, quantity) 
-               VALUES ($1, $2, $3)
-               ON CONFLICT (deliverable_id, year_number) DO UPDATE SET
-                 quantity = EXCLUDED.quantity`,
-              [deliverable.id, yearIndex + 1, quantity]
-            );
-          }
+          // Guardar todos los valores, incluso 0
+          await client.query(
+            `INSERT INTO deliverable_yearly_quantities (deliverable_id, year_number, quantity) 
+             VALUES ($1, $2, $3)
+             ON CONFLICT (deliverable_id, year_number) DO UPDATE SET
+               quantity = EXCLUDED.quantity`,
+            [deliverable.id, yearIndex + 1, quantity]
+          );
         }
       }
     }
@@ -570,16 +569,15 @@ export const updateTimeAndMaterialStep = async (req: Request, res: Response) => 
         [step.deliverable_id]
       );
 
-      // Luego, insertar las nuevas cantidades
+      // Luego, insertar las nuevas cantidades (incluyendo valores 0)
       for (let yearIndex = 0; yearIndex < yearlyQuantities.length; yearIndex++) {
         const quantity = yearlyQuantities[yearIndex] || 0;
-        if (quantity > 0) {
-          await client.query(
-            `INSERT INTO deliverable_yearly_quantities (deliverable_id, year_number, quantity) 
-             VALUES ($1, $2, $3)`,
-            [step.deliverable_id, yearIndex + 1, quantity]
-          );
-        }
+        // Guardar todos los valores, incluso 0
+        await client.query(
+          `INSERT INTO deliverable_yearly_quantities (deliverable_id, year_number, quantity) 
+           VALUES ($1, $2, $3)`,
+          [step.deliverable_id, yearIndex + 1, quantity]
+        );
       }
     }
 

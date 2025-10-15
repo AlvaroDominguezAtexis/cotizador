@@ -89,7 +89,7 @@ const StepsTable: React.FC<Props> = ({
     // Fetch cities
     (async () => {
       try {
-        const res = await fetch(apiConfig.url(`/api/countries/${countryId}/cities`));
+        const res = await apiConfig.fetch(`/api/countries/${countryId}/cities`);
         if (!res.ok) throw new Error('Error');
         const data = await res.json();
         setCitiesForCountry(data || []);

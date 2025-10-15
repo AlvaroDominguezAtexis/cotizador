@@ -15,5 +15,19 @@ export const apiConfig = {
       'Content-Type': 'application/json'
     },
     credentials: 'include' as RequestCredentials
+  },
+
+  // Helper function that automatically applies defaultOptions
+  fetch: async (path: string, options: RequestInit = {}) => {
+    const url = `${API_BASE_URL}${path}`;
+    const mergedOptions = {
+      ...apiConfig.defaultOptions,
+      ...options,
+      headers: {
+        ...apiConfig.defaultOptions.headers,
+        ...(options.headers || {})
+      }
+    };
+    return fetch(url, mergedOptions);
   }
 };

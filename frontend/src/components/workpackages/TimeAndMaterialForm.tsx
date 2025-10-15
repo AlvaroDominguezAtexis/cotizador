@@ -497,7 +497,7 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
     if (!countryId || citiesByCountry[countryId]) return;
     
     try {
-      const res = await fetch(apiConfig.url(`/api/countries/${countryId}/cities`));
+      const res = await apiConfig.fetch(`/api/countries/${countryId}/cities`);
       if (!res.ok) throw new Error('Error fetching cities');
       const cities = await res.json();
       setCitiesByCountry(prev => ({
@@ -681,11 +681,8 @@ const TimeAndMaterialForm: React.FC<TimeAndMaterialFormProps> = ({
   // Función para crear un nuevo perfil
   const createProfile = async (rowData: any) => {
     try {
-      const response = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/time-and-material`), {
+      const response = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/time-and-material`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           rows: [rowData]
         })

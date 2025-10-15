@@ -26,9 +26,8 @@ export const createTimeAndMaterialWorkPackage = async (data: TimeAndMaterialData
     const { projectId, rows } = data;
 
     // Usar el nuevo endpoint backend que maneja todo en una transacción
-    const response = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/time-and-material`), {
+    const response = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/time-and-material`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rows })
     });
 
@@ -48,9 +47,8 @@ export const createTimeAndMaterialWorkPackage = async (data: TimeAndMaterialData
 
 export const fetchTimeAndMaterialWorkPackage = async (projectId: number): Promise<any> => {
   try {
-    const response = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/time-and-material`), {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+    const response = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/time-and-material`, {
+      method: 'GET'
     });
 
     if (!response.ok) {
@@ -74,9 +72,8 @@ export const updateTimeAndMaterialProfile = async (
   data: Partial<TimeAndMaterialProfile>
 ): Promise<any> => {
   try {
-    const response = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workpackageId}/steps/${stepId}/time-and-material`), {
+    const response = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workpackageId}/steps/${stepId}/time-and-material`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
 

@@ -13,14 +13,14 @@ export interface StepPayload {
 }
 
 export const fetchSteps = async (projectId: number, workPackageId: number, deliverableId: number) => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps`));
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps`);
   if (!res.ok) throw new Error('Error fetching steps');
   return res.json();
 };
 
 export const createStepApi = async (projectId: number, workPackageId: number, deliverableId: number, payload: StepPayload) => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps`), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps`, {
+    method: 'POST', body: JSON.stringify(payload)
   });
   if (res.status === 409) throw new Error('DUPLICATE_STEP');
   if (!res.ok) throw new Error('Error creando step');
@@ -28,8 +28,8 @@ export const createStepApi = async (projectId: number, workPackageId: number, de
 };
 
 export const updateStepApi = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number, payload: Partial<StepPayload>) => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}`), {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}`, {
+    method: 'PUT', body: JSON.stringify(payload)
   });
   if (res.status === 409) throw new Error('DUPLICATE_STEP');
   if (!res.ok) throw new Error('Error actualizando step');
@@ -37,7 +37,7 @@ export const updateStepApi = async (projectId: number, workPackageId: number, de
 };
 
 export const deleteStepApi = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number) => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}`), { method: 'DELETE' });
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Error eliminando step');
   return true;
 };
@@ -46,21 +46,21 @@ export const deleteStepApi = async (projectId: number, workPackageId: number, de
 export type AnnualData = { year: number; process_time: number | null; mng: number | null; office: boolean | null; hardware: boolean | null };
 
 export const fetchStepAnnualData = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number): Promise<AnnualData[]> => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data`));
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data`);
   if (!res.ok) throw new Error('Error fetching annual data');
   return res.json();
 };
 
 export const upsertStepAnnualData = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number, year: number, payload: Partial<AnnualData>): Promise<AnnualData> => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data/${year}`), {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data/${year}`, {
+    method: 'PUT', body: JSON.stringify(payload)
   });
   if (!res.ok) throw new Error('Error saving annual data');
   return res.json();
 };
 
 export const deleteStepAnnualData = async (projectId: number, workPackageId: number, deliverableId: number, stepId: number, year: number): Promise<boolean> => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data/${year}`), { method: 'DELETE' });
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/workpackages/${workPackageId}/deliverables/${deliverableId}/steps/${stepId}/annual-data/${year}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Error deleting annual data');
   return true;
 };
@@ -75,7 +75,7 @@ export const recalcProjectStepsCosts = async (projectId: number): Promise<{
     nptCosts?: number;
   }>;
 }> => {
-  const res = await fetch(apiConfig.url(`/api/projects/${projectId}/steps/recalc-costs`), {
+  const res = await apiConfig.fetch(`/api/projects/${projectId}/steps/recalc-costs`, {
     method: 'POST'
   });
   if (!res.ok) throw new Error('Error recalculating project costs');
@@ -90,7 +90,7 @@ export const recalcStepNPTCosts = async (stepId: number): Promise<{
     error?: string;
   }>;
 }> => {
-  const res = await fetch(apiConfig.url(`/api/projects/0/workpackages/0/deliverables/0/steps/${stepId}/recalc-npt-costs`), {
+  const res = await apiConfig.fetch(`/api/projects/0/workpackages/0/deliverables/0/steps/${stepId}/recalc-npt-costs`, {
     method: 'POST'
   });
   if (!res.ok) throw new Error('Error recalculating NPT costs');

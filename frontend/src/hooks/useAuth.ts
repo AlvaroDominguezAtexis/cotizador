@@ -15,29 +15,33 @@ export const useAuth = () => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(apiConfig.url('/api/auth/me'), {
-        credentials: 'include'
-      });
+      const response = await apiConfig.fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
         setAuthState({
           isLoggedIn: true,
           user: data.user
         });
+      } else if (response.status === 401) {
+        // Normal cuando no hay sesión activa - no mostrar error
+        setAuthState({
+          isLoggedIn: false,
+          user: undefined
+        });
       }
     } catch (error) {
-      console.log('Not authenticated');
+      // Silencioso - esto es normal al cargar la app sin sesión
+      setAuthState({
+        isLoggedIn: false,
+        user: undefined
+      });
     }
   };
 
   const login = useCallback(async (credentials: LoginCredentials): Promise<boolean> => {
     try {
-      const response = await fetch(apiConfig.url('/api/auth/login'), {
+      const response = await apiConfig.fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({
           email: credentials.username, // Using username field as email
           password: credentials.password
@@ -61,9 +65,8 @@ export const useAuth = () => {
 
   const logout = useCallback(async () => {
     try {
-      await fetch(apiConfig.url('/api/auth/logout'), {
-        method: 'POST',
-        credentials: 'include'
+      await apiConfig.fetch('/api/auth/logout', {
+        method: 'POST'
       });
     } catch (error) {
       console.error('Logout error:', error);
